@@ -1,0 +1,23 @@
+{
+  "name": "pokesurvivor",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "sideEffects": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:prod": "tsc --noEmit && vite build --minify false --sourcemap false && node tools/make-prod.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "happy-dom": "^21.0.3",
+    "javascript-obfuscator": "^4.1.1",
+    "terser": "^5.39.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4"
+  }
+}

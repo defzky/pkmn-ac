@@ -1,0 +1,14 @@
+# deps
+node_modules/
+
+# build
+dist/
+tools/cache/
+*.tsbuildinfo
+
+# reference clone (upstream source)
+.reference/
+
+# os/editor
+.DS_Store
+*.log
