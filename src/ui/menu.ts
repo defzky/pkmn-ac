@@ -24,7 +24,7 @@ const MenuUI = (() => {
   const SORTS = [['num', 'Nº'], ['name', 'Nombre'], ['rar', 'Rareza'], ['new', 'Recién conseguidos'], ['used', 'Más usados']];
 
   function init() {
-    const ICON = { play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear' };
+    const ICON = { play: 'ball', dex: 'book', upgrades: 'up', gacha: 'ball4', goals: 'medal3', friends: 'friends', rank: 'trophy', settings: 'gear', ac: 'gear' };
     document.querySelectorAll('#scr-menu [data-go]').forEach((b: any) => {
       b.insertAdjacentHTML('afterbegin', `<span class="mi-ico">${Icons.html((ICON as any)[b.dataset.go], 26)}</span>`);
       b.dataset.sfx = b.dataset.go === 'play' ? 'confirm' : 'click';
@@ -38,6 +38,7 @@ const MenuUI = (() => {
         else if (go === 'friends') (G as any).FriendsUI.open();
         else if (go === 'rank') (G as any).RankingUI.open();
         else if (go === 'settings') (G as any).SettingsUI.open();
+        else if (go === 'ac') (G as any).AutochessUI.open();
       };
     });
     document.querySelectorAll('[data-back]').forEach((b: any) => { b.onclick = open; });
