@@ -78,6 +78,7 @@ import './autochess/unit.ts';
 import './autochess/base.ts';
 import './autochess/unitAI.ts';
 import './autochess/wave-runner.ts';
+import './autochess/shop.ts';
 /* ============ main.js — arranque ============ */
 (() => {
   // Si un archivo no llega a cargarse (conexión móvil que se corta), mejor
