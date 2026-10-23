@@ -1,5 +1,5 @@
 {
-  "name": "pokesurvivor",
+  "name": "pkm-autochess",
   "private": true,
   "version": "3.0.0",
   "type": "module",
@@ -19,5 +19,6 @@
     "typescript": "^5.9.2",
     "vite": "^7.1.0",
     "vitest": "^3.2.4"
-  }
+  },
+  "description": "PokéAutochess — tower defence autochess"
 }

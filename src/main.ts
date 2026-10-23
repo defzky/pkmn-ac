@@ -69,6 +69,10 @@ import './ui/support-ui.ts';
 import './ui/news-ui.ts';
 import './core/updater.ts';
 import './game.ts';
+import './autochess/path.ts';
+import './autochess/unit-stats.ts';
+import './autochess/wave.ts';
+import './autochess/synergy.ts';
 /* ============ main.js — arranque ============ */
 (() => {
   // Si un archivo no llega a cargarse (conexión móvil que se corta), mejor
