@@ -74,6 +74,9 @@ import './autochess/unit-stats.ts';
 import './autochess/wave.ts';
 import './autochess/synergy.ts';
 import './autochess/board.ts';
+import './autochess/unit.ts';
+import './autochess/base.ts';
+import './autochess/unitAI.ts';
 /* ============ main.js — arranque ============ */
 (() => {
   // Si un archivo no llega a cargarse (conexión móvil que se corta), mejor
