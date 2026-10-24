@@ -86,7 +86,6 @@ function ensureDom(): HTMLElement {
         </div>
         <div class="ac-power" id="ac-power">⚔️ 0</div>
         <div class="ac-arena me" id="ac-arena-me">
-          <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
           <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
           <div class="ac-me-hud">
             <span class="ac-heart blue">♥ <b id="ac-hp">45</b></span>
@@ -98,6 +97,7 @@ function ensureDom(): HTMLElement {
         <canvas class="ac-fx" id="ac-fx"></canvas>
       </div>
       <div class="ac-synbar" id="ac-syn"></div>
+      <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
       <div class="ac-shoprow" id="ac-shop"></div>
       <div class="ac-footer">
         <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>

@@ -965,9 +965,10 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
 .ac-goldsun {
-  position: absolute; bottom: 6px; left: 8px; z-index: 6;
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  margin: 5px 0 4px; z-index: 6;
   background: rgba(10,14,22,.85); border: 1px solid var(--gold); border-radius: 999px;
-  color: #ffd465; font-size: 13px; font-weight: bold; padding: 3px 9px;
+  color: #ffd465; font-size: 13px; font-weight: bold; padding: 3px 10px;
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
 .ac-trash {

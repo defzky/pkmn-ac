@@ -71,6 +71,9 @@ describe('open / render — dual arenas', () => {
     expect(($('#ac-hp').textContent || '')).toContain('45');
     expect(($('#ac-power').textContent || '')).toContain('⚔️');
     expect(($('#ac-gold').textContent || '')).toContain('5');
+    const gold = document.getElementById('ac-gold')!;
+    expect(gold.closest('.ac-arena')).toBeNull(); // outside arena → visible in TD too
+    expect(gold.nextElementSibling?.id).toBe('ac-shop'); // directly above shop cards
   });
   it('footer: reroll circle (cost 1), Ready button, timer fill', () => {
     expect($('#ac-reroll')).toBeTruthy();
