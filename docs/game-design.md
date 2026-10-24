@@ -52,8 +52,8 @@ Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) d
 | **Zubat** | Swarm (Gerombolan) | HP tipis, tetapi datang dalam jumlah sangat banyak sekaligus. |
 | **Diglett** | Fast (Runner) | HP rendah, *Movement Speed* sangat cepat untuk menerobos garis pertahanan. |
 | **Geodude** | Armored (Tank) | Jalan lambat, tetapi memiliki *Physical Defense* tinggi (lemah terhadap serangan Magic/Elemen). |
-| **Koffing** | Debuffer | Saat mati, meledakkan asap racun yang memperlambat *Attack Speed* unit di dekatnya. |
-| **Magnemite** | Shielded | Memiliki *Shield* tambahan yang harus dihancurkan sebelum HP utamanya berkurang. |
+| **Koffing** | Debuffer | **Wave ≥ 10 (pool MID).** Saat mati, meledakkan asap racun yang memperlambat *Attack Speed* unit di dekatnya. |
+| **Magnemite** | Shielded | **Wave ≥ 10 (pool MID).** Memiliki *Shield* tambahan yang harus dihancurkan sebelum HP utamanya berkurang. |
 
 ### 2. Musuh Elite (Mid - Late Wave)
 
@@ -80,7 +80,7 @@ Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) d
 
 * **Dua arena 3x3 berdampingan:**
   * **Arena musuh (atas):** slot tetap y −1 … y −3 (baris depan y −1). Musuh spawn berurutan dari baris depan; maksimum 9 terlihat sekaligus.
-  * **Arena pemain (bawah):** grid 3x3 y 0 … y 2. Tanpa *bench* — beli unit langsung ditempatkan ke petak kosong pertama (*back-to-front*). Kapasitas = `min(8, 1 + floor(level / 2))`.
+  * **Arena pemain (bawah):** grid 3x3 y 0 … y 2. Tanpa *bench* di alur beli — unit langsung auto-place ke petak kosong pertama (*back-to-front*). (Infra bench `BENCH_SIZE=2` masih ada di kode tapi tidak dipakai alur buy.) Kapasitas = `min(8, 1 + floor(level / 2))`.
 * **Cara beli & taruh:**
   * **Drag & Drop:** seret kartu *Shop* ke petak kosong → unit langsung **beli + taruh** di petak itu; seret ke area lain → beli (auto-place petak kosong). Overlay kartu (*ghost*) mengikuti pointer.
   * **Tap (fallback):** tap kartu → beli + auto-place; tap unit → tap petak → pindah.

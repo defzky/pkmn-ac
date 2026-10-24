@@ -1,5 +1,5 @@
 /**
- * shop.ts — autochess shop: 3 cards + reroll 2g, buy → bench → auto-merge stars.
+ * shop.ts — autochess shop: 3 cards + reroll 1g, buy → board (auto-place) → auto-merge stars.
  *
  * P15 (updated 2026-10-24): pool = 12 GDD champions (champions.ts).
  * Cost = champion cost 1–4 (wave-banded odds per GDD Bagian 5).

@@ -71,7 +71,8 @@ src/autochess/
   wave.ts         # komposisi, roles, elite w10+, boss tetap, HP waveMul
   wave-runner.ts  # state machine prep/combat/buff/won/lost, 2 heart (45/20)
   buffs.ts        # pool 5 buff, roll 3
-  base.ts         # heart state (player 45 / foe 20 via createRun)
+  base.ts         # generic leak model (START_HP 100 / LEAK 5 / BOSS 20); hearts via wave-runner createBase
+  move-fx.ts      # move animation FX pipeline (attack/projectile VFX)
   ac-ui.ts        # screen scr-ac: twin arena render, drag-drop buy, loop, syncEnemies
 ```
 
@@ -124,7 +125,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 
 ```
 npm run dev          # :5173
-npm test             # 59 baseline + phase tests
+npm test             # vitest: 13 test files, 231 tests
 npm run build        # dev bundle
 npm run build:prod   # obfuscated prod + version.json
 npm run preview
