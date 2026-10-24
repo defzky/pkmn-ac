@@ -29,12 +29,29 @@ export interface MobSpec {
   disable: boolean;    // mewtwo
   /** TD lane side (D2b): 0 = left runner lane, 1 = right bulwark lane */
   side?: 0 | 1;
+  /** D2d wave affix tag (swarm/fast/armored/elemental) */
+  affix?: string;
+}
+
+export type Affix = 'swarm' | 'fast' | 'armored' | 'elemental';
+
+export const AFFIXES: readonly Affix[] = ['swarm', 'fast', 'armored', 'elemental'];
+export const AFFIX_LABEL: Record<Affix, string> = {
+  swarm: 'Swarm', fast: 'Fast', armored: 'Armored', elemental: 'Elemental',
+};
+
+/** Rotating affix from wave 3, one per wave (GDD common §2a). */
+export function affixFor(wave: number): Affix | null {
+  if (wave < 3) return null;
+  return AFFIXES[(wave - 3) % AFFIXES.length];
 }
 
 export interface WaveComp {
   wave: number;
   mobs: MobSpec[];
   boss: boolean;
+  /** active affix for this wave (null before wave 3) */
+  affix?: Affix | null;
 }
 
 export const MAX_WAVE = 10; // D2c: 5-min sprint (endless opt-in past this)
@@ -141,9 +158,28 @@ function baseSpec(e: any): Omit<MobSpec, 'hp' | 'atk' | 'spd'> {
 
 /** Compose wave. Deterministic given seed (U.rnd default = Math.random).
  * No upper clamp — endless mode composes waves past MAX_WAVE (scaling keeps rising). */
+/** Apply wave affix to a composed mob list (mutates specs; D2d). */
+function applyAffix(mobs: MobSpec[], affix: Affix | null): MobSpec[] {
+  if (!affix || !mobs.length) return mobs;
+  for (const m of mobs) {
+    m.affix = affix;
+    if (affix === 'swarm') m.hp = Math.max(1, Math.round(m.hp * 0.7));
+    else if (affix === 'fast') m.spd *= 1.5;
+    else if (affix === 'armored') m.armor = Math.min(0.9, m.armor + 0.25);
+    // elemental: burn/poison immune + ×1.25 attack power (unitAI hitUnit/addBurn)
+  }
+  if (affix === 'swarm') {
+    const base = [...mobs];
+    const target = Math.min(20, Math.ceil(mobs.length * 1.4));
+    while (mobs.length < target) mobs.push({ ...base[mobs.length % base.length]! });
+  }
+  return mobs;
+}
+
 export function compose(wave: number, rnd: () => number = Math.random): WaveComp {
   wave = Math.max(1, Math.floor(wave));
   const mul = waveMul(wave);
+  const affix = affixFor(wave);
 
   // boss wave → single named boss + one escort per lane (both lanes press)
   const bossDef = BOSSES[wave];
@@ -166,7 +202,8 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
     return {
       wave,
       boss: true,
-      mobs: [{
+      affix,
+      mobs: applyAffix([{
         ...baseSpec(e),
         dex: bossDef.dex,
         star: 3,
@@ -180,7 +217,7 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
         roar: !!bossDef.roar,
         disable: !!bossDef.disable,
         side: 0,
-      }, ...escorts],
+      }, ...escorts], affix),
     };
   }
 
@@ -211,7 +248,7 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
       side: (wave % 2 === 1 ? (i % 5 === 4 ? 1 : 0) : (i % 5 === 0 ? 0 : 1)) as 0 | 1,
     });
   }
-  return { wave, mobs, boss: false };
+  return { wave, mobs: applyAffix(mobs, affix), boss: false, affix };
 }
 
 /** Win when final wave cleared. */
@@ -219,7 +256,7 @@ export function isFinal(wave: number): boolean {
   return wave >= MAX_WAVE;
 }
 
-const WaveDef = { compose, waveMul, MAX_WAVE, BOSS_EVERY, isFinal, prepSeconds, interest, streakBonus, BOSSES, EARLY, MID };
+const WaveDef = { compose, waveMul, MAX_WAVE, BOSS_EVERY, isFinal, prepSeconds, interest, streakBonus, affixFor, AFFIX_LABEL, BOSSES, EARLY, MID };
 register('WaveDef', WaveDef);
 export { WaveDef };
 export default WaveDef;

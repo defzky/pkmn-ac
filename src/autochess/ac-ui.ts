@@ -26,6 +26,8 @@ import { WaveRunner } from './wave-runner';
 import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { runScore } from './base';
+import Types from '../data/types';
+import { DEFS } from './champions';
 import { Buffs, type BuffDef } from './buffs';
 import { isFlank } from './unit';
 import { planMoveFx } from './move-fx';
@@ -515,9 +517,11 @@ function renderStage(): void {
     // TD: next-wave preview in visible strip above board + base gate marker at path end
     const waveBox = $('ac-td-wave');
     waveBox.innerHTML = '';
-    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunnerTd.MAX_MOBS);
+    const comp = WaveDef.compose(st.run.wave);
+    const preview = st.run.phase === 'combat' ? [] : comp.mobs.slice(0, WaveRunnerTd.MAX_MOBS);
     waveBox.insertAdjacentHTML('beforeend', '<span class="ac-td-gate">⬇ Spawn</span>');
     // D2b: type chips (counter-building) + side summary of the coming wave
+    // D2d: affix badge (Swarm/Fast/Armored/Elemental from wave 3)
     if (preview.length) {
       const tset: string[] = [];
       for (const spec of preview) {
@@ -530,7 +534,8 @@ function renderStage(): void {
       waveBox.insertAdjacentHTML('beforeend',
         `<span class="ac-td-types">${tset.map((t) =>
           `<i style="background:${(U.TYPE_COLOR as any)[t] || '#888'}">${esc(t)}</i>`).join('')}` +
-        `<em>${sideHint}</em></span>`);
+        `<em>${sideHint}</em></span>` +
+        (comp.affix ? `<b class="ac-td-affix a-${comp.affix}">${WaveDef.AFFIX_LABEL[comp.affix]}</b>` : ''));
     }
     preview.forEach((spec) => {
       const g = document.createElement('span');
@@ -1095,8 +1100,26 @@ function onBuy(i: number) {
   return r;
 }
 
+/** D2d shop bias: champion dexes super-effective vs upcoming wave types. */
+function waveBiasDexes(): number[] {
+  const comp = WaveDef.compose(Math.max(1, st.run?.wave || 1));
+  const mobTypes: string[] = [];
+  for (const s of comp.mobs) {
+    const e = ((G as any).DEX_BY || {})[s.dex] || {};
+    for (const t of e.types || []) if (!mobTypes.includes(t)) mobTypes.push(t);
+  }
+  if (!mobTypes.length) return [];
+  const out: number[] = [];
+  for (const c of DEFS) {
+    const e = ((G as any).DEX_BY || {})[c.dex] || {};
+    const ts: string[] = e.types || [];
+    if (ts.some((t: string) => Types.mult(t, mobTypes) > 1)) out.push(c.dex);
+  }
+  return out;
+}
+
 function onReroll(): void {
-  const r = Shop.reroll(st.shop, st.run.gold, st.run.wave);
+  const r = Shop.reroll(st.shop, st.run.gold, st.run.wave, Math.random, waveBiasDexes());
   if (!r.ok) {
     Audio.sfx('error', undefined);
     UI.toast('Not enough gold');
@@ -1248,7 +1271,7 @@ function loop(ts: number): void {
         Audio.sfx(boss ? 'boss' : 'confirm', undefined);
       }
       else if (after === 'buff') {
-        st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
+        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes()); // wave cleared → free shop refresh
         renderAll(); offerBuff(); return;
       }
       else if (after === 'lost') {
@@ -1259,7 +1282,7 @@ function loop(ts: number): void {
       }
       else {
         if (prev === 'combat' && after === 'prep') {
-          st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
+        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes()); // wave cleared → free shop refresh
           const bonus = Runner.waveBonus(r.wave - 1);
           UI.toast(`+${bonus} gold`); // wave already advanced
           // wave-cleared banner + gold pill pop (Fase J)
@@ -1281,7 +1304,7 @@ function loop(ts: number): void {
       endless: !r.endless,
       onEndless: () => {
         Runner.resumeEndless(r);
-        st.shop = Shop.createShop(r.wave);
+        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes());
         renderAll();
         if (st.open) requestAnimationFrame(loop);
       },
@@ -1602,7 +1625,7 @@ function reset(): void {
   lastRoundWave = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   st.run = Runner.createRun();
-  st.shop = Shop.createShop(1);
+  st.shop = Shop.createShop(1, Math.random, waveBiasDexes());
   st.board = { units: [] };
   st.sel = null;
   st.units = [];

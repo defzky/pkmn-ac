@@ -110,6 +110,7 @@ function toMob(s: MobSpec, slot: { x: number; y: number }): MobBattle {
     statuses: [],
     shred: 0,
     shredT: 0,
+    affix: s.affix,
     atkT: 0,
     stopT: 0,
   };

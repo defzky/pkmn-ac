@@ -481,3 +481,23 @@ describe('D2b — flank bonus (unit.ts isFlank/isCorner + unitAI)', () => {
     expect(Unit.isCorner(0, 1)).toBe(false);
   });
 });
+
+describe('D2d elemental affix (unitAI)', () => {
+  it('elemental mob: +25% attack vs unit, immune to burn/poison', () => {
+    const u = unitAt(4, 1, 1); // normal type → tm 1.0 vs fire
+    u.types = ['normal'];
+    u.hpCur = 100;
+    const m = mob({ types: ['fire'], atk: 40, affix: 'elemental' });
+    UnitAI.hitUnit(m, u, 40);
+    expect(u.hpCur).toBeCloseTo(100 - 40 * 1.25, 5);
+    UnitAI.addBurn(m, 'burn', 2, 10);
+    UnitAI.addBurn(m, 'poison', 2, 10);
+    expect((m.statuses || []).length).toBe(0);
+  });
+
+  it('non-elemental mob still burns', () => {
+    const m = mob({ types: ['fire'] });
+    UnitAI.addBurn(m, 'burn', 2, 10);
+    expect((m.statuses || []).length).toBe(1);
+  });
+});

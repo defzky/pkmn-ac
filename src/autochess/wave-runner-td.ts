@@ -103,6 +103,7 @@ function toMob(s: MobSpec): MobBattle {
     shredT: 0,
     atkT: 0,
     stopT: 0,
+    affix: s.affix,
   };
 }
 

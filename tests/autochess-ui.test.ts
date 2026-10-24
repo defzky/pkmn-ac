@@ -867,3 +867,16 @@ describe('D2b — flank highlight + wave preview chips', () => {
     expect(types!.querySelector('em')!.textContent).toMatch(/kiri|kanan|both/);
   });
 });
+
+describe('D2d — affix badge in wave strip', () => {
+  it('wave 3 (swarm): strip shows .ac-td-affix "Swarm"; wave 1: none', () => {
+    ACUI.open('td');
+    expect($('#ac-td-wave .ac-td-affix')).toBe(null); // wave 1, no affix
+    ACUI.run.wave = 3;
+    ACUI.render();
+    const badge = $('#ac-td-wave .ac-td-affix');
+    expect(badge).toBeTruthy();
+    expect(badge!.textContent).toBe('Swarm');
+    expect(badge!.className).toContain('a-swarm');
+  });
+});

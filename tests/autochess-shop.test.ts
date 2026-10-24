@@ -214,3 +214,25 @@ describe('sell — star refund (GDD Bagian 5)', () => {
     expect(board.units.length).toBe(0);
   });
 });
+
+describe('D2d shop bias', () => {
+  it('rollSlot bias hit: 15% re-pick within same tier picks biased dex', async () => {
+    const { poolByCost } = await import('../src/autochess/champions.ts');
+    const pool = poolByCost(1);
+    const dex = pool[0].dex;
+    const seq = [0.01, 0.1, 0.0]; // cost1 roll, bias hit (<0.15), index 0
+    const rnd = () => seq.shift() ?? 0.99;
+    const slot = Shop.rollSlot(5, rnd as any, [dex]);
+    expect(slot).toBeTruthy();
+    expect(slot!.dex).toBe(dex);
+  });
+
+  it('rollSlot bias miss (>0.15): normal pick path still valid', async () => {
+    const { poolByCost } = await import('../src/autochess/champions.ts');
+    const pool = poolByCost(1);
+    const seq = [0.01, 0.5, 0.0]; // bias roll 0.5 → miss
+    const rnd = () => seq.shift() ?? 0.99;
+    const slot = Shop.rollSlot(5, rnd as any, [pool[pool.length - 1].dex]);
+    expect(slot).toBeTruthy();
+  });
+});

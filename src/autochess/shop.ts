@@ -27,18 +27,35 @@ export function rollCost(wave = 1, rnd: () => number = Math.random): number {
   return 1;
 }
 
-/** one fresh champion card (star 1, unplaced) of rolled cost */
-export function rollSlot(wave = 1, rnd: () => number = Math.random): BoardUnit | null {
+/** one fresh champion card (star 1, unplaced) of rolled cost.
+ * biasDexes (D2d): +15% chance to re-pick within the same cost tier from
+ * champions listed (super-effective vs next-wave types). */
+export function rollSlot(
+  wave = 1,
+  rnd: () => number = Math.random,
+  biasDexes?: number[]
+): BoardUnit | null {
   const cost = rollCost(wave, rnd);
   const pool = poolByCost(cost);
   if (!pool.length) return null;
+  if (biasDexes && biasDexes.length && rnd() < 0.15) {
+    const cand = pool.filter((c) => biasDexes.includes(c.dex));
+    if (cand.length) {
+      const e = cand[Math.floor(rnd() * cand.length)];
+      return { dex: e.dex, star: 1, x: null, y: null, bench: null };
+    }
+  }
   const e = pool[Math.floor(rnd() * pool.length)];
   return { dex: e.dex, star: 1, x: null, y: null, bench: null };
 }
 
-export function createShop(wave = 1, rnd: () => number = Math.random): ShopState {
+export function createShop(
+  wave = 1,
+  rnd: () => number = Math.random,
+  biasDexes?: number[]
+): ShopState {
   const slots: Array<BoardUnit | null> = [];
-  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd));
+  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd, biasDexes));
   return { slots };
 }
 
@@ -47,11 +64,12 @@ export function reroll(
   shop: ShopState,
   gold: number,
   wave = 1,
-  rnd: () => number = Math.random
+  rnd: () => number = Math.random,
+  biasDexes?: number[]
 ): { ok: boolean; gold: number } {
   if (gold < REROLL_COST) return { ok: false, gold };
   const slots: Array<BoardUnit | null> = [];
-  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd));
+  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd, biasDexes));
   shop.slots = slots;
   return { ok: true, gold: gold - REROLL_COST };
 }

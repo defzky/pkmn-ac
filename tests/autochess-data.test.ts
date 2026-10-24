@@ -151,18 +151,20 @@ describe('wave', () => {
   it('count formula 3+floor(w/2) cap 16 (non-boss waves)', () => {
     expect(WaveDef.compose(2).mobs.length).toBe(4);
     expect(WaveDef.compose(9).mobs.length).toBe(7);
-    expect(WaveDef.compose(19).mobs.length).toBe(12); // 3+9 — endless past MAX_WAVE still composes
+    // wave 19 = swarm affix → 12 × 1.4 = 17 clones (D2d)
+    expect(WaveDef.compose(19).mobs.length).toBe(17);
   });
 
   it('fixed boss every 5th wave (5/10/15/20): boss + 2 escorts', () => {
     for (const w of [5, 10, 15, 20]) {
       const c = WaveDef.compose(w);
       expect(c.boss, `wave ${w}`).toBe(true);
-      expect(c.mobs).toHaveLength(3); // D2b: boss (side 0) + escort per lane
+      // D2b: boss + escort per lane; D2d swarm affix clones may pad to 5
+      expect(c.mobs.length === 3 || (c.affix === 'swarm' && c.mobs.length === 5)).toBe(true);
       expect(c.mobs[0].boss).toBe(true);
       expect(c.mobs[0].star).toBe(3);
       expect(c.mobs[0].side).toBe(0);
-      expect(c.mobs.filter((m: any) => !m.boss)).toHaveLength(2);
+      expect(c.mobs.filter((m: any) => !m.boss).length).toBeGreaterThanOrEqual(2);
       expect(new Set(c.mobs.map((m: any) => m.side))).toEqual(new Set([0, 1]));
     }
     expect(WaveDef.compose(5).mobs[0].dex).toBe(95);   // Onix
@@ -319,5 +321,39 @@ describe('synergy', () => {
     const act3 = Synergy.active([...units, mk(5, ['fire'])]);
     expect(act3[0].tier).toBe(3);
     expect(act3[0].count).toBe(3);
+  });
+});
+
+describe('D2d affixes', () => {
+  it('affixFor: null before wave 3, then rotates swarm/fast/armored/elemental', () => {
+    expect(WaveDef.affixFor(1)).toBe(null);
+    expect(WaveDef.affixFor(2)).toBe(null);
+    expect(WaveDef.affixFor(3)).toBe('swarm');
+    expect(WaveDef.affixFor(4)).toBe('fast');
+    expect(WaveDef.affixFor(5)).toBe('armored');
+    expect(WaveDef.affixFor(6)).toBe('elemental');
+    expect(WaveDef.affixFor(7)).toBe('swarm');
+  });
+
+  it('swarm wave 3: +40% count (cap 20), hp ×0.7, all tagged', () => {
+    const c = WaveDef.compose(3, () => 0);
+    expect(c.affix).toBe('swarm');
+    expect(c.mobs.length).toBe(Math.min(20, Math.ceil(4 * 1.4))); // 6
+    for (const m of c.mobs) {
+      expect(m.affix).toBe('swarm');
+      expect(m.hp).toBeGreaterThan(0);
+    }
+  });
+
+  it('fast/armor/elemental apply per-mob modifiers', () => {
+    const fast = WaveDef.compose(4, () => 0.5);
+    expect(fast.affix).toBe('fast');
+    for (const m of fast.mobs) expect(m.affix).toBe('fast');
+    const armored = WaveDef.compose(5, () => 0.5); // boss wave
+    expect(armored.affix).toBe('armored');
+    for (const m of armored.mobs) expect(m.armor).toBeGreaterThanOrEqual(0.25);
+    const elem = WaveDef.compose(6, () => 0);
+    expect(elem.affix).toBe('elemental');
+    for (const m of elem.mobs) expect(m.affix).toBe('elemental');
   });
 });

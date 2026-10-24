@@ -934,6 +934,12 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-ghost { opacity: .75; display: inline-flex; position: relative; }
 .ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.85); max-height: calc(var(--ac-pitch, 72px) * 0.85); }
 .ac-td-ghost .ac-td-side { position: absolute; bottom: -2px; right: -2px; font-size: 10px; font-weight: bold; color: var(--gold); text-shadow: 0 1px 2px #000; }
+/* D2d wave affix badge */
+.ac-td-affix { font-size: 10px; font-weight: bold; letter-spacing: .02em; padding: 1px 6px; border-radius: 999px; background: rgba(255, 90, 90, .16); border: 1px solid rgba(255, 120, 120, .5); color: #ffb0b0; white-space: nowrap; }
+.ac-td-affix.a-swarm { background: rgba(199, 146, 234, .16); border-color: rgba(199, 146, 234, .55); color: #d7b6f0; }
+.ac-td-affix.a-fast { background: rgba(130, 170, 255, .16); border-color: rgba(130, 170, 255, .55); color: #a9c4ff; }
+.ac-td-affix.a-armored { background: rgba(247, 140, 108, .16); border-color: rgba(247, 140, 108, .55); color: #f7b49a; }
+.ac-td-affix.a-elemental { background: rgba(137, 221, 255, .16); border-color: rgba(137, 221, 255, .55); color: #b6e8ff; }
 .ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 /* D2b: wave preview type chips + side summary */
 .ac-td-types { display: inline-flex; gap: 3px; align-items: center; margin-left: 4px; }

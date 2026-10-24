@@ -88,6 +88,8 @@ export interface MobBattle {
   atkT: number;
   /** TD bulwark stop-&-fight seconds accumulated (0 = walking) */
   stopT: number;
+  /** D2d wave affix tag (swarm/fast/armored/elemental) */
+  affix?: string;
 }
 
 export interface TickResult {
@@ -161,7 +163,8 @@ export function nearestUnit(x: number, y: number, units: UnitBattle[], maxD: num
 
 /** Mob hits unit: typeMult(mob primary type vs unit types) on raw dmg. */
 export function hitUnit(m: MobBattle, u: UnitBattle, dmg: number): void {
-  const d = dmg * typeMult(m.types?.[0] || '', u.types || []);
+  let d = dmg * typeMult(m.types?.[0] || '', u.types || []);
+  if (m.affix === 'elemental') d *= 1.25; // D2d Elemental: +% attack type power
   if (d <= 0) return;
   u.hpCur -= d;
   if (u.hpCur <= 0) { u.hpCur = 0; u.alive = false; }
@@ -181,6 +184,7 @@ export function respawnUnits(units: UnitBattle[]): void {
 // ---------------- status helpers (exported for skills.ts) ----------------
 
 export function addBurn(m: MobBattle, type: 'burn' | 'poison', t: number, dps: number): void {
+  if (m.affix === 'elemental') return; // D2d: immune burn/poison
   (m.statuses = m.statuses || []).push({ type, t, dps });
 }
 
