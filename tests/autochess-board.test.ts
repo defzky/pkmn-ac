@@ -33,66 +33,48 @@ describe('board placement', () => {
     expect(s.units).toHaveLength(2);
   });
 
-  it('refuse when board cap reached (level 8 → 5 units)', () => {
+  it('no unit cap: fills all 9 cells, 10th refused (grid full)', () => {
     const s = st();
-    for (let i = 0; i < 5; i++) expect(Board.add(s, 1)).not.toBeNull();
+    for (let i = 0; i < 9; i++) expect(Board.add(s, 1)).not.toBeNull();
+    expect(s.units).toHaveLength(9);
     expect(Board.add(s, 1)).toBeNull();
-    expect(s.units).toHaveLength(5);
   });
 
   it('place on free rock cell succeeds; ring cell blocked', () => {
     const s = st();
     const a = Board.add(s, 25);
-    expect(Board.place(s, a, 1, 1, 8)).toBe(true);
+    expect(Board.place(s, a, 1, 1)).toBe(true);
     expect(a.x).toBe(1);
     expect(a.y).toBe(1);
     expect(a.bench).toBeNull();
     // ring cells rejected (top / right / bottom)
     const b = Board.add(s, 1);
-    expect(Board.place(s, b, 1, -1, 8)).toBe(false); // spawn row
-    expect(Board.place(s, b, 3, 1, 8)).toBe(false);  // right lane col
-    expect(Board.place(s, b, 1, 3, 8)).toBe(false);  // base row
+    expect(Board.place(s, b, 1, -1)).toBe(false); // spawn row
+    expect(Board.place(s, b, 3, 1)).toBe(false);  // right lane col
+    expect(Board.place(s, b, 1, 3)).toBe(false);  // base row
   });
 
   it('occupied cell rejected', () => {
     const s = st();
     const a = Board.add(s, 25);
     const b = Board.add(s, 1);
-    expect(Board.place(s, a, 2, 0, 8)).toBe(true);
-    expect(Board.place(s, b, 2, 0, 8)).toBe(false);
+    expect(Board.place(s, a, 2, 0)).toBe(true);
+    expect(Board.place(s, b, 2, 0)).toBe(false);
   });
 
   it('out of bounds rejected', () => {
     const s = st();
     const a = Board.add(s, 25);
-    expect(Board.place(s, a, -1, 0, 8)).toBe(false);
-    expect(Board.place(s, a, 3, 0, 8)).toBe(false);
-    expect(Board.place(s, a, 0, 3, 8)).toBe(false);
-    expect(Board.place(s, a, 1.5, 1, 8)).toBe(false);
-  });
-
-  it('board cap by level: level 1 → 1 unit', () => {
-    const s = st();
-    const a = { dex: 25, star: 1, x: null, y: null, bench: null };
-    const b = { dex: 1, star: 1, x: null, y: null, bench: null };
-    s.units.push(a, b); // off-board; place() enforces cap
-    expect(Board.place(s, a, 1, 0, 1)).toBe(true);
-    expect(Board.place(s, b, 2, 0, 1)).toBe(false); // cap 1
-    expect(Board.place(s, b, 2, 0, 2)).toBe(true);  // cap 2
-  });
-
-  it('boardCap formula', () => {
-    expect(Board.boardCap(1)).toBe(1);
-    expect(Board.boardCap(2)).toBe(2);
-    expect(Board.boardCap(8)).toBe(5);
-    expect(Board.boardCap(14)).toBe(8);
-    expect(Board.boardCap(20)).toBe(8); // cap
+    expect(Board.place(s, a, -1, 0)).toBe(false);
+    expect(Board.place(s, a, 3, 0)).toBe(false);
+    expect(Board.place(s, a, 0, 3)).toBe(false);
+    expect(Board.place(s, a, 1.5, 1)).toBe(false);
   });
 
   it('toBench returns unit to first free slot', () => {
     const s = st();
     const a = Board.add(s, 25);
-    Board.place(s, a, 1, 0, 8);
+    Board.place(s, a, 1, 0);
     expect(Board.toBench(s, a)).toBe(true);
     expect(a.bench).toBe(0);
     expect(a.x).toBeNull();
@@ -195,7 +177,7 @@ describe('placed (synergy view)', () => {
   it('returns board units with types from pokedex', () => {
     const s = st();
     const a = Board.add(s, 4); // charmander fire
-    Board.place(s, a, 1, 0, 8);
+    Board.place(s, a, 1, 0);
     push(s, { dex: 7 }); // off-board — excluded
     const p = Board.placed(s);
     expect(p).toHaveLength(1);

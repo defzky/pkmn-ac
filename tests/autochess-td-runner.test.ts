@@ -171,7 +171,7 @@ describe('round win / game win', () => {
     const goldBefore = st.gold;
     const changed = WRTD.tick(st, [god], 0.01);
     expect(changed).toBe(true);
-    expect(st.gold).toBe(goldBefore + WRTD.WAVE_BONUS);
+    expect(st.gold).toBe(goldBefore + WRTD.waveBonus(1)); // wave 1 → 3
     expect(st.wave).toBe(2);
     expect(st.phase).toBe('prep');
   });

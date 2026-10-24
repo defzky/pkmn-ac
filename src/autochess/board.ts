@@ -24,13 +24,7 @@ export interface BoardState {
 }
 
 export const BENCH_SIZE = 2;
-export const BOARD_MAX_UNITS = 8;
 export const MAX_STAR = 3;
-
-/** Board capacity by player level: min(8, 1+floor(level/2)) */
-export function boardCap(level: number): number {
-  return Math.min(BOARD_MAX_UNITS, 1 + Math.floor(level / 2));
-}
 
 function onBoard(u: BoardUnit): boolean { return u.x !== null && u.y !== null; }
 function onBench(u: BoardUnit): boolean { return u.bench !== null; }
@@ -45,12 +39,11 @@ function isPlacementCell(x: number, y: number): boolean {
   return Path.inside(x, y);
 }
 
-/** Place from bench → board cell. Returns false if invalid. */
-function place(state: BoardState, unit: BoardUnit, x: number, y: number, level = 8): boolean {
+/** Place from bench → board cell. Returns false if invalid. No unit cap —
+ * the 3×3 grid itself is the only limit (9 cells). */
+function place(state: BoardState, unit: BoardUnit, x: number, y: number): boolean {
   if (!Path.inside(x, y)) return false; // rock bounds only — ring lane excluded
   if (occupied(state, x, y)) return false;
-  const boardCount = state.units.filter(onBoard).length;
-  if (unit.x === null && boardCount >= boardCap(level)) return false;
   unit.x = x; unit.y = y; unit.bench = null;
   return true;
 }
@@ -68,9 +61,7 @@ function toBench(state: BoardState, unit: BoardUnit): boolean {
 }
 
 /** Add unit (buy): place on first free board cell (back-to-front, no bench). */
-function add(state: BoardState, dex: number, star = 1, level = 8): BoardUnit | null {
-  const boardCount = state.units.filter(onBoard).length;
-  if (boardCount >= boardCap(level)) return null;
+function add(state: BoardState, dex: number, star = 1): BoardUnit | null {
   for (let y = 0; y < 3; y++) {
     for (let x = 0; x < 3; x++) {
       if (occupied(state, x, y)) continue;
@@ -79,7 +70,7 @@ function add(state: BoardState, dex: number, star = 1, level = 8): BoardUnit | n
       return u;
     }
   }
-  return null; // grid full
+  return null; // grid full (9 cells)
 }
 
 /** Remove unit entirely (sell). */
@@ -136,8 +127,8 @@ function placed(state: BoardState): Array<{ dex: number; types: string[] }> {
 }
 
 const Board = {
-  BENCH_SIZE, BOARD_MAX_UNITS, MAX_STAR,
-  boardCap, occupied, isPlacementCell,
+  BENCH_SIZE, MAX_STAR,
+  occupied, isPlacementCell,
   place, toBench, add, remove,
   mergeCandidates, applyMerge, tryMergeAt, placed,
   onBoard, onBench,

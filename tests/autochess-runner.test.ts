@@ -36,9 +36,12 @@ function godUnit(x = 1, y = 1) {
 }
 
 describe('economy (GDD Bagian 5)', () => {
-  it('start gold 5, wave bonus 3 flat (no interest formula)', () => {
+  it('start gold 5, wave bonus scales 3 + floor(w/2) (no interest)', () => {
     expect(WR.START_GOLD).toBe(5);
-    expect(WR.WAVE_BONUS).toBe(3);
+    expect(WR.waveBonus(1)).toBe(3);
+    expect(WR.waveBonus(2)).toBe(4);
+    expect(WR.waveBonus(10)).toBe(8);
+    expect(WR.waveBonus(20)).toBe(13);
     expect(WR.income).toBeUndefined(); // interest removed
   });
   it('createRun: wave 1, prep 30s (buy window), gold 5, player 45, enemy 20', () => {
@@ -206,7 +209,7 @@ describe('pickBuff', () => {
     WR.tick(st, [godUnit()], 0.1); // clear with nothing alive
     expect(st.phase).toBe('won');
     expect(st.wave).toBe(20);
-    expect(st.gold).toBe(5 + 3); // start + bonus
+    expect(st.gold).toBe(5 + WR.waveBonus(20)); // start + wave-20 bonus (13)
   });
   it('foe heart at 0 on win → phase won', () => {
     const st = WR.createRun();

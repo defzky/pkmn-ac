@@ -56,8 +56,10 @@ export const LOSS_DMG = 3;
 export const PREP_SECONDS = 30;
 export const SPAWN_GAP = 0.4;
 export const START_GOLD = 5;
-/** flat gold granted on every wave clear (GDD Bagian 5 — no interest) */
-export const WAVE_BONUS = 3;
+/** flat gold granted on every wave clear — scales with wave: 3 + floor(w/2) */
+export function waveBonus(wave: number): number {
+  return 3 + Math.floor(wave / 2);
+}
 /** grant a buff pick every N waves */
 export const BUFF_EVERY = 3;
 
@@ -186,7 +188,7 @@ export function tick(
 
   // all enemies spawned and cleared → round won: damage enemy heart + wave bonus
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
-    st.gold += WAVE_BONUS;
+    st.gold += waveBonus(st.wave);
     const survivors = units.filter((u) => u.alive).length;
     st.foe.hp = Math.max(0, st.foe.hp - (1 + survivors));
     if (st.foe.hp <= 0 || WaveDef.isFinal(st.wave)) {
@@ -232,7 +234,7 @@ const WaveRunner = {
   PREP_SECONDS,
   SPAWN_GAP,
   START_GOLD,
-  WAVE_BONUS,
+  waveBonus,
   BUFF_EVERY,
 };
 register('WaveRunner', WaveRunner);

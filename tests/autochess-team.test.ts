@@ -32,7 +32,7 @@ function dexWithType(t: string): number {
 function placeAt(board: any, dex: number, x: number, y: number, star = 1): boolean {
   const u = { dex, star, x: null, y: null, bench: null };
   board.units.push(u);
-  return Board.place(board, u, x, y, 8);
+  return Board.place(board, u, x, y);
 }
 
 describe('teamMods', () => {

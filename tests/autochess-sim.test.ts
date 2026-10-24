@@ -26,7 +26,7 @@ describe('sim', () => {
     picks.forEach((d, i) => {
       const u = { dex: d, star: 1, x: null, y: null, bench: null };
       board.units.push(u);
-      expect(Board.place(board, u, spots[i][0], spots[i][1], 8)).toBe(true);
+      expect(Board.place(board, u, spots[i][0], spots[i][1])).toBe(true);
     });
     const units = Team.spawnUnits(board, Team.teamMods(board));
     const st = WR.createRun();

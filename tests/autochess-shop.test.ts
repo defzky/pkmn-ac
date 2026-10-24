@@ -105,8 +105,8 @@ describe('buy / gold clamp', () => {
   it('board full → refuse, gold untouched', () => {
     const shop = Shop.createShop(1);
     const board = { units: [] };
-    // fill board to cap (level 8 → 5 on-board units)
-    for (let i = 0; i < 5; i++) board.units.push({ dex: 999 + i, star: 1, x: i % 3, y: Math.floor(i / 3), bench: null });
+    // fill entire 3×3 grid (9 cells) — no unit cap, grid is the limit
+    for (let i = 0; i < 9; i++) board.units.push({ dex: 999 + i, star: 1, x: i % 3, y: Math.floor(i / 3), bench: null });
     const idx = shop.slots.findIndex((s: any) => s);
     const r = Shop.buy(shop, idx, board, 100);
     expect(r.ok).toBe(false);

@@ -32,8 +32,6 @@ import type { UnitBattle } from './unit';
 import type { MobBattle } from './unitAI';
 import { Path } from './path';
 
-const LEVEL = 8; // boardCap = min(8, 1+floor(l/2)) = 5
-
 /** active mode: 'auto' = dual-board, 'td' = tower defence (path walk + leak) */
 let currentMode: 'auto' | 'td' = 'auto';
 
@@ -638,7 +636,7 @@ function onDragUp(e: any): void {
   if (!r2 || !r2.ok) return;
   const u2 = st.board.units.find((v) => !before2.has(v));
   if (!u2 || st.run.phase === 'combat') return;
-  if (Board.place(st.board, u2, x, y, LEVEL)) afterBoardChange();
+  if (Board.place(st.board, u2, x, y)) afterBoardChange();
 }
 
 const SYN_ICO: Record<string, string> = {
@@ -682,7 +680,7 @@ function onCell(x: number, y: number): void {
       }
       st.sel = here; renderAll(); return; // swap select
     }
-    if (Board.place(st.board, st.sel, x, y, LEVEL)) {
+    if (Board.place(st.board, st.sel, x, y)) {
       st.sel = null;
       afterBoardChange();
     } else {
@@ -858,7 +856,7 @@ function loop(ts: number): void {
       else {
         if (prev === 'combat' && after === 'prep') {
           st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
-          UI.toast(`+${Runner.WAVE_BONUS} gold`);
+          UI.toast(`+${Runner.waveBonus(r.wave - 1)} gold`); // wave already advanced
         }
         renderAll();
       }

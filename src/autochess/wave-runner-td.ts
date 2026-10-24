@@ -46,8 +46,10 @@ export const TD_BASE_HP = 100;
 export const PREP_SECONDS = 30;
 export const SPAWN_GAP = 0.4;
 export const START_GOLD = 5;
-/** flat gold granted on every wave clear */
-export const WAVE_BONUS = 3;
+/** gold granted on every wave clear — scales with wave: 3 + floor(w/2) */
+export function waveBonus(wave: number): number {
+  return 3 + Math.floor(wave / 2);
+}
 /** grant a buff pick every N waves */
 export const BUFF_EVERY = 3;
 /** cap concurrent walking mobs (path length); spawnQ drains at SPAWN_GAP */
@@ -180,7 +182,7 @@ export function tick(
 
   // all enemies spawned and cleared → round won: wave bonus; win game at wave 20
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
-    st.gold += WAVE_BONUS;
+    st.gold += waveBonus(st.wave);
     if (WaveDef.isFinal(st.wave)) {
       st.phase = 'won';
       return true;
@@ -220,7 +222,7 @@ const WaveRunnerTd = {
   PREP_SECONDS,
   SPAWN_GAP,
   START_GOLD,
-  WAVE_BONUS,
+  waveBonus,
   BUFF_EVERY,
   MAX_MOBS,
 };
