@@ -58,22 +58,23 @@ reroll 1g      →   boss tiap 5      →   foe heart −(1+survivors)
 
 ```
 src/autochess/
-  path.ts         # legacy ring (dual-board tidak pakai; board masih cek Path.inside)
+  path.ts         # legacy ring + TD pathThroughBoard (serpentine board walk)
   board.ts        # grid 3×3, tanpa bench utk buy (auto-place), cap min(8,1+floor(lvl/2)), merge-2
   unit-stats.ts   # derive dari pokedex (ATK_SCALE 40, range melee 2/ranged 3)
   unit.ts         # UnitBattle: mana, star, swing (nama anim), totalAtk, effCd
-  unitAI.ts       # tdist lintas arena, target baris depan, damage pipeline, KIND_ANIM
+  unitAI.ts       # tdist lintas arena, target baris depan / progress, damage pipeline, KIND_ANIM
   skills.ts       # 11 skill aktif (trigger mana 100)
   champions.ts    # 12 chain GDD, cost 1–4, odds per band wave
   shop.ts         # 3 kartu, buy/sell/reroll 1g, sell by star (c / 2c−1 / 3c)
   synergy.ts      # 5 tipe GDD, tier 2/3
   team.ts         # board → synergy mods → spawn battle units
   wave.ts         # komposisi, roles, elite w10+, boss tetap, HP waveMul
-  wave-runner.ts  # state machine prep/combat/buff/won/lost, 2 heart (45/20)
+  wave-runner.ts  # autochess state machine prep/combat/buff/won/lost, 2 heart (45/20)
+  wave-runner-td.ts # TD state machine: path walk, base leak, win @20, no foe heart
   buffs.ts        # pool 5 buff, roll 3
   base.ts         # generic leak model (START_HP 100 / LEAK 5 / BOSS 20); hearts via wave-runner createBase
   move-fx.ts      # move animation FX pipeline (attack/projectile VFX)
-  ac-ui.ts        # screen scr-ac: twin arena render, drag-drop buy, loop, syncEnemies
+  ac-ui.ts        # screen scr-ac: mode select → twin arena (auto) / path board (td), drag-drop buy, loop, syncEnemies
 ```
 
 Sisa rencana lama yang **belum** diimplementasi (kandidat tahap lanjut):
@@ -83,8 +84,9 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 
 ## 4. Data spec
 
-> **Pindah ke GDD:** spesifikasi data berlaku ada di `docs/game-design.md`
-> (Bagian 1–5). Spec lama di dokumen ini (grid 8×5, bench 9, shop 5,
+> **Pindah ke GDD:** spesifikasi data berlaku ada di `docs/game-design-common.md`
+> (sistem bersama) + `docs/game-design-autochess.md` / `docs/game-design-td.md`
+> (per-mode). Spec lama di dokumen ini (grid 8×5, bench 9, shop 5,
 > start gold 20 + interest, merge-3, synergy 6 grup T2/T4, 30 waves,
 > range melee 1/ranged 2) sudah **deprecated dan dihapus** — jangan dipakai.
 
@@ -95,6 +97,8 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > **Status: P11–P17 ✅ selesai** (2026-10-24, semua test hijau).
 > **Revisi P18 ✅: dual-board rework** (2026-10-24 — arena kembar, heart 45/20,
 > tanpa path; commit `099bab4`). Save v4 roster/star **belum**.
+> **Dual mode ✅ (2026-10-24): mode select + TD runner + TD UI** —
+> `wave-runner-td.ts`, `pathThroughBoard()`, scr-ac-mode, GDD split per mode.
 > Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |
@@ -125,7 +129,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 
 ```
 npm run dev          # :5173
-npm test             # vitest: 13 test files, 231 tests
+npm test             # vitest: 14 test files, 231 tests
 npm run build        # dev bundle
 npm run build:prod   # obfuscated prod + version.json
 npm run preview

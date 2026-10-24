@@ -1,12 +1,11 @@
-# Pokémon Auto Chess - Game Design Document (Basic)
+# Pokémon Auto Chess — Game Design: Sistem Bersama (Shared)
 
-> **Mode utama: dual-board auto-battler** (P18). Dua arena 3x3 berdampingan —
-> musuh di atas, tim di bawah. Tidak ada jalur (*path*) lagi; musuh berdiri
-> tetap di slot arena dan dihabisi di tempat.
+> Berlaku untuk **kedua mode** (Full Autochess & Tower Defence).
+> Mode-specific: lihat `game-design-autochess.md` / `game-design-td.md`.
 
 ---
 
-## BAGIAN 1: Unit Pemain (Defenders)
+## 1. Unit Pemain (Defenders)
 
 Sistem *level-up* menggunakan mekanik *merge* 2 unit yang sama:
 * **★1 (Base):** Unit dasar dari Shop.
@@ -40,9 +39,9 @@ Sistem *level-up* menggunakan mekanik *merge* 2 unit yang sama:
 
 ---
 
-## BAGIAN 2: Gelombang Musuh (Enemy Waves)
+## 2. Gelombang Musuh (Enemy Waves)
 
-Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) dan **tidak berjalan** — mereka berdiri di slotnya dan dihabisi di tempat. Kekuatan meningkat per gelombang (*Wave*).
+Kekuatan meningkat per gelombang (*Wave*). 20 wave total.
 
 ### 1. Musuh Biasa (Early - Mid Wave)
 
@@ -76,27 +75,8 @@ Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) d
 
 ---
 
-## BAGIAN 3: Arena, Penempatan, & Kontrol
+## 3. Pertempuran (Auto-Attack & Skill)
 
-* **Dua arena 3x3 berdampingan:**
-  * **Arena musuh (atas):** slot tetap y −1 … y −3 (baris depan y −1). Musuh spawn berurutan dari baris depan; maksimum 9 terlihat sekaligus.
-  * **Arena pemain (bawah):** grid 3x3 y 0 … y 2. Tanpa *bench* di alur beli — unit langsung auto-place ke petak kosong pertama (*back-to-front*). (Infra bench `BENCH_SIZE=2` masih ada di kode tapi tidak dipakai alur buy.) Kapasitas = `min(8, 1 + floor(level / 2))`.
-* **Cara beli & taruh:**
-  * **Drag & Drop:** seret kartu *Shop* ke petak kosong → unit langsung **beli + taruh** di petak itu; seret ke area lain → beli (auto-place petak kosong). Overlay kartu (*ghost*) mengikuti pointer.
-  * **Tap (fallback):** tap kartu → beli + auto-place; tap unit → tap petak → pindah.
-  * Jarak drag < 6px dianggap tap (tidak dobel beli).
-* **Keyboard:** `1`–`3` beli kartu, `R` reroll (**1 Gold**), `Space`/`Enter` mulai round, `Esc` pause.
-* **Jangkauan serang (Chebyshev lintas arena):** Melee = **2 sel**, Ranged = **3 sel**; jarak baris depan↔depan dipadatkan (y2 ↔ y−1 = 0 sel vertikal) sehingga unit baris depan langsung menjangkau musuh di depannya.
-* **Tile buff harian:** 2 petak arena pemain diberi penanda *buff* acak per round (visual).
-* Saat **combat**: penempatan & penjualan **dikunci**; beli & *merge* tetap boleh (real-time).
-* **Ready button:** mulai round lebih awal; kalau tidak ada unit terpasang, tolak dengan toast "Place units first".
-
----
-
-## BAGIAN 4: Pertempuran (Auto-Attack & Skill)
-
-* **Targeting:** unit menyerang musuh dalam jangkauan dengan **posisi paling depan** — baris depan arena musuh (y −1) didahulukan; seri → yang paling dekat. (Untuk mob jalur lama: *progress* terbesar.)
-* **Round tanpa jalur:** musuh **berdiri tetap** di slotnya (tidak berjalan, tidak lolos). Kemenangan round = semua musuh mati.
 * **Animasi serangan** mengikuti *kind* move (sama seperti dungeon):
   * `melee` / `nova` / `dash` → anim **Attack**
   * `projectile` / `beam` / `chain` / `boomerang` / `cone` → anim **Shoot**
@@ -104,17 +84,12 @@ Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) d
   * Kecepatan anim disetel otomatis `animLen / (atkCd × 0.9)` seperti `player.cast` di dungeon; SFX *shot* mengikuti *kind*/*type* move.
   * Sprite musuh **kedip merah** saat terkena hit.
 * **Damage:** `ATK × efektivitas tipe × skill-dmg × (1 − armor − shred)`; ★ menaikkan ATK (`×1 / ×1.8 / ×3.5`) dan kecepatan serang (`×1 / ×1.2 / ×1.5`).
-* **Mana & Skill:** setiap pukulan `+10 Mana`; penuh (100) → cast *Skill Dasar* champion (Bagian 1). **★3 = efek skill ×2** (*Efek Skill Maksimal*).
-* **Musuh tidak menyerang balik** (saat ini); musuh tetap memakai *ability* pendukungnya (Snorlax *Rest*, Gyarados *Roar*, Mewtwo *Disable*, regen, shield, dll). Musuh yang tersisa saat round dimenangkan tetap dihitung mati.
-* **Tim kosong** (tidak ada unit terpasang / habis terbunuh) → round kalah → heart pemain terkena damage.
+* **Mana & Skill:** setiap pukulan `+10 Mana`; penuh (100) → cast *Skill Dasar* champion. **★3 = efek skill ×2** (*Efek Skill Maksimal*).
+* **Musuh tidak menyerang balik** (saat ini); musuh tetap memakai *ability* pendukungnya (Snorlax *Rest*, Gyarados *Roar*, Mewtwo *Disable*, regen, shield, dll).
 
 ---
 
-## BAGIAN 5: Sistem Ekonomi, Scaling, & Alur Game (Core Systems)
-
----
-
-### 1. Sistem Ekonomi (Gold & Harga Jual)
+## 4. Sistem Ekonomi (Gold & Harga Jual)
 
 * **Starting Gold (Wave 1):** 5 Gold (Cukup untuk membeli 3–5 unit Tier 1 di awal).
 * **Gold dari Musuh (Kill Bounty):**
@@ -128,9 +103,7 @@ Musuh muncul di arena atas (3x3, baris depan y −1 … baris belakang y −3) d
   * Jual ★2 = Kembali harga gabungan dikurangi 1 Gold (Misal: Gabungan 2x Cost 1 = 2 Gold, dijual dapat 1 Gold).
   * Jual ★3 = Kembali 75% dari total modal.
 
-### 2. Peluang Kemunculan Unit di Shop (Shop Odds per Wave)
-
-Agar pemain tidak langsung mendapatkan *Dratini (4 Gold)* di Wave 1, peluang isi *Mini-Shop* diatur mengikuti progres Wave:
+### Peluang Kemunculan Unit di Shop (Shop Odds per Wave)
 
 | Fase Wave | Tier 1 (1 Gold) | Tier 2 (2 Gold) | Tier 3 (3 Gold) | Tier 4 (4 Gold) |
 | :--- | :--- | :--- | :--- | :--- |
@@ -139,38 +112,16 @@ Agar pemain tidak langsung mendapatkan *Dratini (4 Gold)* di Wave 1, peluang isi
 | **Wave 10 – 14** | 35% | 35% | 25% | 5% |
 | **Wave 15 – 20** | 20% | 30% | 35% | 15% |
 
-### 3. Rumus Scaling (Evolusi & Kekuatan Musuh)
+### Rumus Scaling (Evolusi & Kekuatan Musuh)
 
 * **Multiplier Evolusi Pokémon (Merge-2):**
-  Menggabungkan 2 unit ★1 menjadi 1 unit ★2 harus terasa menguntungkan karena jumlah unit di papan berkurang dari 2 menjadi 1:
   * **★1 (Base):** 100% Attack Damage | 100% Attack Speed
   * **★2 (Merge 2x ★1):** 180% Attack Damage | 120% Attack Speed
   * **★3 (Merge 2x ★2):** 350% Attack Damage | 150% Attack Speed + *Efek Skill Maksimal*
 * **Scaling HP Musuh per Wave:**
   * `HP Musuh = Base HP × (1 + (Wave Saat Ini × 0.25))`
-  * *Contoh:* Rattata (Base HP 100) di Wave 1 punya 125 HP, sedangkan di Wave 10 punya 350 HP.
 
-### 4. Alur State Permainan (Game State Machine)
-
-1. **PREP PHASE (30 Detik atau Klik "Ready"):**
-   * *Shop* di-refresh **gratis** (3 kartu baru sesuai odds wave) — otomatis setiap round selesai, atau manual lewat Reroll (1 Gold).
-   * Pemain membeli Pokémon (tap atau **drag & drop** ke petak), unit **auto-place** ke petak kosong pertama, lalu susun ulang / *Merge-2*.
-   * Timer bar menunjukkan sisa waktu; tombol **Ready** menekan waktu habis (wajib sudah ada unit).
-2. **COMBAT PHASE (Round Berjalan):**
-   * Musuh spawn bertahap ke slot arena atas (baris depan dulu, maks 9).
-   * Pokémon di arena bawah menyerang otomatis musuh **paling depan** dalam jangkauan (*Auto-Attack* animasi Attack/Shoot/Charge + SFX & FX proyektil dungeon, *Auto-Skill* saat Mana penuh — lihat Bagian 4).
-   * *Catatan:* Pemain tetap bisa membeli dan *merge* saat round berjalan (real-time); penempatan terkunci.
-3. **ROUND RESULT (otomatis):**
-   * **Menang round:** semua musuh mati → heart musuh terkena **1 + jumlah penyintas**; bonus **+3 Gold**. Heart musuh = 20 HP.
-   * **Kalah round:** tim kosong/terhabisi → heart pemain terkena **3 + floor(wave/4)**; heart pemain = 45 HP.
-4. **BUFF SELECTION PHASE (Setiap Kelipatan 3 Round):**
-   * Permainan *pause* sejenak; muncul *Pop-up* 3 Kartu Buff acak.
-   * Setelah memilih 1 → kembali ke *Prep Phase* (shop sudah ter-refresh).
-5. **WIN / GAME OVER STATE:**
-   * **Menang:** heart musuh mencapai 0 **atau** round 20 dimenangkan.
-   * **Kalah:** heart pemain mencapai 0 (biasanya 2–3 kekalahan round berturut-turut).
-
-### 5. Daftar Buff (Kartu Pilihan)
+### Daftar Buff (Kartu Pilihan)
 
 Dipilih acak 3 dari 5 berikut, berlaku sisa run:
 
