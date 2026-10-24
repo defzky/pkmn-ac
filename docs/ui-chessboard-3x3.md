@@ -1,10 +1,16 @@
 # Desain UI & Chessboard — Grid 3×3 Compact
 
+> ⚠️ **SEBAGIAN BESAR DEPRECATED (2026-10-24, rework dual-board `099bab4`).**
+> Layout satu papan + ring path di bawah ini sudah diganti **arena kembar**
+> (musuh atas / pemain bawah, tanpa path/bench). Spesifikasi berlaku sekarang:
+> GDD `docs/game-design.md` Bagian 3–4 + kode `src/autochess/ac-ui.ts`.
+> Yang masih relevan: prinsip 3×3 compact, drag-drop buy, tap fallback,
+> pill ★/ATK, hurt flash.
+
 > Spesifikasi visual + teknis untuk redesign screen autochess (`scr-ac`).
 > Ukuran **3×3 (9 petak)** memberi tombol & karakter besar di layar *mobile*,
 > serta menciptakan posisi strategis di petak tengah (*Center Tile*).
-> Sumber desain: GDD `docs/game-design.md`. Dokumen ini sumber kebenaran
-> visual/geometry board (sudah terimplementasi penuh).
+> Sumber desain: GDD `docs/game-design.md`.
 
 ---
 

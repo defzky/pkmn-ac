@@ -10,19 +10,24 @@
 
 ```
 lama:  kontrol 1 partner, jalan, wave kejar, hold-out time
-baru:  taruh unit di grid → auto-battle wave → gold → shop → repeat
+baru:  2 arena 3×3 → auto-battle → gold → shop → repeat
 ```
 
-Run = N wave. Kalah = base HP 0. Menang = boss wave N. Ranking = **waves survived** (bukan time).
+> **Revisi P18 (2026-10-24): mode dual-board.** Tidak ada jalur TD — musuh
+> berdiri di arena atas (slot y −1..−3), tim di arena bawah (y 0..2).
+> Menang round = musuh habis → heart musuh (20 HP) kena 1+penyintas;
+> kalah round = tim kosong → heart pemain (45 HP) kena 3+floor(w/4).
+
+Run = N wave. Kalah = heart pemain 0. Menang = heart musuh 0 atau wave 20. Ranking = **waves survived** (bukan time).
 
 ### Core loop (final — sinkron GDD `game-design.md`)
 
 ```
-PREP (30s)         BATTLE               CLEAR
+PREP (30s)         BATTLE               ROUND WIN
 shop 3 kartu   →   units auto-kill  →   +3 gold + shop refresh
-bench 2        →   target terdepan  →   buff pick (tiap 3 wave)
-drag/tap place →   base HP -= leak  →   merge-2 check
-reroll 2g      →   boss tiap 5      →   next wave / menang @20
+auto-place     →   target baris depan→   buff pick (tiap 3 round)
+drag/tap place →   tim kosong = kalah→   next round / menang @20
+reroll 1g      →   boss tiap 5      →   foe heart −(1+survivors)
 ```
 
 ---
@@ -53,21 +58,21 @@ reroll 2g      →   boss tiap 5      →   next wave / menang @20
 
 ```
 src/autochess/
-  path.ts         # ring 2 cabang 16 sel, rock 0..2, cek placement
-  board.ts        # grid 3×3, bench 2, cap min(8,1+floor(lvl/2)), merge-2
+  path.ts         # legacy ring (dual-board tidak pakai; board masih cek Path.inside)
+  board.ts        # grid 3×3, tanpa bench utk buy (auto-place), cap min(8,1+floor(lvl/2)), merge-2
   unit-stats.ts   # derive dari pokedex (ATK_SCALE 40, range melee 2/ranged 3)
   unit.ts         # UnitBattle: mana, star, swing (nama anim), totalAtk, effCd
-  unitAI.ts       # targeting terdepan, damage pipeline, statuses, KIND_ANIM
+  unitAI.ts       # tdist lintas arena, target baris depan, damage pipeline, KIND_ANIM
   skills.ts       # 11 skill aktif (trigger mana 100)
   champions.ts    # 12 chain GDD, cost 1–4, odds per band wave
-  shop.ts         # 3 kartu, buy/sell/reroll, sell by star (c / 2c−1 / 3c)
+  shop.ts         # 3 kartu, buy/sell/reroll 1g, sell by star (c / 2c−1 / 3c)
   synergy.ts      # 5 tipe GDD, tier 2/3
   team.ts         # board → synergy mods → spawn battle units
   wave.ts         # komposisi, roles, elite w10+, boss tetap, HP waveMul
-  wave-runner.ts  # state machine prep/combat/buff/won/lost + economy
+  wave-runner.ts  # state machine prep/combat/buff/won/lost, 2 heart (45/20)
   buffs.ts        # pool 5 buff, roll 3
-  base.ts         # HP 100, leak −5 / boss −20
-  ac-ui.ts        # screen scr-ac: render, drag-drop buy, loop, walkers
+  base.ts         # heart state (player 45 / foe 20 via createRun)
+  ac-ui.ts        # screen scr-ac: twin arena render, drag-drop buy, loop, syncEnemies
 ```
 
 Sisa rencana lama yang **belum** diimplementasi (kandidat tahap lanjut):
@@ -87,7 +92,9 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 ## 5. Phases
 
 > **Status: P11–P17 ✅ selesai** (2026-10-24, semua test hijau).
-> P18–P20 (save v4, augment/items, co-op) belum dikerjakan.
+> **Revisi P18 ✅: dual-board rework** (2026-10-24 — arena kembar, heart 45/20,
+> tanpa path; commit `099bab4`). Save v4 roster/star **belum**.
+> Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |
 |---|---|---|
@@ -98,7 +105,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 | **P15** | `shop.ts`: pool roll odds, buy/sell/reroll, merge star | shop test: pool, merge, gold clamp |
 | **P16** | `synergy.ts` engine: counts → mods applied to unit stat | synergy test: threshold hit → mul |
 | **P17** | UI: board canvas (Tiles render reuse), drag-place, bench bar, shop bar (5+reroll), wave timer, gold HUD, base HP | manual + placement click test |
-| **P18** | Save v4: `roster{dex:count,star}`, `board[{dex,x,y}]`, `gold`, `wave`; migrate v3→v4 (partner→starter unit, coins→gold 1:1); ranking waves; rules sanity | db migrate test; ranking metric |
+| **P18** | ✅ Dual-board rework (done) — sisanya: Save v4: `roster{dex:count,star}`, `board[{dex,x,y}]`, `gold`, `wave`; migrate v3→v4; ranking waves; rules sanity | db migrate test; ranking metric |
 | **P19** | Augment antar wave (adapt levelup), items equip unit, pity gacha tetap buka roster | augment pilih → buff applied |
 | **P20** | Coop TD (2 board 1 base), balance sim 50 wave, debug API (`debugWave(n)`, `debugGold(n)`) | full sim 1000 run tak crash |
 
