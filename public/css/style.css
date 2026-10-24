@@ -892,8 +892,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 
 /* TD mode: path overlay on player grid + walking mob sprites */
 .ac-arenas.td-mode #ac-arena-foe { display: none; }
-/* reserve top/bottom lanes so spawn (y −1) + base-exit (y 3) stay inside host */
-.ac-arenas.td-mode { padding-top: 56px; padding-bottom: 56px; }
+/* reserve top/bottom lanes so spawn (y −1) + base-exit (y 3) stay inside host;
+   pad scales with cell pitch (JS sets --ac-lane-pad on #ac-arenas) */
+.ac-arenas.td-mode { padding: var(--ac-lane-pad, 56px) 0; }
 /* power badge: not center (would sit on cell 1,1) — top-right of host lane */
 .ac-arenas.td-mode .ac-power { top: 8px; right: 8px; left: auto; transform: none; }
 /* me-hud: bottom-right would clip base-exit mobs (path ends x 2) — bottom-left lane */
@@ -907,9 +908,10 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   background: rgba(255, 210, 80, .08); box-shadow: inset 0 0 0 1px rgba(255, 210, 80, .45);
 }
 .ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; }
-.ac-td-mob canvas { image-rendering: pixelated; max-width: 40px; max-height: 44px; } /* res interna 80×88, display tetap */
+/* display size follows cell pitch (JS sets --ac-pitch on #ac-arenas) — res interna 80×88 */
+.ac-td-mob canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 80px) * 0.55); max-height: calc(var(--ac-pitch, 80px) * 0.6); }
 .ac-td-mob canvas.hurt { animation: ac-hurt .18s; }
-.ac-td-mob .hp { display: block; width: 36px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
+.ac-td-mob .hp { display: block; width: calc(var(--ac-pitch, 80px) * 0.45); height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
 .ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
 /* death fade (dungeon enemy.die: Faint hold + fade ~0.9s before removal) */
 .ac-td-mob, .ac-cell { transition: opacity .85s ease; }
@@ -918,9 +920,57 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-wave { display: none; align-items: center; gap: 4px; min-height: 32px; flex-wrap: wrap; justify-content: center; }
 .ac-arenas.td-mode .ac-td-wave { display: flex; }
 .ac-td-ghost { opacity: .75; display: inline-flex; }
-.ac-td-ghost canvas { image-rendering: pixelated; max-width: 36px; max-height: 36px; }
+.ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.5); max-height: calc(var(--ac-pitch, 72px) * 0.5); }
 .ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 .ac-td-base { position: absolute; transform: translate(-50%, -50%); z-index: 6; font-size: 18px; pointer-events: none; filter: drop-shadow(0 2px 4px #000); }
+/* dungeon-style procedural forest floor (Tiles.paintChunk biome Bosque, baked by ac-ui paintAcBg) */
+.ac-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; image-rendering: pixelated; pointer-events: none; }
+.ac-arenas.td-mode .ac-td-wave { position: relative; z-index: 4; }
+.ac-arenas.td-mode .ac-arena.me { z-index: 1; }
+
+/* ---- landscape TD refresh (design doc §1): full-width grid + dungeon forest floor.
+   Active only via JS class .td-land (#scr-ac) AND landscape orientation. ---- */
+@media (orientation: landscape) {
+  #scr-ac.td-land { background: #061009; }
+  #scr-ac.td-land .ac-app {
+    max-width: none; width: 100%; height: 100vh; box-sizing: border-box;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 4px 10px; padding: 6px 10px; align-items: center;
+  }
+  #scr-ac.td-land .ac-topbar { grid-area: 1 / 1 / 2 / 4; justify-content: flex-end; }
+  #scr-ac.td-land .ac-topbar .ac-round { margin-right: auto; }
+  #scr-ac.td-land .ac-arenas {
+    grid-area: 2 / 1 / 3 / 2; min-height: 0; min-width: 0; align-self: stretch;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #scr-ac.td-land .ac-arenas.td-mode .ac-arena.me {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border-color: rgba(90, 120, 70, .55);
+    box-shadow: none;
+  }
+  /* board square = height-driven (lane pad var from pitch; width capped by col) */
+  #scr-ac.td-land .ac-arenas.td-mode .ac-me-grid {
+    width: auto; height: 100%; max-width: 100%; aspect-ratio: 1; margin: 0;
+  }
+  #scr-ac.td-land .ac-synbar {
+    grid-area: 2 / 3 / 3 / 4; max-width: 150px; align-self: center;
+    justify-content: flex-end; z-index: 6;
+  }
+  #scr-ac.td-land .ac-goldsun { grid-area: 3 / 1 / 4 / 2; justify-self: start; margin: 0; }
+  #scr-ac.td-land .ac-footer { grid-area: 3 / 2 / 4 / 3; justify-self: start; flex-direction: row; gap: 8px; align-items: center; }
+  #scr-ac.td-land .ac-shoprow { grid-area: 3 / 3 / 4 / 4; justify-self: end; }
+  #scr-ac.td-land .ac-kbd { display: none; }
+  /* compact dock: shop strip right of gold+footer, smaller cards/controls */
+  #scr-ac.td-land .ac-card { width: 96px; height: 112px; }
+  #scr-ac.td-land .ac-card canvas { height: 48px; }
+  #scr-ac.td-land .ac-reroll { flex: 0 0 44px; max-width: 44px; }
+  #scr-ac.td-land .ac-reroll i { font-size: 15px; }
+  #scr-ac.td-land .ac-readywrap { flex-direction: row; align-items: center; gap: 6px; width: 170px; }
+  #scr-ac.td-land .ac-ready { height: 44px; flex: 1; font-size: 16px; }
+  #scr-ac.td-land .ac-timer { width: 60px; flex: 0 0 60px; }
+}
 
 /* ============ autochess (scr-ac) — portrait dual-board ============ */
 #scr-ac {

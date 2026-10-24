@@ -99,6 +99,10 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > tanpa path; commit `099bab4`). Save v4 roster/star **belum**.
 > **Dual mode ✅ (2026-10-24): mode select + TD runner + TD UI** —
 > `wave-runner-td.ts`, `pathThroughBoard()`, scr-ac-mode, GDD split per mode.
+> **Landscape refresh ✅ (2026-10-24): layout landscape full-width + backdrop
+> Bosque** — `#scr-ac.td-land` grid (arena tengah, dock bawah, syn rail kanan),
+> `paintAcBg()` = `Tiles.paintChunk` biome 0 identik dungeon, pitch-scaled
+> mob/ghost/lane via `--ac-pitch`/`--ac-lane-pad`; 256 test hijau.
 > Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |

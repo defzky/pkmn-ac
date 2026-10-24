@@ -488,3 +488,38 @@ describe('TD mode: ring lane layout', () => {
     }
   });
 });
+
+describe('TD landscape layout + dungeon bg', () => {
+  it('toggles td-land on #scr-ac (td on, auto off)', () => {
+    ACUI.open('td');
+    expect(document.getElementById('scr-ac')!.classList.contains('td-land')).toBe(true);
+    ACUI.open('auto');
+    expect(document.getElementById('scr-ac')!.classList.contains('td-land')).toBe(false);
+  });
+
+  it('sets --ac-pitch / --ac-lane-pad from cell pitch; bg canvas present, paint guarded in jsdom', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const el = this as HTMLElement;
+      const xy = (typeof el.closest === 'function' ? el.closest('[data-xy]') : null) as HTMLElement | null;
+      if (xy && xy.dataset?.xy) {
+        const [x, y] = xy.dataset.xy.split(',').map(Number);
+        return { width: 134, height: 134, left: 200 + x * 134, top: 50 + y * 134,
+                 right: 334 + x * 134, bottom: 184 + y * 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+      }
+      return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('td');
+      const host = document.getElementById('ac-arenas')!;
+      expect(host.style.getPropertyValue('--ac-pitch')).toBe('134px');
+      expect(host.style.getPropertyValue('--ac-lane-pad')).toBe('38px');
+      // dungeon-forest backdrop canvas lives in the arenas host (paint = Tiles.paintChunk,
+      // guarded: jsdom getContext('2d') may be null → early return, no throw)
+      expect(document.getElementById('ac-bg')).toBeTruthy();
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+});

@@ -76,6 +76,7 @@ function ensureDom(): HTMLElement {
         <button id="ac-close" class="ac-x" aria-label="Exit">✕</button>
       </div>
       <div class="ac-arenas" id="ac-arenas">
+        <canvas class="ac-bg" id="ac-bg" aria-hidden="true"></canvas>
         <div class="ac-td-wave" id="ac-td-wave"></div>
         <div class="ac-arena foe" id="ac-arena-foe">
           <div class="ac-foehud">
@@ -256,6 +257,12 @@ function renderTdLanes(): void {
   const r0 = c00.getBoundingClientRect(), r1 = c10.getBoundingClientRect();
   const pitch = r1.left - r0.left;
   if (!(pitch > 0)) return; // jsdom / hidden — no layout, skip sizeless tiles
+  // expose pitch so CSS can size lanes/mobs/lane-pad proportionally (not fixed px)
+  const host = document.getElementById('ac-arenas');
+  if (host) {
+    host.style.setProperty('--ac-pitch', pitch + 'px');
+    host.style.setProperty('--ac-lane-pad', Math.round(pitch * 0.28) + 'px');
+  }
   const size = Math.round(pitch * 0.86);
   const seen = new Set<string>();
   for (const br of [0, 1]) {
@@ -355,6 +362,8 @@ function renderStage(): void {
   const td = currentMode === 'td';
   const arenas = $('ac-arenas');
   arenas.classList.toggle('td-mode', td);
+  // landscape layout class (CSS @media orientation:landscape + .td-land → full-width grid)
+  document.getElementById('scr-ac')?.classList.toggle('td-land', td);
 
   // enemy arena: prep = ghost preview of next round (auto only; TD uses #ac-td-wave strip)
   if (!td) {
@@ -440,8 +449,9 @@ function renderStage(): void {
   const fc = $('ac-fx') as HTMLCanvasElement;
   fxCanvas = fc;
   sizeFxCanvas();
+  paintAcBg();
   if (!fxRo && typeof ResizeObserver !== 'undefined') {
-    fxRo = new ResizeObserver(() => { cellPx.clear(); sizeFxCanvas(); });
+    fxRo = new ResizeObserver(() => { cellPx.clear(); sizeFxCanvas(); paintAcBg(); });
     fxRo.observe($('ac-arenas'));
   }
 }
@@ -461,6 +471,42 @@ function sizeFxCanvas(): void {
     fc.height = 7 * Tiles.T * Sprites.PX;
   }
   cellPx.clear();
+}
+
+// ---------------- dungeon-style procedural backdrop (TD) ----------------
+let bgKey = '';
+
+/** Bake dungeon-look forest floor under the TD arenas: Tiles.paintChunk biome 0
+ * (Bosque — same pixel ground as World chunkImage), floor-only + organic dirt
+ * blobs + radial vignette (World.drawVignette equivalent). Debounced by size key. */
+function paintAcBg(): void {
+  const cv = document.getElementById('ac-bg') as HTMLCanvasElement | null;
+  if (!cv) return;
+  const host = document.getElementById('ac-arenas');
+  const r = host?.getBoundingClientRect();
+  const w = Math.round(r?.width || 0), h = Math.round(r?.height || 0);
+  if (w <= 0 || h <= 0) return; // hidden / jsdom — no layout
+  const key = w + 'x' + h;
+  if (key === bgKey) return;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  cv.width = w; cv.height = h;
+  // one chunk big enough to cover host at dungeon scale (T × Sprites.PX px/tile)
+  const s = Tiles.T * Sprites.PX;
+  const n = Math.max(2, Math.ceil(Math.max(w, h) / s)) + 1;
+  const at = () => 0; // floor everywhere (no walls/liquid)
+  const dirtField = (gx: number, gy: number) =>
+    0.5 + 0.3 * Math.sin(gx * 0.021 + gy * 0.007) * Math.cos(gy * 0.017);
+  const chunk = Tiles.paintChunk(0, 0, n, at, dirtField, 0, 7);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(chunk, 0, 0, n * s, n * s);
+  // vignette: darken edges like World.drawVignette
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.32, w / 2, h / 2, Math.max(w, h) * 0.72);
+  vg.addColorStop(0, 'rgba(4,8,12,0)');
+  vg.addColorStop(1, 'rgba(3,6,10,0.55)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, w, h);
+  bgKey = key;
 }
 
 /** sync enemy sprites each combat frame: dual-board = grid cells; TD = path walk overlay */
