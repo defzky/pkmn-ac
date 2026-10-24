@@ -923,8 +923,8 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* display size follows cell pitch (JS sets --ac-pitch on #ac-arenas) — res interna 80×88 */
 .ac-td-mob canvas { image-rendering: pixelated; max-width: max(44px, calc(var(--ac-pitch, 80px) * 0.68)); max-height: max(44px, calc(var(--ac-pitch, 80px) * 0.72)); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .8)); }
 .ac-td-mob canvas.hurt { animation: ac-hurt .18s; }
-.ac-td-mob .hp { display: block; width: calc(var(--ac-pitch, 80px) * 0.45); height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
-.ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
+.ac-td-mob .hp { display: block; width: calc(var(--ac-pitch, 80px) * 0.55); height: 12px; background: rgba(0,0,0,.55); border: 1px solid rgba(0,0,0,.65); border-radius: 3px; margin-top: 3px; }
+.ac-td-mob .hp i { display: block; height: 100%; background: linear-gradient(#ff6b6b, #c92a2a); border-radius: 2px; }
 /* death fade (dungeon enemy.die: Faint hold + fade ~0.9s before removal) */
 .ac-td-mob, .ac-cell { transition: opacity .85s ease; }
 .ac-td-mob.ac-dying, .ac-cell.ac-dying { opacity: 0; pointer-events: none; }
