@@ -20,17 +20,17 @@
 * **Placement:** sama seperti autochess — drag & drop / tap, auto-place back-to-front, **tanpa batas unit** (grid 3x3 = 9 petak = limit). Penempatan & merge (drop) terkunci saat combat; beli tetap boleh.
 * **Keyboard:** `1`–`3` beli, `R` reroll (1 Gold), `Space`/`Enter` Ready, `Esc` pause.
 
-### 1a. Layout Landscape + Backdrop Dungeon (refresh)
+### 1a. Layout Landscape + Backdrop Dungeon (refresh + rework M–P)
 
 * **Aktivasi:** class `#scr-ac.td-land` (di-toggle `renderStage`, TD saja) + `@media (orientation: landscape)`. Dual-board (`auto`) tetap desain portrait-column lama.
-* **Grid penuh** (`.ac-app` → CSS grid, `max-width:none`):
-  * Baris 1: topbar (round kiri, pause/exit kanan).
-  * Baris 2: **arena** kiri (board square height-driven + lane pad proporsional + wave strip) · **synbar** right-rail kanan.
-  * Baris 3 (dock): gold pill (start) · reroll + Ready + timer (tengah-kiri) · **shop strip 3 kartu** (kanan, dekat jempol kanan).
+* **Grid penuh tanpa dead-space** (rework M+N): `.ac-app` → grid 2 kolom `minmax(0,1fr) auto`, areas `"top top" "arena syn" "dock dock"`:
+  * Baris 1: **topbar glass pill terpusat** — Round kiri · power pill (pindah dari arena ke topbar) · pause/exit kanan.
+  * Baris 2: **arena** kiri (board square height-driven + lane pad proporsional + wave strip) · **synbar glass sidebar** kanan (chips 15px, max 210px) — kolom syn ikut tinggi arena, sisa horizontal habis.
+  * Baris 3: **dock glass full-width** (`.ac-dock`) — gold pill · reroll + Ready + timer · shop 3 kartu sejajar kanan. Portrait: `.ac-dock { display:contents }` → tata letak column lama tanpa perubahan.
   * `ac-kbd` disembunyikan (touch layout).
-* **Kartu shop compact:** 96×112 (sprite 48px), reroll 44px circle, Ready horizontal 44px + timer 60px.
-* **Backdrop dungeon:** canvas `#ac-bg` (z0, child pertama `.ac-arenas`) → `Tiles.paintChunk` biome **0 (Bosque)** floor-only + blob dirt sinus + radial vignette — pixel ground **identik** dengan `World.chunkImage` dungeon (32px/tile = T × Sprites.PX). Bake ulang saat resize (debounce by size key). `#scr-ac` bg solid `#061009`; arena `.me` transparent di landscape supaya forest floor tembus.
-* **Skala elemen = pitch:** mob display `pitch×0.55` (maks), HP bar mob `pitch×0.45`, ghost preview `pitch×0.5` — semua via var `--ac-pitch` (fallback px untuk jsdom).
+* **Backdrop dungeon:** canvas `#ac-bg` kini **child pertama `#scr-ac`** (z0, meng-cover seluruh viewport — hilangkan hitam di luar arena) → `Tiles.paintChunk` biome **0 (Bosque)** floor-only + blob dirt sinus + radial vignette — pixel ground **identik** dengan `World.chunkImage`. RO mengamati `#scr-ac` + `#ac-arenas`. Arena `.me` transparent di landscape supaya forest floor tembus.
+* **Sprite penuh (rework O):** `.ac-cell canvas { width/height:100% }` (fill ≥65% tile landscape, atribut canvas 96×80 tidak berubah), kartu shop sprite 70% tinggi kartu (portrait 64px), mob TD `pitch×0.72`, ghost preview `pitch×0.85` — semua via `--ac-pitch`, `image-rendering:pixelated`.
+* **HUD polish (rework P):** Round/power/gold font 15px; Ready gradient oranye + hover lift; Reroll hover lift; kartu hover −5px + shadow emas; sel papan gradien lebih hidup; star chip `.ac-pill b` gold.
 
 ### 1b. Juice / Feedback (Fase J+K+L — "kaku & kurang menarik" rework)
 

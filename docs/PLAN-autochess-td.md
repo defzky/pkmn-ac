@@ -108,6 +108,11 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > telegraph/status FX, timer blink) + interaction juice (land/merge/sell FX,
 > drag ghost sprite) + landscape juice (dirt lanes, spawn portal, base HP ring,
 > cell hover, round pulse); 266 test hijau (GDD §1b).
+> **Layout rework ✅ (2026-10-24): Fase M+N+O+P** — struktur HUD terpadu
+> (`.ac-dock` display:contents, power di topbar, ac-bg full-viewport child
+> `#scr-ac`), grid landscape 2-kolom zero dead-space, sprite full-scale (cell
+> canvas 100%, kartu 70%, mob pitch×0.72, ghost ×0.85), polish Round/gold 15px,
+> Ready/Reroll hover, kartu −5px shadow; 268 test hijau (GDD §1a).
 > Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |
