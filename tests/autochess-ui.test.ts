@@ -79,7 +79,10 @@ describe('open / render — dual arenas', () => {
     expect(($('#ac-gold').textContent || '')).toContain('5');
     const gold = document.getElementById('ac-gold')!;
     expect(gold.closest('.ac-arena')).toBeNull(); // outside arena → visible in TD too
-    expect(gold.nextElementSibling?.id).toBe('ac-shop'); // directly above shop cards
+    // dock restructure: gold + footer + shop unified in .ac-dock (display:contents portrait)
+    expect(gold.closest('.ac-dock')).toBeTruthy();
+    expect(gold.nextElementSibling?.className).toContain('ac-footer');
+    expect(document.querySelector('.ac-dock')!.contains(document.getElementById('ac-shop')!)).toBe(true);
   });
   it('footer: reroll circle (cost 1), Ready button, timer fill', () => {
     expect($('#ac-reroll')).toBeTruthy();

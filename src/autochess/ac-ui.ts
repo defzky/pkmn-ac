@@ -65,18 +65,19 @@ const esc = (s: any) => U.esc(s);
 function ensureDom(): HTMLElement {
   let sec = document.getElementById('scr-ac');
   if (sec) return sec;
-  sec = document.createElement('section');
-  sec.id = 'scr-ac';
-  sec.className = 'scr hidden';
-  sec.innerHTML = `
+    sec = document.createElement('section');
+    sec.id = 'scr-ac';
+    sec.className = 'scr hidden';
+    sec.innerHTML = `
+    <canvas class="ac-bg" id="ac-bg" aria-hidden="true"></canvas>
     <div class="ac-app">
       <div class="ac-topbar">
         <span class="ac-round" id="ac-round">Round 1</span>
+        <span class="ac-power" id="ac-power">⚔️ 0</span>
         <button id="ac-pause-btn" class="ac-x" aria-label="Pause">II</button>
         <button id="ac-close" class="ac-x" aria-label="Exit">✕</button>
       </div>
       <div class="ac-arenas" id="ac-arenas">
-        <canvas class="ac-bg" id="ac-bg" aria-hidden="true"></canvas>
         <div class="ac-td-wave" id="ac-td-wave"></div>
         <div class="ac-arena foe" id="ac-arena-foe">
           <div class="ac-foehud">
@@ -85,7 +86,6 @@ function ensureDom(): HTMLElement {
           </div>
           <div class="ac-grid" id="ac-foe-grid"></div>
         </div>
-        <div class="ac-power" id="ac-power">⚔️ 0</div>
         <div class="ac-arena me" id="ac-arena-me">
           <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
           <div class="ac-me-hud">
@@ -94,20 +94,22 @@ function ensureDom(): HTMLElement {
           </div>
           <div class="ac-grid" id="ac-me-grid"></div>
         </div>
-        <span class="ac-td-base" id="ac-td-base" hidden><span class="ac-base-ring" id="ac-base-ring"><b>🏰</b></span></span>
+        <span class="ac-td-base" id="ac-td-base" hidden><span class="ac-base-ring" id="ac-base-ring"><b>🏰</b></span><span class="ac-td-hp"><i id="ac-td-hp-fill"></i></span></span>
         <div class="ac-td-lanes" id="ac-td-lanes" hidden></div>
         <canvas class="ac-fx" id="ac-fx"></canvas>
         <div class="ac-banner" id="ac-banner" hidden></div>
       </div>
       <div class="ac-synbar" id="ac-syn"></div>
-      <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
-      <div class="ac-shoprow" id="ac-shop"></div>
-      <div class="ac-footer">
-        <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>
-        <div class="ac-readywrap">
-          <button id="ac-start" class="ac-ready">Ready</button>
-          <div class="ac-timer"><i id="ac-timer-fill"></i><span>⏳</span></div>
+      <div class="ac-dock">
+        <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
+        <div class="ac-footer">
+          <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>
+          <div class="ac-readywrap">
+            <button id="ac-start" class="ac-ready">Ready</button>
+            <div class="ac-timer"><i id="ac-timer-fill"></i><span>⏳</span></div>
+          </div>
         </div>
+        <div class="ac-shoprow" id="ac-shop"></div>
       </div>
       <div class="ac-kbd">[1]–[3] buy · [R] reroll · [Space] start · [Esc] pause</div>
     </div>
@@ -217,6 +219,8 @@ function renderHud(): void {
       const pct = Math.max(0, Math.round((hp / Math.max(1, r.base.maxHp)) * 100));
       (ring as HTMLElement).style.setProperty('--hp', String(pct));
       (ring as HTMLElement).style.setProperty('--hp-col', pct > 50 ? '#7dff9b' : pct > 25 ? '#ffd465' : '#ff6b6b');
+      const bar = document.getElementById('ac-td-hp-fill');
+      if (bar) bar.style.width = pct + '%';
     }
   }
   // Ready button state
@@ -516,6 +520,7 @@ function renderStage(): void {
   if (!fxRo && typeof ResizeObserver !== 'undefined') {
     fxRo = new ResizeObserver(() => { cellPx.clear(); sizeFxCanvas(); paintAcBg(); });
     fxRo.observe($('ac-arenas'));
+    fxRo.observe($('scr-ac')); // bg canvas spans the whole screen
   }
 }
 
@@ -545,7 +550,8 @@ let bgKey = '';
 function paintAcBg(): void {
   const cv = document.getElementById('ac-bg') as HTMLCanvasElement | null;
   if (!cv) return;
-  const host = document.getElementById('ac-arenas');
+  // full-viewport backdrop: measure the screen section, not just the arenas
+  const host = document.getElementById('scr-ac');
   const r = host?.getBoundingClientRect();
   const w = Math.round(r?.width || 0), h = Math.round(r?.height || 0);
   if (w <= 0 || h <= 0) return; // hidden / jsdom — no layout
