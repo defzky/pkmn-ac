@@ -786,6 +786,8 @@ function startDrag(i: number, e: any): void {
   const cost = Shop.slotCost(slot);
   const d = ((G as any).DEX_BY || {})[slot.dex] || {};
   ghost.innerHTML = `<b>${cost} <span class="coin"></span></b><span>${esc(d.name || '?')}</span>`;
+  // live mini-sprite so the drag ghost shows the actual mon (Fase K)
+  ghost.insertBefore(UI.spriteCanvas(slot.dex, 40, 40, { scale: 2, lively: true }), ghost.firstChild);
   ghost.style.left = (e.clientX ?? 0) + 'px';
   ghost.style.top = (e.clientY ?? 0) + 'px';
   document.body.appendChild(ghost);
@@ -870,6 +872,7 @@ function onDragUp(e: any): void {
       Audio.sfx('buy', undefined);
       UI.toast('★ merge');
       afterBoardChange();
+      placeFx(x, y, 'merge', temp.star + 1);
     }
     return;
   }
@@ -879,7 +882,7 @@ function onDragUp(e: any): void {
   if (!r2 || !r2.ok) return;
   const u2 = st.board.units.find((v) => !before2.has(v));
   if (!u2 || st.run.phase === 'combat') return;
-  if (Board.place(st.board, u2, x, y)) afterBoardChange();
+  if (Board.place(st.board, u2, x, y)) { afterBoardChange(); placeFx(x, y, 'land'); }
 }
 
 const SYN_ICO: Record<string, string> = {
@@ -906,6 +909,32 @@ function renderAll(): void {
 
 // ---------------- interactions ----------------
 
+/** Prep-time cell juice (Fase K): ring+burst at cell, squash-pop the sprite, sfx.
+ * merge = gold ring + star-up text; sell = coin burst at captured pos (no pop). */
+function placeFx(x: number | null, y: number | null, kind: 'land' | 'merge' | 'sell' = 'land', star = 0): void {
+  if (x == null || y == null) return;
+  const p = cellCenter(x, y);
+  if (kind === 'merge') {
+    FX.ring(p.x, p.y, 4, 26, '#ffd465', 0.45, 3);
+    FX.burst(p.x, p.y, '#ffd465', 12, 150);
+    if (star) FX.dmgText(p.x, p.y - 18, '★' + star, '#ffd465', true);
+    Audio.sfx('levelup', undefined);
+  } else if (kind === 'sell') {
+    FX.burst(p.x, p.y, '#ffd465', 10, 130);
+    Audio.sfx('coin', undefined);
+  } else {
+    FX.ring(p.x, p.y, 3, 18, '#8ccaff', 0.35, 2);
+    FX.burst(p.x, p.y, '#8ccaff', 6, 90);
+    Audio.sfx('land', undefined);
+  }
+  // squash-pop / flash the freshly-rendered sprite in that cell
+  const cell = document.querySelector(`#ac-me-grid .ac-cell[data-xy="${x},${y}"]`);
+  if (!cell) return;
+  if (kind === 'merge') { cell.classList.add('mergeflash'); setTimeout(() => cell.classList.remove('mergeflash'), 600); }
+  const cv = cell.querySelector('canvas');
+  if (cv) { cv.classList.remove('ac-pop'); void cv.offsetWidth; cv.classList.add('ac-pop'); }
+}
+
 function onCell(x: number, y: number): void {
   if (st.run.phase === 'combat') return; // lock board mid-fight (P17 rule)
   const here = unitAt(x, y);
@@ -915,10 +944,12 @@ function onCell(x: number, y: number): void {
       // same champ + same star → merge-2 on this cell (else swap-select)
       if (here.dex === st.sel.dex && here.star === st.sel.star && here.star < Board.MAX_STAR
         && Board.tryMergeAt(st.board, st.sel, x, y)) {
+        const newStar = here.star + 1;
         st.sel = null;
         Audio.sfx('confirm', undefined);
         UI.toast('★ merge');
         afterBoardChange();
+        placeFx(x, y, 'merge', newStar);
         return;
       }
       st.sel = here; renderAll(); return; // swap select
@@ -926,6 +957,7 @@ function onCell(x: number, y: number): void {
     if (Board.place(st.board, st.sel, x, y)) {
       st.sel = null;
       afterBoardChange();
+      placeFx(x, y, 'land');
     } else {
       Audio.sfx('error', undefined);
       UI.toast("Can't place there");
@@ -938,6 +970,7 @@ function onCell(x: number, y: number): void {
 
 /** Buy champion i. Returns Shop.buy result. */
 function onBuy(i: number) {
+  const before = new Set(st.board.units);
   const r = Shop.buy(st.shop, i, st.board, st.run.gold);
   if (!r.ok) {
     Audio.sfx('error', undefined);
@@ -947,6 +980,9 @@ function onBuy(i: number) {
   st.run.gold = r.gold;
   Audio.sfx('buy', undefined);
   afterBoardChange();
+  // landing juice on the freshly auto-placed unit (Fase K)
+  const u = st.board.units.find((v) => !before.has(v));
+  if (u && u.x != null) placeFx(u.x, u.y, 'land');
   return r;
 }
 
@@ -965,11 +1001,13 @@ function onReroll(): void {
 function onSell(): void {
   if (!st.sel) return;
   const name = st.sel;
+  const sx = st.sel.x, sy = st.sel.y; // capture pos before the rebuild wipes the cell
   st.run.gold = Shop.sell(st.board, name, st.run.gold);
   st.sel = null;
   Audio.sfx('coin', undefined);
   UI.toast('Sold');
   afterBoardChange();
+  if (sx != null && sy != null) placeFx(sx, sy, 'sell');
 }
 
 function afterBoardChange(): void {

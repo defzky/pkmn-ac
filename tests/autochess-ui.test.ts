@@ -568,3 +568,48 @@ describe('Fase J — combat juice (banner / leak / timer)', () => {
     expect(tf.classList.contains('blink')).toBe(false);
   });
 });
+
+describe('Fase K — interaction juice (land/merge/sell pop, drag ghost sprite)', () => {
+  it('buy → auto-placed cell canvas gets squash-pop class', () => {
+    $('.ac-card').click();
+    const cv = $('#ac-me-grid [data-xy="0,0"] canvas');
+    expect(cv).toBeTruthy();
+    expect(cv!.classList.contains('ac-pop')).toBe(true);
+  });
+
+  it('tap-merge → target cell mergeflash + sprite pop, result ★2', () => {
+    const dex = (G as any).DEX.find((e: any) => !e.leg && e.rarity === 1).dex;
+    ACUI.shop.slots[0] = { dex, star: 1, x: null, y: null, bench: null };
+    ACUI.shop.slots[1] = { dex, star: 1, x: null, y: null, bench: null };
+    const cards = document.querySelectorAll('.ac-card');
+    (cards[0] as HTMLElement).click(); // (0,0)
+    (cards[1] as HTMLElement).click(); // (1,0)
+    document.querySelector('[data-xy="0,0"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.querySelector('[data-xy="1,0"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(ACUI.board.units.length).toBe(1);
+    expect(ACUI.board.units[0].star).toBe(2);
+    const cell = $('#ac-me-grid [data-xy="1,0"]') as HTMLElement;
+    expect(cell.classList.contains('mergeflash')).toBe(true);
+    expect(cell.querySelector('canvas')!.classList.contains('ac-pop')).toBe(true);
+  });
+
+  it('sell → toast + gold back, no crash (placeFx sell path)', () => {
+    const g0 = ACUI.run.gold;
+    $('.ac-card').click(); // buy → (0,0)
+    ($('#ac-me-grid [data-xy="0,0"]') as HTMLElement).click(); // select
+    $('#ac-sell').click();
+    expect(ACUI.board.units.length).toBe(0);
+    expect(ACUI.run.gold).toBe(g0);
+    expect(document.querySelector('#ac-me-grid canvas')).toBeNull();
+  });
+
+  it('drag ghost carries live mini-sprite canvas', () => {
+    const card = $('.ac-card') as HTMLElement;
+    card.dispatchEvent(new MouseEvent('pointerdown', { clientX: 10, clientY: 10, bubbles: true }));
+    const ghost = document.querySelector('.ac-drag');
+    expect(ghost).toBeTruthy();
+    expect(ghost!.querySelector('canvas')).toBeTruthy();
+    window.dispatchEvent(new MouseEvent('pointerup', { clientX: 10, clientY: 11, bubbles: true }));
+    expect(document.querySelector('.ac-drag')).toBeNull();
+  });
+});

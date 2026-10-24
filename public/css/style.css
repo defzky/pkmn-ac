@@ -1161,6 +1161,11 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* gold pill pop on wave-clear reward */
 @keyframes ac-pop { 0% { transform: scale(1); } 35% { transform: scale(1.28); } 100% { transform: scale(1); } }
 .ac-goldsun.pop { animation: ac-pop .5s ease; }
+/* Fase K: placement squash-pop + merge gold flash */
+@keyframes ac-pop-in { 0% { transform: scale(.55); } 55% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.ac-cell canvas.ac-pop { animation: ac-pop-in .28s cubic-bezier(.2,1.3,.4,1); }
+@keyframes ac-cell-flash { 0% { box-shadow: 0 0 0 3px rgba(255,210,80,.9), 0 0 24px 8px rgba(255,210,80,.55); } 100% { box-shadow: 0 0 0 0 rgba(255,210,80,0), 0 0 0 0 rgba(255,210,80,0); } }
+.ac-cell.mergeflash { animation: ac-cell-flash .55s ease; }
 
 /* synergy chips */
 .ac-synbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 18px; }
@@ -1277,4 +1282,5 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   padding: 6px 10px; display: flex; gap: 6px; align-items: center;
   color: #e8ecf6; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.5);
 }
+.ac-drag canvas { width: 40px; height: 40px; image-rendering: pixelated; }
 .ac-drag b { color: var(--gold); display: flex; gap: 3px; align-items: center; }
