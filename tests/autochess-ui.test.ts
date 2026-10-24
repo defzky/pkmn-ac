@@ -153,17 +153,22 @@ describe('reroll / sell', () => {
   });
 });
 
-describe('star merge via shop clicks (merge-2, board-direct)', () => {
-  it('buy 2 same dex → auto-merge ★2 on board', () => {
+describe('same-cell merge via taps (merge-2, board-direct)', () => {
+  it('buy 2 same dex → 2 units different cells; select + tap same → ★2', () => {
     const dex = (G as any).DEX.find((e: any) => !e.leg && e.rarity === 1).dex;
     ACUI.shop.slots[0] = { dex, star: 1, x: null, y: null, bench: null };
     ACUI.shop.slots[1] = { dex, star: 1, x: null, y: null, bench: null };
     const cards = document.querySelectorAll('.ac-card');
     (cards[0] as HTMLElement).click(); // → (0,0)
-    (cards[1] as HTMLElement).click(); // → (1,0) → merge-2 keeps first cell
+    (cards[1] as HTMLElement).click(); // → (1,0) — NO auto-merge now
+    expect(ACUI.board.units.length).toBe(2);
+    expect(ACUI.board.units.every((u: any) => u.star === 1)).toBe(true);
+    // select (0,0), tap (1,0) → same dex+star → merge into target cell
+    document.querySelector('[data-xy="0,0"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    document.querySelector('[data-xy="1,0"]')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(ACUI.board.units.length).toBe(1);
     expect(ACUI.board.units[0].star).toBe(2);
-    expect(ACUI.board.units[0].x).toBe(0);
+    expect(ACUI.board.units[0].x).toBe(1); // result at TARGET cell
   });
 });
 

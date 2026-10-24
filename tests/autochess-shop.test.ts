@@ -114,33 +114,34 @@ describe('buy / gold clamp', () => {
   });
 });
 
-describe('merge-2 stars', () => {
-  it('2 same dex (auto-placed on board) → 2★ immediately', () => {
+describe('merge-2 stars (same-cell drop only)', () => {
+  it('buying 2 same champs → 2 units in different cells (NO auto-merge)', () => {
     const board = { units: [] };
     Board.add(board, 25, 1);
     Board.add(board, 25, 1);
-    const merged = Board.mergeAll(board);
-    expect(merged).toBe(1);
-    expect(board.units.length).toBe(1);
-    expect(board.units[0].star).toBe(2);
+    expect(board.units.length).toBe(2);
+    expect(board.units.every((u: any) => u.star === 1)).toBe(true);
   });
-  it('4 copies cascade → 3 merges → one 3★', () => {
-    const s: any = { units: [] };
-    for (let i = 0; i < 4; i++) s.units.push({ dex: 4, star: 1, x: null, y: null, bench: null });
-    const merged = Board.mergeAll(s);
-    expect(merged).toBe(3); // 2 merges → 2×2★, 1 merge → 1×3★
-    expect(s.units.length).toBe(1);
-    expect(s.units[0].star).toBe(3);
-  });
-  it('shop buy of dup triggers auto-merge (bench 1 → buy → ★2)', () => {
+  it('buy dup → then drop onto existing → ★2 (merge trigger = tryMergeAt)', () => {
     const board = { units: [] };
-    Board.add(board, 1, 1); // bench 0
+    const first = Board.add(board, 1, 1);
     const shop = { slots: [{ dex: 1, star: 1, x: null, y: null, bench: null }, null, null] };
     const r = Shop.buy(shop, 0, board, 100);
     expect(r.ok).toBe(true);
-    expect(r.merged).toBe(1); // merge-2: 2 copies → ★2
+    expect(board.units.length).toBe(2); // both on board, ★1
+    const second = board.units.find((u: any) => u !== first)!;
+    expect(Board.tryMergeAt(board, second, first.x as number, first.y as number)).toBe(true);
     expect(board.units.length).toBe(1);
     expect(board.units[0].star).toBe(2);
+  });
+  it('drop sequence to ★3 works', () => {
+    const s: any = { units: [] };
+    const a = Board.add(s, 4, 2); // ★2 at first free cell
+    Board.add(s, 4, 2);
+    const second = s.units[1];
+    expect(Board.tryMergeAt(s, second, a.x as number, a.y as number)).toBe(true);
+    expect(s.units.length).toBe(1);
+    expect(s.units[0].star).toBe(3);
   });
 });
 

@@ -114,51 +114,64 @@ describe('board placement', () => {
   });
 });
 
-describe('star merge (merge-2 per GDD)', () => {
-  it('2 identical 1★ → one 2★ at first position', () => {
+describe('same-cell merge (merge-2 on drop — GDD)', () => {
+  it('drop same dex+star onto target cell → ★2 at target cell', () => {
     const s = st();
-    push(s, { dex: 25, x: 1, y: 0 });
-    push(s, { dex: 25 });
-    expect(Board.mergeAll(s)).toBe(1);
+    const a = push(s, { dex: 25, x: 1, y: 0 });
+    const b = push(s, { dex: 25, x: 2, y: 1 });
+    expect(Board.tryMergeAt(s, b, 1, 0)).toBe(true);
     expect(s.units).toHaveLength(1);
     expect(s.units[0].star).toBe(2);
     expect(s.units[0].dex).toBe(25);
-    expect(s.units[0].x).toBe(1); // kept first unit position
+    expect(s.units[0].x).toBe(1); // merged into TARGET cell (a's spot)
+    expect(s.units[0].y).toBe(0);
     expect(s.units[0].bench).toBeNull();
+    expect(s.units.includes(b)).toBe(false); // moving unit consumed
   });
 
-  it('different dex do not merge', () => {
+  it('2 identical in different cells do NOT auto-merge', () => {
     const s = st();
-    push(s, { dex: 25 }); push(s, { dex: 1 }); push(s, { dex: 4 });
-    expect(Board.mergeAll(s)).toBe(0);
-    expect(s.units).toHaveLength(3);
+    push(s, { dex: 25, x: 1, y: 0 });
+    push(s, { dex: 25, x: 2, y: 1 });
+    expect(s.units).toHaveLength(2);
+    expect(Board.mergeCandidates(s)).toHaveLength(1); // candidate exists, no trigger
   });
 
-  it('merge cascades 1★→2★→3★ when 4 copies', () => {
+  it('different dex / different star do not merge', () => {
     const s = st();
-    for (let i = 0; i < 4; i++) push(s, { dex: 6 });
-    const n = Board.mergeAll(s);
-    expect(n).toBe(3); // 4→2×2★ (2 merges), 2×2★→1×3★ (1 merge)
+    push(s, { dex: 25, x: 0, y: 0 }); push(s, { dex: 1, x: 1, y: 0 });
+    push(s, { dex: 4, x: 2, y: 0 });
+    expect(Board.tryMergeAt(s, s.units[1], 0, 0)).toBe(false);
+    const s2 = st();
+    push(s2, { dex: 6, star: 1, x: 0, y: 0 });
+    push(s2, { dex: 6, star: 2, x: 1, y: 0 });
+    expect(Board.tryMergeAt(s2, s2.units[1], 0, 0)).toBe(false);
+    expect(s2.units).toHaveLength(2);
+  });
+
+  it('empty cell / own cell / MAX_STAR → false', () => {
+    const s = st();
+    const a = push(s, { dex: 25, x: 0, y: 0 });
+    expect(Board.tryMergeAt(s, a, 1, 1)).toBe(false); // empty
+    expect(Board.tryMergeAt(s, a, 0, 0)).toBe(false); // own cell
+    const s2 = st();
+    push(s2, { dex: 6, star: 3, x: 0, y: 0 });
+    const t = push(s2, { dex: 6, star: 3, x: 1, y: 0 });
+    expect(Board.tryMergeAt(s2, t, 0, 0)).toBe(false); // max star
+    expect(s2.units).toHaveLength(2);
+  });
+
+  it('drop sequence 1★+1★ → ★2, +1★ → ★3', () => {
+    const s = st();
+    const a = push(s, { dex: 6, x: 0, y: 0 });
+    const b = push(s, { dex: 6, x: 1, y: 0 });
+    expect(Board.tryMergeAt(s, b, 0, 0)).toBe(true);
+    expect(s.units).toHaveLength(1);
+    expect(s.units[0].star).toBe(2);
+    const c = push(s, { dex: 6, star: 2, x: 2, y: 2 });
+    expect(Board.tryMergeAt(s, c, a.x as number, a.y as number)).toBe(true);
     expect(s.units).toHaveLength(1);
     expect(s.units[0].star).toBe(3);
-  });
-
-  it('9 copies: 6 merges → 2×3★ + 1×1★ remainder', () => {
-    const s = st();
-    for (let i = 0; i < 9; i++) push(s, { dex: 6 });
-    const n = Board.mergeAll(s);
-    expect(n).toBe(6); // 4 pairs → 4×2★, 2 pairs → 2×3★, 1×1★ left
-    expect(s.units).toHaveLength(3);
-    const stars = s.units.map((u: any) => u.star).sort();
-    expect(stars).toEqual([1, 3, 3]);
-  });
-
-  it('MAX_STAR units do not merge further', () => {
-    const s = st();
-    push(s, { dex: 6, star: 3 });
-    push(s, { dex: 6, star: 3 });
-    expect(Board.mergeAll(s)).toBe(0);
-    expect(s.units).toHaveLength(2);
   });
 
   it('mergeCandidates needs ≥2', () => {
@@ -171,9 +184,9 @@ describe('star merge (merge-2 per GDD)', () => {
 
   it('merged unit carries items from both (cap 3)', () => {
     const s = st();
-    const a = push(s, { dex: 25 }); a.items = ['x'];
-    const b = push(s, { dex: 25 }); b.items = ['y', 'z', 'w'];
-    Board.applyMerge(s, Board.mergeCandidates(s)[0]);
+    const a = push(s, { dex: 25, x: 0, y: 0 }); a.items = ['x'];
+    const b = push(s, { dex: 25, x: 1, y: 0 }); b.items = ['y', 'z', 'w'];
+    expect(Board.tryMergeAt(s, b, 0, 0)).toBe(true);
     expect(s.units[0].items).toEqual(['x', 'y', 'z']);
   });
 });

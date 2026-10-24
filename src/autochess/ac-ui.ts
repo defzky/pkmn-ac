@@ -609,16 +609,36 @@ function onDragUp(e: any): void {
   const el = ((document as any).elementFromPoint?.(e.clientX, e.clientY) as Element | null)
     || (e.target as Element | null);
   const cellEl = el && typeof el.closest === 'function' ? el.closest('.ac-cell') : null;
-  if (!cellEl) { onBuy(d.idx); return; } // drop elsewhere (bench/empty/UI): buy to bench
-  // drop on board cell: buy → auto-place the fresh unit there (prep only, empty cell, no merge)
-  const before = new Set(st.board.units);
-  const r = onBuy(d.idx);
-  if (!r || !r.ok || r.merged) return;
-  const u = st.board.units.find((x) => !before.has(x));
-  if (!u || st.run.phase === 'combat') return;
+  if (!cellEl) { onBuy(d.idx); return; } // drop elsewhere (bench/empty/UI): buy to auto-place
+  // target cell under the card
   const xy = (cellEl as HTMLElement).dataset?.xy || '';
   const [x, y] = xy.split(',').map(Number);
-  if (!unitAt(x, y) && Board.place(st.board, u, x, y, LEVEL)) afterBoardChange();
+  const target = unitAt(x, y);
+  if (target) {
+    // occupied: only merge target = same champ ★1 (drop card onto it → buy + merge to ★2)
+    const slot = st.shop.slots[d.idx];
+    if (!slot || target.dex !== slot.dex || target.star !== 1 || st.run.phase === 'combat') {
+      Audio.sfx('error', undefined);
+      UI.toast('Cell occupied');
+      return;
+    }
+    const before = new Set(st.board.units);
+    const r = onBuy(d.idx);
+    if (!r || !r.ok) return;
+    const u = st.board.units.find((v) => !before.has(v));
+    if (u && Board.tryMergeAt(st.board, u, x, y)) {
+      UI.toast('★ merge');
+      afterBoardChange();
+    }
+    return;
+  }
+  // drop on empty cell: buy → move the fresh unit there (prep only)
+  const before2 = new Set(st.board.units);
+  const r2 = onBuy(d.idx);
+  if (!r2 || !r2.ok) return;
+  const u2 = st.board.units.find((v) => !before2.has(v));
+  if (!u2 || st.run.phase === 'combat') return;
+  if (Board.place(st.board, u2, x, y, LEVEL)) afterBoardChange();
 }
 
 const SYN_ICO: Record<string, string> = {
@@ -650,7 +670,18 @@ function onCell(x: number, y: number): void {
   const here = unitAt(x, y);
   if (st.sel) {
     if (here === st.sel) return;
-    if (here) { st.sel = here; renderAll(); return; } // swap select
+    if (here) {
+      // same champ + same star → merge-2 on this cell (else swap-select)
+      if (here.dex === st.sel.dex && here.star === st.sel.star && here.star < Board.MAX_STAR
+        && Board.tryMergeAt(st.board, st.sel, x, y)) {
+        st.sel = null;
+        Audio.sfx('confirm', undefined);
+        UI.toast('★ merge');
+        afterBoardChange();
+        return;
+      }
+      st.sel = here; renderAll(); return; // swap select
+    }
     if (Board.place(st.board, st.sel, x, y, LEVEL)) {
       st.sel = null;
       afterBoardChange();
@@ -664,7 +695,7 @@ function onCell(x: number, y: number): void {
   }
 }
 
-/** Buy champion i. Returns Shop.buy result (drag-drop drop handler checks ok/merged). */
+/** Buy champion i. Returns Shop.buy result. */
 function onBuy(i: number) {
   const r = Shop.buy(st.shop, i, st.board, st.run.gold);
   if (!r.ok) {
@@ -674,7 +705,6 @@ function onBuy(i: number) {
   }
   st.run.gold = r.gold;
   Audio.sfx('buy', undefined);
-  if (r.merged) UI.toast(`★ merge ×${r.merged}`);
   afterBoardChange();
   return r;
 }

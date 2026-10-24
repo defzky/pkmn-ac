@@ -1,6 +1,7 @@
 /* ============ autochess/board.ts — placement grid + bench + star merge ============
  * Board cells: 3x3 rocks (0..2) — ring lane cells never placeable. Bench: 2 slots.
- * Merge: 3 identical (dex+star) anywhere on board+bench → next star (cap 3★).
+ * Merge-2 same-cell: 2 identical (dex+star) merge only when one is DROPPED onto
+ * the other (tryMergeAt). Buying 2 same champs into different cells does NOT merge.
  */
 import { register } from '../core/registry';
 import { Path } from './path';
@@ -101,7 +102,6 @@ function mergeCandidates(state: BoardState): Array<{ dex: number; star: number; 
   }
   return out;
 }
-
 /** Apply one merge: consume 2 units, place upgraded where the first was. */
 function applyMerge(state: BoardState, m: { dex: number; star: number; units: BoardUnit[] }): BoardUnit {
   const [a, b] = m.units;
@@ -115,15 +115,15 @@ function applyMerge(state: BoardState, m: { dex: number; star: number; units: Bo
   return target;
 }
 
-/** Merge all possible (loop until none). Returns count of merges. */
-function mergeAll(state: BoardState): number {
-  let n = 0;
-  for (;;) {
-    const ms = mergeCandidates(state);
-    if (!ms.length) break;
-    for (const m of ms) { applyMerge(state, m); n++; }
-  }
-  return n;
+/** Drop `moving` onto cell (x,y): if occupied by same dex+star (<MAX) → merge
+ * there (result at the target cell). Returns false if not a merge target. */
+function tryMergeAt(state: BoardState, moving: BoardUnit, x: number, y: number): boolean {
+  if (moving.x === x && moving.y === y) return false;
+  const t = state.units.find((u) => u.x === x && u.y === y);
+  if (!t || t === moving) return false;
+  if (t.dex !== moving.dex || t.star !== moving.star || t.star >= MAX_STAR) return false;
+  applyMerge(state, { dex: t.dex, star: t.star, units: [t, moving] });
+  return true;
 }
 
 /** Synergy view: board units only; types follow evolution form (★2/★3). */
@@ -139,7 +139,7 @@ const Board = {
   BENCH_SIZE, BOARD_MAX_UNITS, MAX_STAR,
   boardCap, occupied, isPlacementCell,
   place, toBench, add, remove,
-  mergeCandidates, applyMerge, mergeAll, placed,
+  mergeCandidates, applyMerge, tryMergeAt, placed,
   onBoard, onBench,
 };
 register('BoardAC', Board);

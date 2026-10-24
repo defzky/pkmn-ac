@@ -1,5 +1,5 @@
 /**
- * shop.ts — autochess shop: 3 cards + reroll 1g, buy → board (auto-place) → auto-merge stars.
+ * shop.ts — autochess shop: 3 cards + reroll 1g, buy → board auto-place (merge-2 only on same-cell drop).
  *
  * P15 (updated 2026-10-24): pool = 12 GDD champions (champions.ts).
  * Cost = champion cost 1–4 (wave-banded odds per GDD Bagian 5).
@@ -81,24 +81,24 @@ export function sellPrice(dex: number, star = 1): number {
 }
 
 /**
- * buy slot → board bench (auto-merges stars). slot consumed on success.
- * ok=false: insufficient gold (slot kept) or bench full (gold untouched).
+ * buy slot → first free board cell (no auto-merge: 2 same champs sit in
+ * different cells until one is dropped onto the other — Board.tryMergeAt).
+ * ok=false: insufficient gold or board full (gold untouched).
  */
 export function buy(
   shop: ShopState,
   idx: number,
   board: BoardState,
   gold: number
-): { ok: boolean; gold: number; merged: number } {
+): { ok: boolean; gold: number } {
   const slot = shop.slots[idx];
-  if (!slot) return { ok: false, gold, merged: 0 };
+  if (!slot) return { ok: false, gold };
   const cost = slotCost(slot);
-  if (gold < cost) return { ok: false, gold, merged: 0 };
+  if (gold < cost) return { ok: false, gold };
   const u = Board.add(board, slot.dex, slot.star);
-  if (!u) return { ok: false, gold, merged: 0 }; // bench full
+  if (!u) return { ok: false, gold }; // board full
   shop.slots[idx] = null; // consumed
-  const merged = Board.mergeAll(board);
-  return { ok: true, gold: gold - cost, merged };
+  return { ok: true, gold: gold - cost };
 }
 
 /** sell board/bench unit at star-based refund */
