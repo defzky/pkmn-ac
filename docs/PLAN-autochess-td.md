@@ -59,7 +59,7 @@ reroll 1g      →   boss tiap 5      →   foe heart −(1+survivors)
 ```
 src/autochess/
   path.ts         # legacy ring + TD pathThroughBoard (serpentine board walk)
-  board.ts        # grid 3×3, tanpa bench utk buy (auto-place), cap min(8,1+floor(lvl/2)), merge-2
+  board.ts        # grid 3×3 tanpa bench utk buy (auto-place), tanpa cap unit (9 petak = limit), merge same-cell drop (tryMergeAt)
   unit-stats.ts   # derive dari pokedex (ATK_SCALE 40, range melee 2/ranged 3)
   unit.ts         # UnitBattle: mana, star, swing (nama anim), totalAtk, effCd
   unitAI.ts       # tdist lintas arena, target baris depan / progress, damage pipeline, KIND_ANIM
