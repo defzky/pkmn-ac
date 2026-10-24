@@ -14,7 +14,7 @@ import AchDefs from '../data/achievements';
  * y la ventana del perfil público de cualquier jugador (G.ProfileUI.show).
  */
 const $ = (G as any).UI.$;
-const esc = (s: any) => String(s).replace(/[&<>"']/g, c => (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]));
+const esc = (s: any) => U.esc(s);
 const fmt = (t: any) => (t >= 3600 ? Math.floor(t / 3600) + ':' + U.mmss(t % 3600).padStart(5, '0') : U.mmss(t));
 
 // ======================= PANTALLA =======================

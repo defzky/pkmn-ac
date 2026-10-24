@@ -8,7 +8,7 @@ import I18n from '../core/i18n';
  * en el top. Lo leído se guarda 30 min (ver ranking.js).
  */
 const $ = (G as any).UI.$;
-const esc = (s: any) => String(s).replace(/[&<>"']/g, c => (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]));
+const esc = (s: any) => U.esc(s);
 let mode: any = 's', period: any = 'w', scope: any = 'all', dex: any = null;
 let token = 0;
 

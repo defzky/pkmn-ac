@@ -21,12 +21,12 @@ const UI = (() => {
                    'scr-nick', 'scr-friends', 'scr-lobby', 'scr-rank', 'scr-item', 'scr-goals', 'scr-bond', 'scr-mod', 'scr-ac'];
 
   function show(id: any, keepMenu = false) {
-    for (const s of SCREENS) if (s !== id && !(keepMenu && s === 'scr-menu')) $(s).classList.add('hidden');
-    $(id).classList.remove('hidden');
+    for (const s of SCREENS) if (s !== id && !(keepMenu && s === 'scr-menu')) $(s)?.classList.add('hidden');
+    $(id)?.classList.remove('hidden');
   }
-  function hide(id: any) { $(id).classList.add('hidden'); }
-  function hideAll() { for (const s of SCREENS) $(s).classList.add('hidden'); }
-  function isOpen(id: any) { return !$(id).classList.contains('hidden'); }
+  function hide(id: any) { $(id)?.classList.add('hidden'); }
+  function hideAll() { for (const s of SCREENS) $(s)?.classList.add('hidden'); }
+  function isOpen(id: any) { const el = $(id); return !!el && !el.classList.contains('hidden'); }
 
   /** Barra superior (monedas, usuario, sonido) sólo fuera de las runs. */
   function chrome(on: any) {
@@ -72,7 +72,7 @@ const UI = (() => {
 
   // ---------------- sonido de la interfaz ----------------
 
-  const CLICKABLE = '.btn, .menu-item, .tab, .chip, .card, .cell:not(.locked), .answer, .gen-tab';
+  const CLICKABLE = '.btn, .menu-item, .tab, .chip, .card, .cell:not(.locked), .answer, .gen-tab, .ac-cell, .ac-slot, .ac-card';
   let lastHover: any = null;
 
   function wireSounds() {
@@ -308,8 +308,19 @@ const UI = (() => {
     return cv;
   }
 
+  /** One-shot move flourish on an existing sprite canvas (autochess combat).
+   * Same guard as dungeon player (player.ts): don't restart mid-swing.
+   * `face` (rad): turn sprite toward target first (dungeon attackFace). */
+  function spriteHit(cv: any, anim = 'Attack', face?: number): void {
+    const s = byCanvas.get(cv);
+    if (!s || !s.cv.isConnected) return;
+    if (face != null) s.a.dir = Sprites.dirFromAngle(face);
+    if (s.a.busy() && s.a.progress() < 0.65) return;
+    s.a.play(anim, { speed: 1.8 });
+  }
+
   return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete,
-           sprite, spriteCanvas, tick, initChrome, soundControls };
+           sprite, spriteCanvas, spriteHit, tick, initChrome, soundControls };
 })();
 register('UI', UI);
 export { UI };

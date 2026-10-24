@@ -52,6 +52,12 @@ const U = {
     return (h >>> 0) / 4294967296;
   },
 
+  /** Escapa HTML de textos no confiables (nombres, datos de otros jugadores). */
+  esc(s: any) {
+    return String(s ?? '').replace(/[&<>"']/g, (c: string) =>
+      (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }) as Record<string, string>)[c]);
+  },
+
   /** "3:07" a partir de segundos. */
   mmss(s: number) {
     const m = Math.floor(s / 60);
