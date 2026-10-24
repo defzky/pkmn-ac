@@ -27,7 +27,7 @@ vi.mock('../src/core/audio', () => ({
 }));
 vi.stubGlobal('requestAnimationFrame', () => 0);
 
-let ACUI: any, WaveRunner: any;
+let ACUI: any, WaveRunner: any, WaveRunnerTd: any;
 
 const $ = (s: string) => document.querySelector(s) as HTMLElement;
 
@@ -39,6 +39,7 @@ beforeAll(async () => {
   await import('../src/data/types.ts');
   ACUI = (await import('../src/autochess/ac-ui.ts')).default;
   WaveRunner = (await import('../src/autochess/wave-runner.ts')).default;
+  WaveRunnerTd = (await import('../src/autochess/wave-runner-td.ts')).default;
   ACUI.open();
 });
 
@@ -286,5 +287,42 @@ describe('drag & drop shop buy', () => {
     expect(ACUI.board.units.length).toBe(0); // no buy from pointer path
     card().click(); // legacy click path (tests + desktop click)
     expect(ACUI.board.units.length).toBe(1);
+  });
+});
+
+describe('TD mode: mob walk animation (dungeon-style)', () => {
+  it('td mob spawns with own canvas + Walk loop while progress advances', () => {
+    // jsdom has no layout → fake rects so tdCellHostPos resolves
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return { width: 134, height: 134, left: 0, top: 0, right: 134, bottom: 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('td');
+      $('.ac-card').click();
+      $('#ac-start').click();
+      expect(ACUI.run.phase).toBe('combat');
+      WaveRunnerTd.tick(ACUI.run, ACUI.units, 0.1); // spawn + walk
+      expect(ACUI.run.mobs.length).toBeGreaterThan(0);
+      const m = ACUI.run.mobs[0];
+      m.hp = m.maxHp = 9999;
+      m.alive = true;
+      ACUI.syncEnemies(0.16);
+      const mob = document.querySelector('.ac-td-mob') as HTMLElement;
+      expect(mob).toBeTruthy();
+      expect(mob.querySelector('canvas')).toBeTruthy(); // own canvas, not cell sprite
+      expect(mob.dataset.anim).toBe('Walk'); // progress advanced → Walk loop
+      // combat step again: tick moves mobs → still Walk (no random Attack flourish)
+      WaveRunnerTd.tick(ACUI.run, ACUI.units, 0.16);
+      ACUI.syncEnemies(0.16);
+      expect(mob.dataset.anim).toBe('Walk');
+      // no tick between frames (progress frozen, e.g. stunned) → Idle
+      ACUI.syncEnemies(0.16);
+      expect(mob.dataset.anim).toBe('Idle');
+      expect(m.alive).toBe(true);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
   });
 });

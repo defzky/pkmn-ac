@@ -418,15 +418,25 @@ function sizeFxCanvas(): void {
 
 /** sync enemy sprites each combat frame: dual-board = grid cells; TD = path walk overlay */
 const foeLastHp = new Map<MobBattle, number>();
-/** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild) */
-const tdMobEls = new Map<MobBattle, { el: HTMLDivElement; fill: HTMLElement | null }>();
+/** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild).
+ * Each mob owns a raw canvas + Sprites.Animator (Walk/Idle + facing — dungeon-style;
+ * NOT UI.spriteCanvas so the shared live-set doesn't fight over draw/update). */
+interface TdEntry {
+  el: HTMLDivElement;
+  fill: HTMLElement | null;
+  cv: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D | null;
+  anim: InstanceType<typeof Sprites.Animator>;
+  lastP: number;
+}
+const tdMobEls = new Map<MobBattle, TdEntry>();
 const tdLastPos = new Map<MobBattle, { x: number; y: number }>();
 function clearTdMobs(): void {
   for (const { el } of tdMobEls.values()) el.remove();
   tdMobEls.clear();
   tdLastPos.clear();
 }
-function syncEnemies(): void {
+function syncEnemies(dt = 0): void {
   const box = document.getElementById('ac-foe-grid');
   if (!box) return;
   const seen = new Set<MobBattle>();
@@ -452,20 +462,47 @@ function syncEnemies(): void {
         if (!entry) {
           const el = document.createElement('div');
           el.className = 'ac-td-mob' + (m.boss ? ' boss' : '');
-          el.appendChild(UI.spriteCanvas(m.dex, 40, 40, { scale: 2, lively: true }));
+          const cv = document.createElement('canvas');
+          cv.width = 40; cv.height = 44;
+          // same sizing as UI.spriteCanvas(dex,40,40,{scale:2}): a.scale = k/PX
+          const anim = new Sprites.Animator(String(m.dex), 2 / Sprites.PX);
+          el.appendChild(cv);
           el.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
           const fill = el.querySelector('.hp i') as HTMLElement | null;
           host.appendChild(el);
-          entry = { el, fill };
+          entry = { el, fill, cv, ctx: cv.getContext('2d'), anim, lastP: -1 };
           tdMobEls.set(m, entry);
         }
         entry.el.style.left = px + 'px';
         entry.el.style.top = py + 'px';
         if (entry.fill) entry.fill.style.width = Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%';
+        // dungeon-style walk: facing from path segment, Walk while progress advances
+        const segDx = b.x - a.x, segDy = b.y - a.y;
+        if (Math.hypot(segDx, segDy) > 0.5) entry.anim.dir = Sprites.dirFromAngle(Math.atan2(segDy, segDx));
+        const moving = entry.lastP !== m.progress;
+        entry.anim.loop(moving ? 'Walk' : 'Idle', moving ? Math.max(0.6, Math.min(2.2, m.spd * 1.6)) : 1);
+        entry.lastP = m.progress;
+        if (dt > 0) entry.anim.update(dt);
+        if (entry.ctx) {
+          const ctx = entry.ctx;
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, entry.cv.width, entry.cv.height);
+          ctx.imageSmoothingEnabled = false;
+          // feet position + shadow — mirror of UI.sprite draw (ui.ts tick)
+          const meta = Sprites.animMeta(String(m.dex), 'Idle');
+          const ay = meta ? meta.ay : 24;
+          const k = 2;
+          const big = ay * k > entry.cv.height * 0.8;
+          const fx = entry.cv.width / 2, fy = big ? entry.cv.height / 2 + ay * k * 0.45 : entry.cv.height * 0.88;
+          ctx.fillStyle = 'rgba(0,0,0,.35)';
+          ctx.beginPath(); ctx.ellipse(fx, fy, 9 * k, 3.4 * k, 0, 0, 6.2832); ctx.fill();
+          entry.anim.draw(ctx, fx, fy);
+        }
+        entry.el.dataset.anim = entry.anim.cur;
         const prev = foeLastHp.get(m) ?? m.hp;
         if (m.hp < prev) {
-          const cv = entry.el.querySelector('canvas');
-          if (cv) { cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt'); }
+          const cv = entry.cv;
+          cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt');
         }
         foeLastHp.set(m, m.hp);
       }
@@ -861,7 +898,7 @@ function loop(ts: number): void {
         renderAll();
       }
     }
-    if (after === 'combat') { syncEnemies(); renderHud(); playSwings(); stepFx(dt); updateCombatBars(); }
+    if (after === 'combat') { syncEnemies(dt); renderHud(); playSwings(); stepFx(dt); updateCombatBars(); }
     else if (after === 'prep') renderHud();
   } else if (r.phase === 'won') {
     renderAll();
