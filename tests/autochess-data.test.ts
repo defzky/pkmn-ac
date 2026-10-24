@@ -1,7 +1,7 @@
 /* P11 data spec tests: path, unit-stats, wave, synergy */
 import { describe, it, expect, beforeAll } from 'vitest';
 
-let Path: any, UnitStats: any, WaveDef: any, Synergy: any;
+let Path: any, UnitStats: any, WaveDef: any, Synergy: any, Champions: any;
 
 beforeAll(async () => {
   (globalThis as any).G = (globalThis as any).G || {};
@@ -12,6 +12,7 @@ beforeAll(async () => {
   ({ UnitStats } = await import('../src/autochess/unit-stats.ts'));
   ({ WaveDef } = await import('../src/autochess/wave.ts'));
   ({ Synergy } = await import('../src/autochess/synergy.ts'));
+  ({ Champions } = await import('../src/autochess/champions.ts'));
 });
 
 describe('path', () => {
@@ -113,6 +114,28 @@ describe('unit-stats', () => {
 
   it('unknown dex returns null', () => {
     expect(UnitStats.boardStats(999999)).toBeNull();
+  });
+
+  it('champions keep signature elemental moves (not quick-attack)', () => {
+    const expected: Record<number, string> = {
+      1: 'razor-leaf', 4: 'ember', 7: 'water-gun', 16: 'wing-attack',
+      179: 'thunder-shock', 66: 'karate-chop', 92: 'shadow-ball', 63: 'confusion',
+      304: 'metal-claw', 220: 'ice-beam', 280: 'psybeam', 147: 'dragon-rage',
+    };
+    for (const [dex, id] of Object.entries(expected)) {
+      const s = UnitStats.boardStats(+dex, 1);
+      expect(s.move, `dex ${dex}`).toBe(id);
+      expect((globalThis as any).G.Moves.BY_ID[s.move]).toBeTruthy();
+      expect(s.move).not.toBe('quick-attack');
+    }
+  });
+
+  it('non-champion fallback prefers type-appropriate ranged move', () => {
+    const s = UnitStats.boardStats(64, 1); // Kadabra (psychic, special)
+    expect(s.range).toBe(3);
+    const def = (globalThis as any).G.Moves.BY_ID[s.move];
+    expect(def.type).toBe('psychic');
+    expect(['projectile', 'boomerang', 'beam', 'chain', 'cone']).toContain(def.kind);
   });
 });
 

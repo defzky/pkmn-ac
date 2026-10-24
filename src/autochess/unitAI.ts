@@ -356,8 +356,9 @@ export function tick(
       u.mana = 0;
       // GDD ★3: max skill — skill damage ×2 at star 3
       const starSkillMul = u.star >= 3 ? 2 : 1;
-      castSkill(u, mobs, best.alive ? best : null, cells, ((mods as any).skillDmgMul ?? 1) * starSkillMul);
-      u.swing = 'Charge'; // skill flourish (dungeon aura/buff/meteor → Charge)
+      if (castSkill(u, mobs, best.alive ? best : null, cells, ((mods as any).skillDmgMul ?? 1) * starSkillMul)) {
+        u.skillFx = true; // skill flourish (dungeon aura/buff/meteor → Charge)
+      }
       // skill kills
       for (const m of mobs) {
         if (m.alive && m.hp <= 0) {

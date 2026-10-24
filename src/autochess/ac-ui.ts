@@ -24,6 +24,7 @@ import { Team } from './team';
 import { WaveRunner, type RunState } from './wave-runner';
 import { WaveDef } from './wave';
 import { Buffs, type BuffDef } from './buffs';
+import { planMoveFx } from './move-fx';
 import type { UnitBattle } from './unit';
 import type { MobBattle } from './unitAI';
 
@@ -173,10 +174,17 @@ const unitCv = new Map<string, HTMLCanvasElement>();
 // ---- combat fx canvas (dungeon VFX/FX) stretched over both arenas ----
 /** jsdom (tests) has no 2d context → skip pixel painting there */
 const CTX_OK = (() => { try { return !!document.createElement('canvas').getContext('2d'); } catch { return false; } })();
+type FlyMode = 'projectile' | 'boomerang' | 'cone' | 'meteor';
 interface AcProj {
-  x: number; y: number; vx: number; vy: number; t: number; life: number;
+  mode: FlyMode;
+  x: number; y: number; ox: number; oy: number; vx: number; vy: number;
+  t: number; life: number; /** outbound flight time (boomerang turn point) */ out: number;
   vis: { proj: string; pal: string; trail?: string | null };
   dmg: number; hx: number; hy: number; col: string;
+  /** draw damage number on impact (false for extra fan/boomerang copies) */
+  showText: boolean;
+  /** boomerang already hit at the turn point */
+  hit: boolean;
 }
 interface AcImpact {
   t: number; x: number; y: number; dmg: number; col: string;
@@ -184,15 +192,39 @@ interface AcImpact {
 }
 const acProjs: AcProj[] = [];
 const acImpacts: AcImpact[] = [];
-/** move kinds that fly a dungeon VFX projectile (others: slash / beam / flourish) */
-const PROJ_KINDS = new Set(['projectile', 'chain', 'cone', 'boomerang', 'meteor', 'mine', 'orbit']);
 let fxCanvas: HTMLCanvasElement | null = null;
+const cellPx = new Map<string, { x: number; y: number }>();
+let fxRo: ResizeObserver | null = null;
 
-/** global cell (enemy y −1..−3, player y 0..2) → art px on the 3×7 fx canvas:
- *  enemy rows 0..2, gap row 3, player rows 4..6. */
+/** global cell (enemy y −1..−3, player y 0..2) → fallback world px on the 3×7 canvas. */
 function mfx(x: number, y: number): { x: number; y: number } {
   const row = y < 0 ? -y - 1 : 4 + y;
-  return { x: (x + 0.5) * Tiles.T, y: (row + 0.5) * Tiles.T };
+  return { x: (x + 0.5) * Tiles.T * Sprites.PX, y: (row + 0.5) * Tiles.T * Sprites.PX };
+}
+
+/** Cell centre in fx-canvas world px. Uses real DOM rects when layout exists,
+ * so projectiles line up with the actual grid padding/border/gaps. */
+function cellCenter(x: number, y: number): { x: number; y: number } {
+  const key = x + ',' + y;
+  const cached = cellPx.get(key);
+  if (cached) return cached;
+  const host = document.getElementById('ac-arenas');
+  const cell = document.querySelector(`.ac-cell[data-xy="${key}"]`) as HTMLElement | null;
+  if (host && cell) {
+    const h = host.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    if (h.width > 0 && h.height > 0 && c.width > 0 && c.height > 0) {
+      const w = fxCanvas?.width || 3 * Tiles.T * Sprites.PX;
+      const ht = fxCanvas?.height || 7 * Tiles.T * Sprites.PX;
+      const p = {
+        x: ((c.left + c.width / 2 - h.left) / h.width) * w,
+        y: ((c.top + c.height / 2 - h.top) / h.height) * ht,
+      };
+      cellPx.set(key, p);
+      return p;
+    }
+  }
+  return mfx(x, y);
 }
 
 /** star + attack pill above a unit head (both arenas) */
@@ -209,6 +241,7 @@ function buffCells(wave: number): Set<string> {
 
 function renderStage(): void {
   unitCv.clear();
+  cellPx.clear();
   acProjs.length = 0;
   acImpacts.length = 0;
   FX.clear();
@@ -268,11 +301,17 @@ function renderStage(): void {
     }
   }
 
-  // fx overlay: stretched art-px canvas (3 cols × 7 rows) over both arenas
+  // fx overlay: world-px canvas (3 cols × 7 rows) over both arenas.
+  // FX/VFX draw in world units (Sprites.PX per art px) — sizing the canvas in
+  // art px made every effect 2× too large relative to the cells.
   const fc = $('ac-fx') as HTMLCanvasElement;
-  fc.width = 3 * Tiles.T;
-  fc.height = 7 * Tiles.T;
+  fc.width = 3 * Tiles.T * Sprites.PX;
+  fc.height = 7 * Tiles.T * Sprites.PX;
   fxCanvas = fc;
+  if (!fxRo && typeof ResizeObserver !== 'undefined') {
+    fxRo = new ResizeObserver(() => cellPx.clear());
+    fxRo.observe($('ac-arenas'));
+  }
 }
 
 /** sync enemy sprites into foe-grid cells (spawn / hp / death) each combat frame */
@@ -310,8 +349,8 @@ function syncEnemies(): void {
     const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
     const m = st.run.mobs.find((mm) => mm.cx === x && mm.cy === y && seen.has(mm));
     if (!m) {
-      const a = mfx(x, y);
-      FX.burst(a.x, a.y - LIFT, '#fff', 8, 120);
+      const a = cellCenter(x, y);
+      FX.burst(a.x, a.y - LIFT * 0.5, '#fff', 8, 120);
       cell.innerHTML = '';
       cell.classList.remove('boss', 'ghost');
     }
@@ -662,7 +701,9 @@ const SHOT_SND: Record<string, string> = {
  * adaptive speed (animLen / atkCd) + shot sfx by move kind/type. */
 function playSwings(): void {
   for (const b of st.units) {
-    const anim = b.swing;
+    const skill = !!b.skillFx;
+    b.skillFx = false;
+    const anim = skill ? 'Charge' : b.swing;
     if (!anim) continue;
     b.swing = undefined;
     const cv = unitCv.get(b.x + ',' + b.y);
@@ -676,6 +717,11 @@ function playSwings(): void {
       const cd = Math.max(0.12, b.atkCd || 0.5);
       UI.spriteHit(cv, anim, b.face, Math.max(1, len / (cd * 0.9)));
     }
+    if (skill) {
+      const c = cellCenter(b.x, b.y);
+      FX.ring(c.x, c.y - LIFT * 0.5, 4, 18, '#8ccaff', 0.32, 2);
+      FX.burst(c.x, c.y - LIFT * 0.5, '#8ccaff', 6, 80);
+    }
     if (kind !== 'trail') Audio.sfx('shot', { kind: (SHOT_SND as any)[kind] || kind, type: M?.type || 'normal' });
     spawnMoveFx(b);
   }
@@ -688,34 +734,83 @@ function spawnMoveFx(b: UnitBattle): void {
   if (!hit) return;
   const move = (b as any).move || '';
   const M = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move] ?? null) : null;
-  const kind: string = M?.kind || 'melee';
   const type: string = M?.type || 'normal';
   const v: any = M ? VFX.forMove(M) : VFX.forType(type);
+  const plan = planMoveFx(M);
   const col = ((U as any).TYPE_COLOR[type] || '#fff') as string;
-  const f0 = mfx(b.x, b.y), h0 = mfx(hit.x, hit.y);
-  const fx0 = f0.x, fy0 = f0.y - LIFT;
+  const f0 = cellCenter(b.x, b.y), h0 = cellCenter(hit.x, hit.y);
+  const fx0 = f0.x, fy0 = f0.y - LIFT * 0.5;
   const hx = h0.x, hy = h0.y - LIFT * 0.5;
   const dx = hx - fx0, dy = hy - fy0;
   const dist = Math.hypot(dx, dy) || 1;
   const ang = Math.atan2(dy, dx);
   const impact = (t: number, melee?: string | null) =>
     acImpacts.push({ t, x: hx, y: hy, dmg: hit.dmg, col, pal: v.pal || type, melee, angle: ang });
-  if (v.beam || kind === 'beam') {
-    // straight beam from caster to target (dungeon FX.beam pattern)
+  const projVis = { proj: v.proj || VFX.forType(type).proj, pal: v.pal || type, trail: v.trail };
+  const fan = (i: number) => plan.count <= 1 ? 0 : (i - (plan.count - 1) / 2) * plan.spread;
+
+  if (plan.mode === 'beam') {
     FX.beam(fx0, fy0, ang, dist, 6, col, { pal: v.pal || type, beam: v.beam ?? null });
     impact(0.14);
-  } else if (PROJ_KINDS.has(kind)) {
-    const SPD = 150; // art px/s — short board hops read as ~0.1–0.3s
-    acProjs.push({
-      x: fx0, y: fy0, vx: (dx / dist) * SPD, vy: (dy / dist) * SPD,
-      t: 0, life: Math.max(0.1, dist / SPD),
-      vis: { proj: v.proj || VFX.forType(type).proj, pal: v.pal || type, trail: v.trail },
-      dmg: hit.dmg, hx, hy, col,
-    });
-  } else if (kind === 'melee' || kind === 'dash') {
+  } else if (plan.mode === 'projectile' || plan.mode === 'cone' || plan.mode === 'boomerang') {
+    for (let i = 0; i < plan.count; i++) {
+      const a = ang + fan(i);
+      const ex = fx0 + Math.cos(a) * dist;
+      const ey = fy0 + Math.sin(a) * dist;
+      const out = Math.max(0.1, dist / plan.speed);
+      const mode: FlyMode = plan.mode === 'boomerang' ? 'boomerang' : plan.mode === 'cone' ? 'cone' : 'projectile';
+      acProjs.push({
+        mode, x: fx0, y: fy0, ox: fx0, oy: fy0, hx: ex, hy: ey,
+        vx: Math.cos(a) * plan.speed, vy: Math.sin(a) * plan.speed,
+        t: 0, out, life: mode === 'boomerang' ? out * 2 : out,
+        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false,
+      });
+    }
+  } else if (plan.mode === 'meteor' || plan.mode === 'mine') {
+    const fall = (plan.mode === 'meteor' ? Tiles.T * Sprites.PX * 2.4 : Tiles.T * Sprites.PX * 0.9);
+    const life = plan.mode === 'meteor' ? 0.34 : 0.2;
+    for (let i = 0; i < plan.count; i++) {
+      const off = plan.count <= 1 ? 0 : (i - (plan.count - 1) / 2) * 10 * Sprites.PX;
+      const tx = hx + off, ty = hy;
+      acProjs.push({
+        mode: 'meteor', x: tx, y: ty - fall, ox: tx, oy: ty - fall, hx: tx, hy: ty,
+        vx: 0, vy: 0, t: 0, out: life, life,
+        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false,
+      });
+    }
+  } else if (plan.mode === 'slash') {
     impact(0.09, v.melee || 'impact'); // windup ≈ swing anim, then slash at target
+  } else if (plan.mode === 'chain') {
+    FX.beam(fx0, fy0, ang, dist, 3, col, { pal: v.pal || type, beam: v.beam || 'lightning' });
+    impact(0.1);
+  } else if (plan.mode === 'radial') {
+    FX.ring(fx0, fy0, 3, 22, col, 0.28, 2);
+    FX.burst(fx0, fy0, col, 8, 90);
+    impact(0.1);
+  } else if (plan.mode === 'aura') {
+    FX.ring(fx0, fy0, 4, 20, col, 0.3, 2);
+    if (v.aura) FX.sp(v.aura, v.pal || type, fx0, fy0, { life: 0.42, scale: 1.3 });
+    else FX.burst(fx0, fy0, col, 6, 80);
+    impact(0.12);
+  } else if (plan.mode === 'charge') {
+    FX.ring(fx0, fy0, 3, 16, col, 0.3, 2);
+    FX.sp(v.buff || 'arrow', v.pal || type, fx0, fy0, { vy: -45, life: 0.5, scale: 1.2 });
+    impact(0.12);
+  } else if (plan.mode === 'trail') {
+    FX.ring(fx0, fy0, 2, 12, col, 0.26, 2);
+    FX.burst(fx0, fy0, col, 5, 70);
+    impact(0.12);
+  } else if (plan.mode === 'orbit') {
+    FX.ring(fx0, fy0, 5, 18, col, 0.3, 2);
+    const n = Math.max(2, plan.count);
+    const orbR = 8 * Sprites.PX;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      FX.sp(v.proj || 'leaf', v.pal || type, fx0 + Math.cos(a) * orbR, fy0 + Math.sin(a) * orbR,
+        { life: 0.36, scale: 1, spin: 7 });
+    }
+    impact(0.12);
   } else {
-    // buff/aura/trail: flourish at caster + impact number at target
     FX.burst(fx0, fy0, col, 6, 90);
     impact(0.12);
   }
@@ -736,31 +831,44 @@ function stepFx(dt: number): void {
     else FX.burst(p.x, p.y, p.col, 7, 100);
     FX.dmgText(p.x, p.y - 6, Math.round(p.dmg), '#ffffff');
   }
-  // projectiles: fly, trail, impact
+  // projectiles: fly / turn back / fall, trail, impact
+  const hitProj = (p: AcProj) => {
+    FX.burst(p.hx, p.hy, p.col, 7, 110);
+    if (p.showText) FX.dmgText(p.hx, p.hy - 6, Math.round(p.dmg), '#ffffff');
+  };
   for (let i = acProjs.length - 1; i >= 0; i--) {
     const p = acProjs[i];
     p.t += dt;
-    if (p.t >= p.life) {
-      acProjs.splice(i, 1);
-      FX.burst(p.hx, p.hy, p.col, 7, 110);
-      FX.dmgText(p.hx, p.hy - 6, Math.round(p.dmg), '#ffffff');
-      continue;
+    if (p.mode === 'boomerang') {
+      if (!p.hit && p.t >= p.out) { p.hit = true; hitProj(p); }
+      const k = p.t < p.out ? p.t / p.out : 1 - (p.t - p.out) / p.out;
+      p.x = p.ox + (p.hx - p.ox) * k;
+      p.y = p.oy + (p.hy - p.oy) * k;
+      if (p.t >= p.life) { acProjs.splice(i, 1); continue; }
+    } else if (p.mode === 'meteor') {
+      const k = Math.min(1, p.t / p.life);
+      p.x = p.hx;
+      p.y = p.oy + (p.hy - p.oy) * k;
+      if (p.t >= p.life) { acProjs.splice(i, 1); hitProj(p); continue; }
+    } else {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.t >= p.life) { acProjs.splice(i, 1); hitProj(p); continue; }
     }
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.vis.trail) FX.trail(p.vis.trail, p.vis.pal, p.x, p.y - LIFT, p.vx, p.vy);
+    if (p.vis.trail) FX.trail(p.vis.trail, p.vis.pal, p.x, p.y, p.vx, p.vy);
   }
   // draw projectiles (dungeon Projectiles.draw: shadow, then VFX shape)
   g.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
   g.fillStyle = 'rgba(0,0,0,.25)';
   for (const p of acProjs) {
-    g.beginPath(); g.ellipse(p.x, p.y, 5, 2.2, 0, 0, 6.2832); g.fill();
+    g.beginPath(); g.ellipse(p.x, p.hy, 5, 2.2, 0, 0, 6.2832); g.fill();
   }
   for (const p of acProjs) {
     let angle = 0;
-    if (VFX.isDir(p.vis.proj)) angle = Math.atan2(p.vy, p.vx);
+    if (p.mode === 'meteor') angle = Math.PI / 2;
+    else if (VFX.isDir(p.vis.proj)) angle = Math.atan2(p.vy, p.vx);
     else if (VFX.spins(p.vis.proj)) angle = p.t * 9;
-    VFX.draw(g, p.vis.proj, p.vis.pal, p.x, p.y - LIFT, {
-      angle, alpha: Math.min(1, (p.life - p.t) * 6), scale: 1, frame: Math.floor(p.t * 12),
+    VFX.draw(g, p.vis.proj, p.vis.pal, p.x, p.y, {
+      angle, alpha: Math.min(1, Math.max(0, (p.life - p.t) * 6)), scale: 1, frame: Math.floor(p.t * 12),
     });
   }
   // dungeon FX layer (particles, slashes, beams, dmg numbers)
@@ -841,6 +949,8 @@ const ACUI = {
   step: loop, // exported for tests: call manually (rAF stubbed)
   get run() { return st.run; }, get board() { return st.board; }, get shop() { return st.shop; },
   get units() { return st.units; },
+  get projs() { return acProjs.length; },
+  get impacts() { return acImpacts.length; },
 };
 register('AutochessUI', ACUI);
 export { ACUI };

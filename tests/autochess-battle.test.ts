@@ -139,6 +139,17 @@ describe('unitAI.tick', () => {
     expect(u.hit).toEqual({ x: 0, y: -1, dmg: expect.any(Number) }); // impact cell (1,-1)→(0,-1)
   });
 
+  it('Bulbasaur attack uses Razor Leaf projectile flags', () => {
+    const u = unitAt(1, 0, 1);
+    expect(u.move).toBe('razor-leaf');
+    expect((globalThis as any).G.Moves.BY_ID[u.move].kind).toBe('boomerang');
+    const m = mob({ progress: 4.5, hp: 1 });
+    u.atk = 999; u.atkCd = 0.5;
+    UnitAI.tick([u], [m], 0.01, undefined, Path.laneCells());
+    expect(u.swing).toBe('Shoot');
+    expect(u.hit).toEqual({ x: -1, y: 1, dmg: expect.any(Number) });
+  });
+
   it('attack sets facing angle toward mob cell (west → π)', () => {
     const u = unitAt(6, 0, 1);
     const m = mob({ progress: 4.5, hp: 1 }); // cell (-1,1), directly west of (0,1)

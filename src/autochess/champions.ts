@@ -9,21 +9,23 @@ export interface ChampionDef {
   name: string;
   cost: number;
   skill: string;
+  /** signature move id (visual identity + type matchup) */
+  move?: string;
 }
 
 export const DEFS: ChampionDef[] = [
-  { dex: 1, name: 'Bulbasaur', cost: 1, skill: 'poisonDoT' },
-  { dex: 4, name: 'Charmander', cost: 1, skill: 'burnAoE' },
-  { dex: 7, name: 'Squirtle', cost: 1, skill: 'knockback' },
-  { dex: 16, name: 'Pidgey', cost: 1, skill: 'none' }, // passive: fast AS via stats
-  { dex: 179, name: 'Mareep', cost: 2, skill: 'chainStun' },
-  { dex: 66, name: 'Machop', cost: 2, skill: 'armorShred' },
-  { dex: 92, name: 'Gastly', cost: 2, skill: 'burstLowest' },
-  { dex: 63, name: 'Abra', cost: 3, skill: 'bossBurst' },
-  { dex: 304, name: 'Aron', cost: 3, skill: 'tank' }, // passive: HP×1.3
-  { dex: 220, name: 'Swinub', cost: 3, skill: 'slowArea' },
-  { dex: 280, name: 'Ralts', cost: 4, skill: 'asAura' },
-  { dex: 147, name: 'Dratini', cost: 4, skill: 'meteorAoE' },
+  { dex: 1, name: 'Bulbasaur', cost: 1, skill: 'poisonDoT', move: 'razor-leaf' },
+  { dex: 4, name: 'Charmander', cost: 1, skill: 'burnAoE', move: 'ember' },
+  { dex: 7, name: 'Squirtle', cost: 1, skill: 'knockback', move: 'water-gun' },
+  { dex: 16, name: 'Pidgey', cost: 1, skill: 'none', move: 'wing-attack' }, // passive: fast AS via stats
+  { dex: 179, name: 'Mareep', cost: 2, skill: 'chainStun', move: 'thunder-shock' },
+  { dex: 66, name: 'Machop', cost: 2, skill: 'armorShred', move: 'karate-chop' },
+  { dex: 92, name: 'Gastly', cost: 2, skill: 'burstLowest', move: 'shadow-ball' },
+  { dex: 63, name: 'Abra', cost: 3, skill: 'bossBurst', move: 'confusion' },
+  { dex: 304, name: 'Aron', cost: 3, skill: 'tank', move: 'metal-claw' }, // passive: HP×1.3
+  { dex: 220, name: 'Swinub', cost: 3, skill: 'slowArea', move: 'ice-beam' },
+  { dex: 280, name: 'Ralts', cost: 4, skill: 'asAura', move: 'psybeam' },
+  { dex: 147, name: 'Dratini', cost: 4, skill: 'meteorAoE', move: 'dragon-rage' },
 ];
 
 /** Wave-banded shop odds (GDD Bagian 5). Returns [[cost, weight]…] summing 100. */
@@ -50,6 +52,11 @@ export function skillOf(dex: number): string {
   return BY_DEX[dex]?.skill ?? 'none';
 }
 
+/** Signature move id for a champion, or null when dex is not in the pool. */
+export function moveOf(dex: number): string | null {
+  return BY_DEX[dex]?.move ?? null;
+}
+
 /** Champions of given cost. */
 export function poolByCost(cost: number): ChampionDef[] {
   return BY_COST[cost] || [];
@@ -60,7 +67,7 @@ export function isChampion(dex: number): boolean {
   return !!BY_DEX[dex];
 }
 
-const Champions = { DEFS, costWeights, costOf, skillOf, poolByCost, isChampion };
+const Champions = { DEFS, costWeights, costOf, skillOf, moveOf, poolByCost, isChampion };
 register('ChampionsAC', Champions);
 export { Champions };
 export default Champions;

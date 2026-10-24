@@ -1,8 +1,9 @@
 /* ============ autochess/unit-stats.ts — derive board stats from pokedex ============
  * Unit on board: hp/atk scale with star; spd = cell/s; range from phys vs spec;
- * atkCd from dex.spd; move = strongest of first 2 dex moves.
+ * atkCd from dex.spd; move = champion signature or best type-appropriate move.
  */
 import { register } from '../core/registry';
+import { moveOf } from './champions';
 
 export interface BoardStats {
   dex: number;
@@ -46,6 +47,32 @@ function clamp(v: number, lo: number, hi: number): number {
  * 40 → solo ★1 ≈ 45 dps; 4-unit board clears wave-1 without leaks. */
 const ATK_SCALE = 40;
 
+/** Shot/beam/bounce families that read as a visible ranged move. */
+const RANGED_KINDS = new Set(['projectile', 'boomerang', 'beam', 'chain', 'cone']);
+/** Contact families for physical units. */
+const MELEE_KINDS = new Set(['melee', 'dash']);
+
+/** Pick champion signature first, then the strongest type-appropriate move.
+ * The common `normal` pool is ignored so units keep their elemental identity. */
+export function moveFor(e: any, range: number, Moves: any): string {
+  const sig = moveOf(e.dex);
+  if (sig && Moves?.BY_ID?.[sig]) return sig;
+  if (!Moves?.poolFor) return '';
+  const defs: any[] = (Moves.poolFor(e) as string[])
+    .map((id) => Moves.BY_ID?.[id])
+    .filter((d) => d && d.type !== 'normal' && d.kind !== 'buff');
+  const pref = defs.filter((d) => (range === 3 ? RANGED_KINDS : MELEE_KINDS).has(d.kind));
+  const list = pref.length ? pref : defs;
+  let best: any = null;
+  for (const d of list) {
+    if (!best) { best = d; continue; }
+    const dd = (d.dmg ?? 0) - (best.dmg ?? 0);
+    if (dd > 0 || (dd === 0 && (d.cd ?? Infinity) < (best.cd ?? Infinity))) best = d;
+  }
+  if (best) return best.id;
+  return Moves.startFor?.(e) || 'tackle';
+}
+
 /** Derive board stats. Dex entry shape matches PokedexEntry (src/types/data-globals.d.ts). */
 export function boardStats(dex: number, star: number = 1): BoardStats | null {
   const DEX_BY: Record<string, any> = (G as any).DEX_BY;
@@ -59,17 +86,7 @@ export function boardStats(dex: number, star: number = 1): BoardStats | null {
   // every ring cell — melee range 1 made center units permanently idle.
   const range = (e.pa ?? 1) >= (e.sa ?? 1) ? 2 : 3;
   const atkCd = clamp(1.2 - (e.spd ?? 50) / 400, 0.4, 1.6) / starAsMul(star);
-  // strongest of first 2 pool moves (power field p or base)
-  let move = '';
-  if (Moves?.poolFor) {
-    const pool: string[] = Moves.poolFor(e).slice(0, 2);
-    let best = -1;
-    for (const id of pool) {
-      const def = Moves.BY_ID?.[id];
-      const p = (def?.dmg ?? 0) as number;
-      if (p > best) { best = p; move = id; }
-    }
-  }
+  const move = moveFor(e, range, Moves);
   return {
     dex,
     name: e.name,
@@ -95,7 +112,7 @@ export function sellPrice(rarity: number): number {
   return Math.ceil(unitCost(rarity) / 2);
 }
 
-const UnitStats = { boardStats, starMul, starAsMul, unitCost, sellPrice };
+const UnitStats = { boardStats, moveFor, starMul, starAsMul, unitCost, sellPrice };
 register('UnitStats', UnitStats);
 export { UnitStats };
 export default UnitStats;

@@ -12,3 +12,6 @@ tools/cache/
 # os/editor
 .DS_Store
 *.log
+
+# local agent config
+.opencode/

@@ -182,6 +182,16 @@ describe('start combat', () => {
     expect(($('#ac-start').textContent || '')).toBe('Fighting…');
     expect(($('#ac-start') as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('Bulbasaur attack queues Razor Leaf projectile visual', () => {
+    ACUI.board.units.push({ dex: 1, star: 1, x: 0, y: 1, bench: null, items: [] });
+    $('#ac-start').click();
+    const u = ACUI.units[0];
+    expect(u.move).toBe('razor-leaf');
+    WaveRunner.tick(ACUI.run, ACUI.units, 0.1); // spawn + first auto-attack
+    ACUI.step(performance.now() + 32);
+    expect(ACUI.projs).toBeGreaterThan(0);
+  });
 });
 
 describe('wave clear → shop refresh', () => {
@@ -208,6 +218,9 @@ describe('enemy sync (dual-board walkers → grid cells)', () => {
     $('#ac-start').click();
     WaveRunner.tick(ACUI.run, ACUI.units, 0.1); // spawn first mob at FOE_SLOTS[0]
     expect(ACUI.run.mobs.length).toBe(1);
+    const first = ACUI.run.mobs[0];
+    first.hp = first.maxHp = 999; // keep it alive regardless of the random shop champion
+    first.alive = true;
     ACUI.syncEnemies();
     const cell = $('#ac-foe-grid [data-xy="0,-1"]') as HTMLElement;
     expect(cell.querySelector('canvas')).toBeTruthy();

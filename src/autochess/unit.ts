@@ -36,6 +36,8 @@ export interface UnitBattle extends BoardStats {
   face?: number;
   /** UI: set with swing → impact point + damage (projectile/slash vfx + dmg number) */
   hit?: { x: number; y: number; dmg: number };
+  /** UI: skill fired this tick → charge flourish in addition to attack fx */
+  skillFx?: boolean;
 }
 
 /** Build battle unit from board placement + synergy mods + items. */
