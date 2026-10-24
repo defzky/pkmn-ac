@@ -395,3 +395,38 @@ describe('drag shop → merge onto occupied cell', () => {
     expect(ACUI.shop.slots[1]).not.toBeNull(); // slot kept
   });
 });
+
+describe('TD mode: ring lane layout', () => {
+  it('lane tiles render outside grid (16 dedup cells), cells never marked td-path', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const el = this as HTMLElement;
+      const xy = (typeof el.closest === 'function' ? el.closest('[data-xy]') : null) as HTMLElement | null;
+      if (xy && xy.dataset?.xy) {
+        const [x, y] = xy.dataset.xy.split(',').map(Number);
+        return { width: 134, height: 134, left: 200 + x * 134, top: 50 + y * 134,
+                 right: 334 + x * 134, bottom: 184 + y * 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+      }
+      return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('td');
+      const lanes = document.querySelectorAll('.ac-td-lane');
+      // union of both branches: 9 + 9 − shared {(1,-1),(1,3)} = 16 tiles
+      expect(lanes.length).toBe(16);
+      expect((document.getElementById('ac-td-lanes') as HTMLElement).hidden).toBe(false);
+      // ring lane never touches board cells
+      expect(document.querySelectorAll('.ac-cell.td-path').length).toBe(0);
+      const xs = new Set([...lanes].map((l) => (l as HTMLElement).style.left));
+      expect(xs.size).toBeGreaterThan(0);
+      // base marker at ring end (1,3): px = 200 + 1.5*134 + 1*134 − 0 = 468
+      const base = document.getElementById('ac-td-base') as HTMLElement;
+      expect(base.hidden).toBe(false);
+      expect(base.style.left).toBe('401px'); // 200 + 67 + 1*134
+      expect(base.style.top).toBe('519px');  // 50 + 67 + 3*134
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+});

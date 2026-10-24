@@ -1,9 +1,10 @@
 /**
  * wave-runner-td.ts — Tower Defence phase machine: prep → combat → (buff every 3) → …
  *
- * TD mode: single 3×3 player board. Mobs spawn at path[0] (top-center) and WALK
- * the serpentine path through the board (Path.pathThroughBoard) toward base
- * (bottom-right). No foe heart. Round won = all mobs dead; round lost = team wipe
+ * TD mode: single 3×3 player board. Mobs spawn at ring start (top-center) and WALK
+ * the ring lane AROUND the board (branch 0 left / 1 right, alternating — set at
+ * spawn) toward base; leak when reaching lane end. Board cells stay pokemon-only.
+ * No foe heart. Round won = all mobs dead; round lost = team wipe
  * (same as autochess). Game lost = base HP 0 (leaks). Game won = wave 20 cleared.
  * Leak penalty via base.ts (normal 5, boss 20).
  */
@@ -59,7 +60,7 @@ function dexEntry(dex: number): any {
   return ((G as any).DEX_BY || {})[dex];
 }
 
-/** Walking mob — NO cx/cy (progress-based), branch unused (TD path via fallback cells). */
+/** Walking mob — NO cx/cy (progress-based); spawner sets branch (ring lane 0/1). */
 function toMob(s: MobSpec): MobBattle {
   const e = dexEntry(s.dex);
   const bounty = s.boss ? 10 : s.elite ? 2 : Math.random() < 0.28 ? 1 : 0;
@@ -154,13 +155,15 @@ export function tick(
   if (st.spawnQ.length) {
     st.spawnT -= dt;
     while (st.spawnQ.length && st.spawnT <= 0) {
-      st.mobs.push(toMob(st.spawnQ.shift()!));
+      const m = toMob(st.spawnQ.shift()!);
+      m.branch = st.mobs.length % 2; // alternate left/right ring lane (mob never steps on board cells)
+      st.mobs.push(m);
       st.spawnT += st.spawnGap;
     }
   }
 
-  const tdPath = Path.pathThroughBoard();
-  const r = aiTick(units, st.mobs, dt, mods, tdPath);
+  const lane = Path.branchCells(0);
+  const r = aiTick(units, st.mobs, dt, mods, lane);
   st.kills += r.kills;
   if (r.gold) st.gold += r.gold;
 

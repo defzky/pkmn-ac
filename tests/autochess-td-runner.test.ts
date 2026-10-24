@@ -1,7 +1,8 @@
 /**
- * TD runner tests — path walk + leak + win/lose:
- * prep → combat; base 100; mobs walk pathThroughBoard; leak = base damage (5/20);
- * round win = all dead + wave bonus; game won = wave 20; game lost = base 0.
+ * TD runner tests — ring-lane walk + leak + win/lose:
+ * prep → combat; base 100; mobs walk branchCells (ring around board, alternating);
+ * leak = base damage (5/20); round win = all dead + wave bonus;
+ * game won = wave 20; game lost = base 0.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 
@@ -37,26 +38,33 @@ function godUnit(x = 1, y = 1) {
   };
 }
 
-describe('path through board (TD)', () => {
-  it('serpentine: spawn top-center → base bottom-right, walks 9 board cells', () => {
-    const cells = Path.pathThroughBoard();
-    expect(cells.length).toBe(10); // spawn + 8 board + base (rasterized joins)
-    expect(cells[0]).toEqual({ x: 1, y: -1 }); // spawn
-    expect(cells[cells.length - 1]).toEqual({ x: 2, y: 3 }); // base
-    // all board cells 0..2 unique except spawn/base outside
-    const board = cells.filter((c: any) => c.x >= 0 && c.x < 3 && c.y >= 0 && c.y < 3);
-    expect(board.length).toBe(8); // (0,0) skipped
-    const xs = new Set(board.map((c: any) => `${c.x},${c.y}`));
-    expect(xs.size).toBe(8);
-    expect(xs.has('0,0')).toBe(false); // free anchor cell
+describe('ring lanes (TD) — minions never step on board cells', () => {
+  it('both branches: shared spawn top-center → base bottom-center, 9 cells, 0 board cells', () => {
+    for (const br of [0, 1]) {
+      const cells = Path.branchCells(br);
+      expect(cells.length).toBe(9);
+      expect(cells[0]).toEqual({ x: 1, y: -1 }); // shared spawn
+      expect(cells[cells.length - 1]).toEqual({ x: 1, y: 3 }); // shared base (ring end)
+      const board = cells.filter((c: any) => c.x >= 0 && c.x < 3 && c.y >= 0 && c.y < 3);
+      expect(board.length).toBe(0); // lane wraps OUTSIDE the 3×3 grid
+    }
   });
   it('contiguous (each step ±1 in x or y)', () => {
-    const cells = Path.pathThroughBoard();
-    for (let i = 1; i < cells.length; i++) {
-      const dx = Math.abs(cells[i].x - cells[i - 1].x);
-      const dy = Math.abs(cells[i].y - cells[i - 1].y);
-      expect(dx + dy).toBe(1);
+    for (const br of [0, 1]) {
+      const cells = Path.branchCells(br);
+      for (let i = 1; i < cells.length; i++) {
+        const dx = Math.abs(cells[i].x - cells[i - 1].x);
+        const dy = Math.abs(cells[i].y - cells[i - 1].y);
+        expect(dx + dy).toBe(1);
+      }
     }
+  });
+  it('spawned mobs alternate lane branch 0/1', () => {
+    const st = WRTD.createRun();
+    WRTD.startCombat(st);
+    for (let i = 0; i < 60 && st.spawnQ.length; i++) WRTD.tick(st, [], 1);
+    expect(st.mobs.length).toBeGreaterThanOrEqual(2);
+    st.mobs.forEach((m: any, i: number) => expect(m.branch).toBe(i % 2));
   });
 });
 

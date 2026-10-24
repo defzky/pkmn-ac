@@ -94,6 +94,7 @@ function ensureDom(): HTMLElement {
           <div class="ac-grid" id="ac-me-grid"></div>
         </div>
         <span class="ac-td-base" id="ac-td-base" hidden>🏰</span>
+        <div class="ac-td-lanes" id="ac-td-lanes" hidden></div>
         <canvas class="ac-fx" id="ac-fx"></canvas>
       </div>
       <div class="ac-synbar" id="ac-syn"></div>
@@ -234,6 +235,38 @@ function tdCellHostPos(x: number, y: number): { x: number; y: number } | null {
   return { x: px, y: py };
 }
 
+/** TD ring-lane tiles (both branches, dedup) outside the grid — pitch-sized squares. */
+function renderTdLanes(): void {
+  const box = document.getElementById('ac-td-lanes');
+  if (!box) return;
+  box.innerHTML = '';
+  (box as HTMLElement).hidden = false;
+  const c00 = document.querySelector('#ac-me-grid .ac-cell[data-xy="0,0"]') as HTMLElement | null;
+  const c10 = document.querySelector('#ac-me-grid .ac-cell[data-xy="1,0"]') as HTMLElement | null;
+  if (!c00 || !c10) return;
+  const r0 = c00.getBoundingClientRect(), r1 = c10.getBoundingClientRect();
+  const pitch = r1.left - r0.left;
+  if (!(pitch > 0)) return; // jsdom / hidden — no layout, skip sizeless tiles
+  const size = Math.round(pitch * 0.86);
+  const seen = new Set<string>();
+  for (const br of [0, 1]) {
+    for (const c of Path.branchCells(br)) {
+      const key = c.x + ',' + c.y;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const p = tdCellHostPos(c.x, c.y);
+      if (!p) continue;
+      const tile = document.createElement('div');
+      tile.className = 'ac-td-lane';
+      tile.style.left = p.x + 'px';
+      tile.style.top = p.y + 'px';
+      tile.style.width = size + 'px';
+      tile.style.height = size + 'px';
+      box.appendChild(tile);
+    }
+  }
+}
+
 /** global cell (enemy y −1..−3, player y 0..2) → fallback world px on the 3×7 canvas. */
 function mfx(x: number, y: number): { x: number; y: number } {
   if (currentMode === 'td') {
@@ -358,22 +391,17 @@ function renderStage(): void {
       waveBox.appendChild(g);
     });
     if (!preview.length) waveBox.insertAdjacentHTML('beforeend', '<span class="sub" style="font-size:11px">next wave…</span>');
-    const baseEl = $('ac-td-base');
-    baseEl.hidden = false;
-    const tdPath = Path.pathThroughBoard();
-    const bp = tdCellHostPos(tdPath[tdPath.length - 1].x, tdPath[tdPath.length - 1].y);
-    if (bp) { baseEl.style.left = bp.x + 'px'; baseEl.style.top = bp.y + 'px'; }
+    // base marker + lane tiles are positioned AFTER the player grid renders
+    // (tdCellHostPos needs the cells) — see below.
   }
 
   // player arena 3×3
   const buffs = buffCells(st.run.wave);
-  const tdPathSet = td ? new Set(Path.pathThroughBoard().map((c) => c.x + ',' + c.y)) : null;
   for (let y = 0; y < 3; y++) {
     for (let x = 0; x < 3; x++) {
       const cell = document.createElement('div');
       cell.className = 'ac-cell';
       cell.dataset.xy = x + ',' + y;
-      if (tdPathSet && tdPathSet.has(x + ',' + y)) cell.classList.add('td-path');
       if (!td && buffs.has(x + ',' + y)) cell.classList.add('buff');
       const u = unitAt(x, y);
       if (u) {
@@ -387,6 +415,16 @@ function renderStage(): void {
       cell.onclick = () => onCell(x, y);
       meBox.appendChild(cell);
     }
+  }
+
+  // TD base marker (ring end (1,3), both branches) + lane tiles outside the grid
+  if (td) {
+    const baseEl = $('ac-td-base');
+    baseEl.hidden = false;
+    const ringEnd = Path.branchCells(0);
+    const bp = tdCellHostPos(ringEnd[ringEnd.length - 1].x, ringEnd[ringEnd.length - 1].y);
+    if (bp) { baseEl.style.left = bp.x + 'px'; baseEl.style.top = bp.y + 'px'; }
+    renderTdLanes();
   }
 
   // fx overlay: buffer tracks host rect (was hardcoded 3×7 world → anamorphic in TD)
@@ -442,18 +480,19 @@ function syncEnemies(dt = 0): void {
   const seen = new Set<MobBattle>();
   if (st.run.phase === 'combat') {
     if (currentMode === 'td') {
-      // TD: absolute sprites over arenas, position via gap-aware path interpolation
+      // TD: absolute sprites over arenas, position = interpolate the mob's OWN
+      // ring branch cells (spawn alternates lane 0/1 — never crosses board cells)
       const host = document.getElementById('ac-arenas');
       if (!host) return;
-      const tdPath = Path.pathThroughBoard();
       for (const m of st.run.mobs) {
         if (!m.alive) continue;
         seen.add(m);
-        const idx = Math.min(tdPath.length - 1, Math.max(0, m.progress));
-        const i0 = Math.floor(idx), i1 = Math.min(tdPath.length - 1, i0 + 1);
+        const cells = Path.branchCells(typeof m.branch === 'number' ? m.branch : 0);
+        const idx = Math.min(cells.length - 1, Math.max(0, m.progress));
+        const i0 = Math.floor(idx), i1 = Math.min(cells.length - 1, i0 + 1);
         const t = idx - i0;
-        const a = tdCellHostPos(tdPath[i0].x, tdPath[i0].y);
-        const b = tdCellHostPos(tdPath[i1].x, tdPath[i1].y);
+        const a = tdCellHostPos(cells[i0].x, cells[i0].y);
+        const b = tdCellHostPos(cells[i1].x, cells[i1].y);
         if (!a || !b) continue;
         const px = a.x + (b.x - a.x) * t;
         const py = a.y + (b.y - a.y) * t;

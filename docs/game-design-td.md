@@ -9,12 +9,13 @@
 
 ## 1. Arena, Path, & Penempatan
 
-* **Satu board pemain 3×3** (y 0 … y 2). Semua cell placeable.
-* **Path serpentine** melewati 8 dari 9 cell board (cell (0,0) free sebagai anchor):
-  * Spawn gate: top-center `{x:1, y:−1}`
-  * S-curve: `(1,−1) → (1,0) → (2,0) → (2,1) → (1,1) → (0,1) → (0,2) → (1,2) → (2,2)`
-  * Base: bottom-right `{x:2, y:3}`
-* **Cell path di-highlight** kuning tipis di board (visual).
+* **Satu board pemain 3×3** (y 0 … y 2), grid di-center (56% lebar) — semua cell placeable, **khusus pokemon**.
+* **Jalur minion = ring lane DI LUAR board** (2 cabang simetris, `Path.branchCells`, spawn alternating kiri/kanan) — minion **tidak pernah** menempati petak pokemon:
+  * Spawn gate: top-center `{x:1, y:−1}` (dua cabang sama)
+  * Cabang kiri: `(1,−1) → (0,−1) → (−1,−1) → (−1,0) → (−1,1) → (−1,2) → (−1,3) → (0,3) → (1,3)`
+  * Cabang kanan: cermin (x 3), Base: bottom-center `{x:1, y:3}`
+  * Jarak Chebyshev tiap petak board ke lane terdekat ≤ 2 → melee range 2 tetap kena semua petak.
+* **Lane di-highlight** tile kuning tipis `.ac-td-lane` di luar grid (pitch-sized, posisi via `tdCellHostPos`).
 * **Musuh ghost-walk:** berjalan melewati unit tanpa *blocking* — unit murni DPS tower.
 * **Placement:** sama seperti autochess — drag & drop / tap, auto-place back-to-front, **tanpa batas unit** (grid 3x3 = 9 petak = limit). Penempatan & merge (drop) terkunci saat combat; beli tetap boleh.
 * **Keyboard:** `1`–`3` beli, `R` reroll (1 Gold), `Space`/`Enter` Ready, `Esc` pause.
