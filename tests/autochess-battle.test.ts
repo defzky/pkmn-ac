@@ -372,3 +372,70 @@ describe('statuses / roles / skills (GDD)', () => {
     expect(m.hp).toBeGreaterThan(499);
   });
 });
+
+describe('mobs fight back (D2a — Pilar 1)', () => {
+  it('dual slot-war: front-row mob damages front unit (tdist 0), arms atkT', () => {
+    const u = unitAt(25, 1, 2); // player front row
+    const m = mob({ cx: 1, cy: -1, atk: 10 }); // enemy front row
+    const before = u.hpCur;
+    UnitAI.tick([u], [m], 0.5);
+    expect(u.hpCur).toBeLessThan(before);
+    expect(u.alive).toBe(true);
+    expect(m.atkT).toBeGreaterThan(0); // cooldown armed after the hit
+  });
+  it('dual slot-war: falls back to back rows (y0, tdist 2 ≤ 3)', () => {
+    const u = unitAt(25, 1, 0); // player back row
+    const m = mob({ cx: 1, cy: -1, atk: 10 });
+    const before = u.hpCur;
+    UnitAI.tick([u], [m], 0.5);
+    expect(u.hpCur).toBeLessThan(before);
+  });
+  it('TD runner lane (branch 0): chips 50% while walking, never stops', () => {
+    const u = unitAt(25, 0, 1);
+    const m: any = mob({ branch: 0, progress: 0, spd: 2, atk: 10 });
+    const before = u.hpCur;
+    UnitAI.tick([u], [m], 0.5, undefined, Path.laneCells());
+    expect(m.progress).toBeGreaterThan(0); // still walking
+    expect(m.stopT || 0).toBe(0);
+    // chip = atk × 0.5 × dt × typeMult(normal vs electric=1) ≈ 2.5
+    expect(before - u.hpCur).toBeGreaterThan(0);
+    expect(before - u.hpCur).toBeLessThan(4);
+  });
+  it('TD bulwark lane (branch 1): stop & fight, progress held while halted', () => {
+    const u = unitAt(25, 2, 1);
+    const m: any = mob({ branch: 1, progress: 4, spd: 1, atk: 10, hp: 10000 }); // cell (3,1), unit (2,1) → dist 1
+    const before = u.hpCur;
+    UnitAI.tick([u], [m], 0.06, undefined, Path.laneCells());
+    expect(m.stopT).toBeGreaterThan(0); // engaged
+    expect(u.hpCur).toBeLessThan(before); // first hit (atkT starts 0)
+    const p = m.progress;
+    UnitAI.tick([u], [m], 0.06, undefined, Path.laneCells());
+    expect(m.progress).toBe(p); // halted inside stop cap
+  });
+  it('TD bulwark anti-stall: walks on after STOP_CAP even in range', () => {
+    const u = unitAt(25, 2, 1);
+    const m: any = mob({ branch: 1, progress: 4, spd: 1, atk: 10, stopT: 1.95, hp: 10000 });
+    UnitAI.tick([u], [m], 0.1, undefined, Path.laneCells()); // fight phase: stopT → ~2.05; movement still saw 1.95
+    const p = m.progress;
+    UnitAI.tick([u], [m], 0.1, undefined, Path.laneCells()); // movement now sees stopT ≥ cap → walks
+    expect(m.progress).toBeGreaterThan(p); // resumed walking
+  });
+  it('unit death → alive=false, hpCur 0; respawnUnits restores full HP', () => {
+    const u = unitAt(25, 1, 2);
+    u.hpCur = 1;
+    const m = mob({ cx: 1, cy: -1, atk: 50 });
+    UnitAI.tick([u], [m], 0.05);
+    expect(u.alive).toBe(false);
+    expect(u.hpCur).toBe(0);
+    UnitAI.respawnUnits([u]);
+    expect(u.alive).toBe(true);
+    expect(u.hpCur).toBe(u.hp);
+  });
+  it('stunned mob does not attack', () => {
+    const u = unitAt(25, 1, 2);
+    u.hpCur = 100;
+    const m = mob({ cx: 1, cy: -1, atk: 50, statuses: [{ type: 'stun', t: 1 }] });
+    UnitAI.tick([u], [m], 0.2);
+    expect(u.hpCur).toBe(100);
+  });
+});

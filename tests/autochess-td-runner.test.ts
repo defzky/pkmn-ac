@@ -224,3 +224,14 @@ describe('round win / game win', () => {
     expect(st.phase).toBe('combat');
   });
 });
+
+describe('D2a respawn at prep (TD)', () => {
+  it('dead defender respawns full HP on prep tick', () => {
+    const st = WRTD.createRun();
+    const u = godUnit();
+    u.alive = false; u.hpCur = 0;
+    WRTD.tick(st, [u], 0.1); // phase prep
+    expect(u.alive).toBe(true);
+    expect(u.hpCur).toBe(u.hp);
+  });
+});

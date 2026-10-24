@@ -4,7 +4,9 @@
  * Damage = totalAtk × typeMult(move type vs mob types) via Types chart (soft).
  * Statuses: burn/poison DoT, slow (spd), stun (halt). Roles: armor, shield,
  * dodge, regen, death-slow (koffing). Boss abilities: rest, roar, barrier, disable.
- * Units do NOT take damage from mobs (pure TD — blockers deferred to v2).
+ * Mobs fight back (Pilar 1): dual slot-war vs front row; TD lane aggro —
+ * runner (branch 0) chips 50% while walking, bulwark (branch 1) stops & fights
+ * (stop capped STOP_CAP s anti-stall). Unit death → alive=false; respawns at prep.
  */
 import { register } from '../core/registry';
 import Types from '../data/types';
@@ -82,6 +84,10 @@ export interface MobBattle {
   /** temporary armor shred (machop skill) */
   shred: number;
   shredT: number;
+  /** mob→unit attack cooldown (s) */
+  atkT: number;
+  /** TD bulwark stop-&-fight seconds accumulated (0 = walking) */
+  stopT: number;
 }
 
 export interface TickResult {
@@ -130,6 +136,46 @@ export function tdist(ax: number, ay: number, bx: number, by: number): number {
 export function typeMult(moveType: string, mobTypes: string[]): number {
   if (!moveType || !mobTypes?.length) return 1;
   return Types.mult(moveType, mobTypes);
+}
+
+// ---------------- mob→unit combat (GDD common §1 — Pilar 1) ----------------
+
+/** seconds between mob auto-attacks (GDD autochess §4) */
+export const MOB_ATK_CD = 1.2;
+/** TD bulwark: max continuous stop before resuming walk (anti-stall) */
+export const STOP_CAP = 2;
+/** TD runner lane: chip dps fraction while walking */
+export const RUNNER_CHIP = 0.5;
+
+/** Nearest alive unit within Chebyshev/tdist ≤ maxD. */
+export function nearestUnit(x: number, y: number, units: UnitBattle[], maxD: number): UnitBattle | null {
+  let best: UnitBattle | null = null, bestD = Infinity;
+  for (const u of units) {
+    if (!u.alive) continue;
+    const d = tdist(x, y, u.x, u.y);
+    if (d > maxD || d >= bestD) continue;
+    bestD = d; best = u;
+  }
+  return best;
+}
+
+/** Mob hits unit: typeMult(mob primary type vs unit types) on raw dmg. */
+export function hitUnit(m: MobBattle, u: UnitBattle, dmg: number): void {
+  const d = dmg * typeMult(m.types?.[0] || '', u.types || []);
+  if (d <= 0) return;
+  u.hpCur -= d;
+  if (u.hpCur <= 0) { u.hpCur = 0; u.alive = false; }
+}
+
+/** PREP start: everyone back on their feet, full HP (GDD common §1). */
+export function respawnUnits(units: UnitBattle[]): void {
+  for (const u of units) {
+    u.alive = true;
+    u.hpCur = u.hp;
+    u.disabledT = 0;
+    u.slowT = 0;
+    u.roarT = 0;
+  }
 }
 
 // ---------------- status helpers (exported for skills.ts) ----------------
@@ -270,11 +316,43 @@ export function tick(
 
     // move (slow status unless immune) — dual-board mobs (cx set) stand still
     if (m.cx == null) {
-      const spdMul = m.slowImmune ? 1 : 1 - slowAmt;
-      m.progress += m.spd * spdMul * dt;
-      if (m.progress >= cellsOf(m, cells).length - 1) {
-        m.alive = false;
-        leaks.push(m);
+      // bulwark stop & fight: hold while stopT within cap (after cap walk on = anti-stall)
+      const halting = (m.branch ?? 0) !== 0 && (m.stopT || 0) > 0 && (m.stopT || 0) < STOP_CAP;
+      if (!halting) {
+        const spdMul = m.slowImmune ? 1 : 1 - slowAmt;
+        m.progress += m.spd * spdMul * dt;
+        if (m.progress >= cellsOf(m, cells).length - 1) {
+          m.alive = false;
+          leaks.push(m);
+        }
+      }
+    }
+  }
+
+  // ---- mobs fight back (Pilar 1): dual slot-war + TD lane aggro ----
+  for (const m of mobs) {
+    if (!m.alive) continue;
+    if ((m.statuses || []).some((s) => s.type === 'stun')) continue;
+    if (m.cx != null) {
+      // slot war (autochess): nearest alive unit in engagement range (front-to-front 0 … 3)
+      const t = nearestUnit(m.cx, m.cy as number, units, 3);
+      if (t) {
+        m.atkT = (m.atkT || 0) - dt;
+        if (m.atkT <= 0) { hitUnit(m, t, m.atk); m.atkT = MOB_ATK_CD; }
+      } else m.atkT = 0;
+    } else {
+      const c = mobPos(m, cells);
+      const t = nearestUnit(c.x, c.y, units, 2);
+      if ((m.branch ?? 0) === 0) {
+        // runner lane (kiri): chip 50% DOT, never stops
+        if (t) hitUnit(m, t, m.atk * RUNNER_CHIP * dt);
+      } else if (t) {
+        // bulwark lane (kanan): stop & fight (stopT accumulates, capped by movement gate)
+        m.stopT = (m.stopT || 0) + dt;
+        m.atkT = (m.atkT || 0) - dt;
+        if (m.atkT <= 0) { hitUnit(m, t, m.atk); m.atkT = MOB_ATK_CD; }
+      } else {
+        m.stopT = 0; m.atkT = 0; // disengaged → reset so re-engage is instant
       }
     }
   }
@@ -382,7 +460,7 @@ export function over(mobs: MobBattle[]): boolean {
   return mobs.every((m) => !m.alive);
 }
 
-const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, tdist, typeMult, addBurn, addSlow, addStun, applyDamage };
+const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, tdist, typeMult, addBurn, addSlow, addStun, applyDamage, hitUnit, nearestUnit, respawnUnits, MOB_ATK_CD, STOP_CAP, RUNNER_CHIP };
 register('UnitAI', UnitAI);
 export { UnitAI };
 export default UnitAI;

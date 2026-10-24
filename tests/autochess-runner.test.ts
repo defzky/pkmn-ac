@@ -233,3 +233,14 @@ describe('forceStart', () => {
     expect(st.phase).toBe('combat');
   });
 });
+
+describe('D2a respawn at prep (dual)', () => {
+  it('dead unit respawns full HP on prep tick', () => {
+    const st = WR.createRun();
+    const u = godUnit();
+    u.alive = false; u.hpCur = 0;
+    WR.tick(st, [u], 0.1); // phase prep
+    expect(u.alive).toBe(true);
+    expect(u.hpCur).toBe(u.hp);
+  });
+});

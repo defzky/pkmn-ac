@@ -712,3 +712,140 @@ describe('Fase Q — proportion polish', () => {
     expect(syn.closest('.ac-arow')).toBeTruthy();
   });
 });
+
+describe('mode switch cleanup — TD DOM must not leak into autochess', () => {
+  /** cell rects → pitch 134 so renderTdLanes lays real tiles; else 800×700 */
+  const stubRects = () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const xy = (typeof this.closest === 'function' ? this.closest('[data-xy]') : null) as HTMLElement | null;
+      if (xy && xy.dataset?.xy) {
+        const [x, y] = xy.dataset.xy.split(',').map(Number);
+        return { width: 134, height: 134, left: 200 + x * 134, top: 50 + y * 134,
+                 right: 334 + x * 134, bottom: 184 + y * 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+      }
+      return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    return () => { HTMLElement.prototype.getBoundingClientRect = orig; };
+  };
+
+  it('open(td) → open(auto): lanes+portal wiped, base hidden, pitch vars removed', () => {
+    const restore = stubRects();
+    try {
+      ACUI.open('td');
+      expect(document.querySelectorAll('.ac-td-lane').length).toBe(16);
+      expect(document.getElementById('ac-td-portal')).toBeTruthy();
+      const host = document.getElementById('ac-arenas')!;
+      expect(host.style.getPropertyValue('--ac-pitch')).toBe('134px');
+
+      ACUI.open('auto');
+      expect(document.querySelectorAll('.ac-td-lane').length).toBe(0);
+      expect(document.getElementById('ac-td-portal')).toBeNull();
+      const lanes = document.getElementById('ac-td-lanes')!;
+      expect(lanes.hidden).toBe(true);
+      expect(lanes.innerHTML).toBe('');
+      expect(document.getElementById('ac-td-base')!.hidden).toBe(true);
+      expect(document.getElementById('ac-td-base')!.style.left).toBe('');
+      expect(document.getElementById('ac-td-wave')!.innerHTML).toBe('');
+      expect(host.style.getPropertyValue('--ac-pitch')).toBe('');
+      expect(host.style.getPropertyValue('--ac-lane-pad')).toBe('');
+      // mob sprites cleared too
+      expect(document.querySelectorAll('.ac-td-mob').length).toBe(0);
+    } finally {
+      restore();
+      ACUI.open('auto');
+    }
+  });
+
+  it('close() wipes TD layers while back at menu', () => {
+    const restore = stubRects();
+    try {
+      ACUI.open('td');
+      expect(document.querySelectorAll('.ac-td-lane').length).toBe(16);
+      ACUI.close();
+      expect(document.querySelectorAll('.ac-td-lane').length).toBe(0);
+      expect(document.getElementById('ac-td-lanes')!.hidden).toBe(true);
+    } finally {
+      restore();
+      ACUI.open('auto');
+    }
+  });
+
+  it('toggles .mode-td / .mode-autochess scoping classes on #scr-ac', () => {
+    ACUI.open('td');
+    const scr = document.getElementById('scr-ac')!;
+    expect(scr.classList.contains('mode-td')).toBe(true);
+    expect(scr.classList.contains('mode-autochess')).toBe(false);
+    ACUI.open('auto');
+    expect(scr.classList.contains('mode-td')).toBe(false);
+    expect(scr.classList.contains('mode-autochess')).toBe(true);
+  });
+});
+
+describe('auto layout — topbar HP badges + responsive --ac-tile', () => {
+  it('Round, ♥ player, ♥ foe, ⚔ power all sit inside .ac-topbar', () => {
+    ACUI.open('auto');
+    const tb = document.querySelector('.ac-topbar')!;
+    expect(tb).toBeTruthy();
+    expect(tb.contains(document.getElementById('ac-round'))).toBe(true);
+    expect(tb.contains(document.getElementById('ac-hp'))).toBe(true);
+    expect(tb.contains(document.getElementById('ac-foe-hp'))).toBe(true);
+    expect(tb.contains(document.getElementById('ac-power'))).toBe(true);
+    expect(document.getElementById('ac-hp')!.textContent).toContain('45');
+    expect(document.getElementById('ac-foe-hp')!.textContent).toContain('20');
+  });
+
+  it('fitAutoTiles sizes square tiles from arena rect (clamp 36–76px)', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.id === 'ac-arena-foe') {
+        // content = rect − 28 (padding+border) → side 200 → tile floor(200/3) = 66
+        return { width: 300, height: 240, left: 0, top: 0, right: 300, bottom: 240, x: 0, y: 0, toJSON: () => ({}) } as any;
+      }
+      return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('auto');
+      expect(document.getElementById('ac-arenas')!.style.getPropertyValue('--ac-tile')).toBe('66px');
+      // tiny arena → clamps at floor 36
+      HTMLElement.prototype.getBoundingClientRect = function () {
+        if (this.id === 'ac-arena-foe') {
+          return { width: 80, height: 80, left: 0, top: 0, right: 80, bottom: 80, x: 0, y: 0, toJSON: () => ({}) } as any;
+        }
+        return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+      };
+      ACUI.render();
+      expect(document.getElementById('ac-arenas')!.style.getPropertyValue('--ac-tile')).toBe('36px');
+      // TD mode never sizes auto tiles
+      ACUI.open('td');
+      ACUI.render();
+      expect(document.getElementById('ac-arenas')!.style.getPropertyValue('--ac-tile')).toBe('36px');
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+});
+
+describe('D2a — unit death visual + respawn', () => {
+  it('dead unit → cell ac-dead + spriteFaint; prep tick respawns full HP', () => {
+    vi.mocked(UI.spriteFaint).mockClear();
+    ACUI.open('auto');
+    const cards = document.querySelectorAll('.ac-card');
+    (cards[0] as HTMLElement).click();
+    (cards[1] as HTMLElement).click(); // 2 units so wipe-check doesn't end the round
+    $('#ac-start').click();
+    expect(ACUI.units.length).toBe(2);
+    const u = ACUI.units[1];
+    u.alive = false; u.hpCur = 0; // companion (units[0]) still alive
+    ACUI.step(performance.now() + 50); // combat frame → updateCombatBars
+    expect(ACUI.run.phase).toBe('combat');
+    const cell = $(`#ac-me-grid [data-xy="${u.x},${u.y}"]`);
+    expect(cell.classList.contains('ac-dead')).toBe(true);
+    expect(UI.spriteFaint).toHaveBeenCalled();
+    ACUI.run.phase = 'prep';
+    WaveRunner.tick(ACUI.run, ACUI.units, 0.1);
+    expect(u.alive).toBe(true);
+    expect(u.hpCur).toBe(u.hp);
+  });
+});

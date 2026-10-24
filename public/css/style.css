@@ -1018,6 +1018,58 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #scr-ac.td-land .ac-ready { height: 44px; flex: 1; font-size: 16px; }
   #scr-ac.td-land .ac-timer { width: 72px; flex: 0 0 72px; height: 12px; }
   #scr-ac.td-land .ac-timer span { font-size: 11px; line-height: 1; padding-left: 3px; }
+
+  /* ---- autochess landscape: foe board | (player board + synergy) side by side,
+     horizontal dock panel — two 3×3 stacked never fit a 390px-tall landscape ---- */
+  #scr-ac.mode-autochess .ac-app {
+    max-width: none; width: 100%; gap: 6px 12px; padding: 8px 12px; align-items: stretch;
+  }
+  #scr-ac.mode-autochess .ac-topbar {
+    justify-content: flex-end; align-self: center;
+    background: rgba(10, 14, 22, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(244, 248, 255, .1); border-radius: 999px;
+    padding: 4px 10px; width: fit-content; margin: 0 auto;
+  }
+  #scr-ac.mode-autochess .ac-arenas {
+    flex-direction: row; align-items: center; justify-content: center; gap: 24px; min-width: 0;
+  }
+  #scr-ac.mode-autochess .ac-arow {
+    display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 32px;
+  }
+  #scr-ac.mode-autochess .ac-arena {
+    flex: 0 1 auto; background: rgba(8, 14, 10, .35);
+    border-color: rgba(90, 120, 70, .55); box-shadow: none;
+  }
+  /* synergy chips → glass side panel (mirror .td-land) */
+  #scr-ac.mode-autochess .ac-synbar {
+    align-self: center; max-width: 210px;
+    flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 8px;
+    background: rgba(10, 14, 22, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(244, 248, 255, .1); border-radius: 14px; padding: 10px 12px; z-index: 6;
+  }
+  #scr-ac.mode-autochess .syn-chip { font-size: 16px; padding: 4px 10px; border-radius: 12px; justify-content: flex-start; }
+  /* horizontal dock panel: gold · reroll+ready+timer · | · shop */
+  #scr-ac.mode-autochess .ac-dock {
+    flex-direction: row; align-items: center; gap: 24px;
+    justify-content: flex-start; width: fit-content; max-width: 90vw; margin: 0 auto; justify-self: center;
+    background: rgba(10, 14, 22, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(244, 248, 255, .1); border-radius: 16px; padding: 12px 24px;
+  }
+  #scr-ac.mode-autochess .ac-goldsun { margin: 0; align-self: center; font-size: 18px; padding: 4px 14px; }
+  #scr-ac.mode-autochess .ac-footer { flex-direction: row; gap: 8px; align-items: center; }
+  #scr-ac.mode-autochess .ac-shoprow::before {
+    content: ''; width: 1px; height: 36px; background: rgba(255, 255, 255, .15);
+    flex: 0 0 1px; margin-right: -8px;
+  }
+  #scr-ac.mode-autochess .ac-kbd { display: none; }
+  #scr-ac.mode-autochess .ac-card { width: 96px; height: 112px; }
+  #scr-ac.mode-autochess .ac-card canvas { height: 72px; width: 72px; min-width: 64px; }
+  #scr-ac.mode-autochess .ac-reroll { flex: 0 0 44px; max-width: 44px; }
+  #scr-ac.mode-autochess .ac-reroll i { font-size: 15px; }
+  #scr-ac.mode-autochess .ac-readywrap { flex-direction: row; align-items: center; gap: 6px; width: auto; }
+  #scr-ac.mode-autochess .ac-ready { height: 44px; flex: 1; font-size: 16px; }
+  #scr-ac.mode-autochess .ac-timer { width: 72px; flex: 0 0 72px; height: 12px; }
+  #scr-ac.mode-autochess .ac-timer span { font-size: 11px; line-height: 1; padding-left: 3px; }
 }
 
 /* full-viewport bg canvas sits behind the app shell (moved to #scr-ac in restructure) */
@@ -1044,6 +1096,14 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
 }
 .ac-td-hp i { display: block; height: 100%; width: 100%; background: linear-gradient(#8dffa8, #3fbf6a); transition: width .25s; }
+/* ---- TD layer scoping: TD DOM must never bleed into autochess ---- */
+/* hidden attr must beat .ac-td-base{display:flex} (UA [hidden] rule loses to it) */
+.ac-td-base[hidden] { display: none; }
+/* belt over JS clearTdLayers(): kill every TD layer in auto mode */
+#scr-ac.mode-autochess .ac-td-lanes,
+#scr-ac.mode-autochess .ac-td-base,
+#scr-ac.mode-autochess .ac-td-portal,
+#scr-ac.mode-autochess .ac-td-mob { display: none; }
 
 /* ============ autochess (scr-ac) — portrait dual-board ============ */
 #scr-ac {
@@ -1059,8 +1119,35 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; box-sizing: border-box;
 }
 
-/* top bar: round badge (shared) / pause / close */
-.ac-topbar { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+/* ---- autochess mode layout (portrait + landscape): 3-row grid shell ----
+   topbar auto · arena 1fr(min0) · dock auto — bottom HUD can never be pushed
+   off screen; the boards shrink to whatever space stays (fitAutoTiles). */
+#scr-ac.mode-autochess .ac-app {
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "top" "arena" "dock";
+  height: 100vh; height: 100dvh;
+}
+#scr-ac.mode-autochess .ac-topbar { grid-area: top; }
+#scr-ac.mode-autochess .ac-arenas {
+  grid-area: arena; min-height: 0; justify-content: center; gap: 12px;
+}
+#scr-ac.mode-autochess .ac-dock {
+  grid-area: dock; display: flex; flex-direction: column; gap: 6px;
+}
+/* arena = pure flex space (content-independent) → boards can't dictate height */
+#scr-ac.mode-autochess .ac-arena {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+/* square tiles from --ac-tile (JS fitAutoTiles, 36–76px), centered, fixed tracks */
+#scr-ac.mode-autochess .ac-grid {
+  width: max-content; height: max-content; margin: 0 auto; aspect-ratio: auto;
+  grid-template-columns: repeat(3, var(--ac-tile, 56px));
+  grid-template-rows: repeat(3, var(--ac-tile, 56px));
+}
+
+/* top bar: ONE row — Round · ♥ player · ♥ foe · ⚔ power · pause · close */
+.ac-topbar { display: flex; gap: 6px; justify-content: flex-start; align-items: center; flex-wrap: nowrap; }
 .ac-topbar button {
   background: rgba(0,0,0,.45); border: 1px solid rgba(244,248,255,.25); color: #e8ecf6;
   border-radius: 8px; min-width: 40px; height: 30px; cursor: pointer; font-size: 14px;
@@ -1068,8 +1155,20 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-topbar button:hover { border-color: var(--gold); }
 /* round badge lives in topbar (visible in both modes; was inside foe arena → hidden in TD) */
 .ac-topbar .ac-round {
-  position: static; top: auto; left: auto; margin-right: auto;
+  position: static; top: auto; left: auto; margin-right: 0;
 }
+/* HP badges share the topbar row with Round + power (hearts left the arenas) */
+.ac-topbar .ac-heart {
+  position: static; display: inline-flex; align-items: center; gap: 2px; line-height: 1;
+  background: linear-gradient(180deg, #232a3c, #141928);
+  border: 1px solid rgba(244,248,255,.28); border-radius: 999px;
+  padding: 4px 8px; font-size: 14px; white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0,0,0,.5);
+}
+/* TD: HP lives on the castle ring + #ac-td-hptext pill — topbar hearts off */
+#scr-ac.mode-td .ac-topbar .ac-heart { display: none; }
+/* power pill pushes pause/close to the right edge, keeps Round+hearts one cluster */
+.ac-topbar .ac-power { margin-left: auto; }
 
 /* arenas stack (enemy top, player bottom) + fx overlay */
 .ac-arenas { position: relative; display: flex; flex-direction: column; gap: 10px; }
@@ -1114,7 +1213,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-trash.off { opacity: .4; pointer-events: none; }
 
-/* overlapping right HUD card (heart + avatar) */
+/* arena HUD chips — now avatar-only (hearts moved into the topbar) */
 .ac-foehud, .ac-me-hud {
   position: absolute; top: -12px; right: 8px; z-index: 6;
   display: flex; gap: 8px; align-items: center;
@@ -1123,6 +1222,10 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   padding: 4px 8px; box-shadow: 0 4px 10px rgba(0,0,0,.55);
 }
 .ac-me-hud { top: auto; bottom: -12px; }
+/* auto mode: arena chips sit ON the boards (arena padding only 10px, chips ~42px
+   tall) — hearts live in the topbar now, avatar caps hidden (units/ghosts show it) */
+#scr-ac.mode-autochess .ac-foehud,
+#scr-ac.mode-autochess .ac-me-hud { display: none; }
 .ac-heart { font-size: 18px; font-weight: bold; color: #e8ecf6; }
 .ac-heart.red { color: #ff5f6d; text-shadow: 0 0 8px rgba(255,95,109,.6); }
 .ac-heart.blue { color: #5fa8ff; text-shadow: 0 0 8px rgba(95,168,255,.6); }
@@ -1153,11 +1256,14 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   background: linear-gradient(160deg, #66605a, #453f3a);
   border: 1px solid rgba(0,0,0,.5);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 4px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.3);
-  display: flex; align-items: center; justify-content: center; transition: border-color .12s, transform .12s, box-shadow .12s;
+  display: flex; align-items: center; justify-content: center; transition: border-color .12s, transform .12s, box-shadow .12s, opacity .85s;
 }
 /* hover lift + gold glow (Fase L) */
 .ac-cell:hover { border-color: rgba(255, 210, 80, .55); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.4), 0 0 10px rgba(255,210,80,.28); }
 .ac-cell.sel { outline: 2px solid var(--gold); }
+/* dead defender: greyed until prep respawn (GDD common §1 — Pilar 1) */
+.ac-cell.ac-dead { border-color: rgba(200,60,60,.6); cursor: not-allowed; }
+.ac-cell.ac-dead canvas { filter: grayscale(1); opacity: .4; }
 /* drag hint: dropping the held shop card here stars up this unit */
 .ac-cell.merge-ok { outline: 2px solid #57e08a; box-shadow: 0 0 10px rgba(87,224,138,.55), inset 0 1px 0 rgba(255,255,255,.12); }
 /* special buff tiles — orange/gold glow */

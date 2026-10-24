@@ -8,7 +8,7 @@
 import { register } from '../core/registry';
 import { WaveDef, type MobSpec } from './wave';
 import { create as createBase, type BaseState } from './base';
-import { tick as aiTick } from './unitAI';
+import { tick as aiTick, respawnUnits } from './unitAI';
 import type { MobBattle } from './unitAI';
 import type { UnitBattle } from './unit';
 import { NONE, type SynergyMods } from './synergy';
@@ -104,6 +104,8 @@ function toMob(s: MobSpec, slot: { x: number; y: number }): MobBattle {
     statuses: [],
     shred: 0,
     shredT: 0,
+    atkT: 0,
+    stopT: 0,
   };
 }
 
@@ -152,6 +154,7 @@ export function tick(
   mods: SynergyMods = NONE
 ): boolean {
   if (st.phase === 'prep') {
+    respawnUnits(units); // GDD common §1: dead defenders back at prep start
     st.prepLeft -= dt;
     if (st.prepLeft <= 0) {
       startCombat(st);

@@ -73,6 +73,8 @@ function ensureDom(): HTMLElement {
     <div class="ac-app">
       <div class="ac-topbar">
         <span class="ac-round" id="ac-round">Round 1</span>
+        <span class="ac-heart blue" id="ac-hp">♥ <b>45</b></span>
+        <span class="ac-heart red" id="ac-foe-hp">♥ <b>20</b></span>
         <span class="ac-power" id="ac-power">⚔️ 0</span>
         <button id="ac-pause-btn" class="ac-x" aria-label="Pause">II</button>
         <button id="ac-close" class="ac-x" aria-label="Exit">✕</button>
@@ -81,7 +83,6 @@ function ensureDom(): HTMLElement {
         <div class="ac-td-wave" id="ac-td-wave"></div>
         <div class="ac-arena foe" id="ac-arena-foe">
           <div class="ac-foehud">
-            <span class="ac-heart red">♥ <b id="ac-foe-hp">20</b></span>
             <span class="ac-cap" id="ac-foe-cap"></span>
           </div>
           <div class="ac-grid" id="ac-foe-grid"></div>
@@ -90,7 +91,6 @@ function ensureDom(): HTMLElement {
           <div class="ac-arena me" id="ac-arena-me">
             <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
             <div class="ac-me-hud">
-              <span class="ac-heart blue">♥ <b id="ac-hp">45</b></span>
               <span class="ac-cap" id="ac-p-cap"></span>
             </div>
             <div class="ac-grid" id="ac-me-grid"></div>
@@ -194,12 +194,9 @@ function renderHud(): void {
     if (lastRoundWave != null) { rnd.classList.remove('pulse'); void rnd.offsetWidth; rnd.classList.add('pulse'); }
     lastRoundWave = r.wave;
   }
-  // foe arena hidden in TD (CSS display:none) — skip foe-hp work entirely
-  if (!td) {
-    ($('ac-foe-hp') as HTMLElement).parentElement!.style.display = '';
-    $('ac-foe-hp').textContent = String(r.foe.hp);
-  }
-  $('ac-hp').innerHTML = `♥ <b>${r.base.hp}</b>`;
+  // foe HP pill lives in the topbar (auto only — CSS hides it in TD)
+  if (!td) ($('ac-foe-hp') as HTMLElement).innerHTML = `♥ <b>${r.foe.hp}</b>`;
+  ($('ac-hp') as HTMLElement).innerHTML = `♥ <b>${r.base.hp}</b>`;
   $('ac-gold').innerHTML = `☀️ <b>${r.gold}</b>`;
   $('ac-power').innerHTML = `⚔️ ${playerPower()}`;
   // prep timer bar
@@ -419,6 +416,39 @@ function buffCells(wave: number): Set<string> {
   return new Set([`${a % 3},${Math.floor(a / 3)}`, `${b % 3},${Math.floor(b / 3)}`]);
 }
 
+/** wipe every TD-only layer: lanes + portal, castle marker, wave strip, pitch vars.
+ *  Runs at the top of renderStage (idempotent — TD re-renders after) and on close(),
+ *  so switching TD → autochess can never leak stale TD DOM/inline state. */
+function clearTdLayers(): void {
+  const lanes = document.getElementById('ac-td-lanes');
+  if (lanes) { lanes.innerHTML = ''; lanes.hidden = true; }
+  const base = document.getElementById('ac-td-base');
+  if (base) { base.hidden = true; base.style.left = ''; base.style.top = ''; }
+  const wave = document.getElementById('ac-td-wave');
+  if (wave) wave.innerHTML = '';
+  const host = document.getElementById('ac-arenas');
+  if (host) {
+    host.style.removeProperty('--ac-pitch');
+    host.style.removeProperty('--ac-lane-pad');
+  }
+}
+
+/** auto mode: size3×3 tiles from the REAL arena rect (topbar+dock already reserved
+ *  by the .ac-app grid rows) → square cells, always fits, no vertical overflow on
+ *  any viewport (portrait or landscape). Clamped 36–76px. */
+function fitAutoTiles(): void {
+  if (currentMode === 'td') return;
+  const host = document.getElementById('ac-arenas');
+  const arena = document.getElementById('ac-arena-foe');
+  if (!host || !arena) return;
+  const r = arena.getBoundingClientRect();
+  if (!(r.width > 0) || !(r.height > 0)) return; // jsdom / hidden screen
+  // arena is border-box: padding 10×2 + border 4×2 = 28; grid gap 6×2 = 12
+  const side = Math.min(r.width, r.height) - 28 - 12;
+  const tile = Math.max(36, Math.min(76, Math.floor(side / 3)));
+  host.style.setProperty('--ac-tile', tile + 'px');
+}
+
 function renderStage(): void {
   unitCv.clear();
   cellPx.clear();
@@ -426,6 +456,7 @@ function renderStage(): void {
   acImpacts.length = 0;
   FX.clear();
   clearTdMobs();
+  clearTdLayers();
   const meBox = $('ac-me-grid');
   const foeBox = $('ac-foe-grid');
   meBox.innerHTML = '';
@@ -434,13 +465,15 @@ function renderStage(): void {
   const td = currentMode === 'td';
   const arenas = $('ac-arenas');
   arenas.classList.toggle('td-mode', td);
+  // layout scoping classes (CSS: .mode-td / .mode-autochess own their mode rules)
+  const scrAc = document.getElementById('scr-ac');
+  scrAc?.classList.toggle('mode-td', td);
+  scrAc?.classList.toggle('mode-autochess', !td);
   // landscape layout class (CSS @media orientation:landscape + .td-land → full-width grid)
-  document.getElementById('scr-ac')?.classList.toggle('td-land', td);
+  scrAc?.classList.toggle('td-land', td);
 
   // enemy arena: prep = ghost preview of next round (auto only; TD uses #ac-td-wave strip)
   if (!td) {
-    $('ac-td-wave').innerHTML = '';
-    ($('ac-td-base') as HTMLElement).hidden = true;
     const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunner.MAX_FIELD);
     preview.forEach((spec, i) => {
       const slot = WaveRunner.FOE_SLOTS[i];
@@ -520,10 +553,11 @@ function renderStage(): void {
   // fx overlay: buffer tracks host rect (was hardcoded 3×7 world → anamorphic in TD)
   const fc = $('ac-fx') as HTMLCanvasElement;
   fxCanvas = fc;
+  fitAutoTiles();
   sizeFxCanvas();
   paintAcBg();
   if (!fxRo && typeof ResizeObserver !== 'undefined') {
-    fxRo = new ResizeObserver(() => { cellPx.clear(); sizeFxCanvas(); paintAcBg(); });
+    fxRo = new ResizeObserver(() => { cellPx.clear(); fitAutoTiles(); sizeFxCanvas(); paintAcBg(); });
     fxRo.observe($('ac-arenas'));
     fxRo.observe($('scr-ac')); // bg canvas spans the whole screen
   }
@@ -585,6 +619,8 @@ function paintAcBg(): void {
 
 /** sync enemy sprites each combat frame: dual-board = grid cells; TD = path walk overlay */
 const foeLastHp = new Map<MobBattle, number>();
+/** last hpCur per unit cell (x,y) — mob-hit feedback + death visual */
+const unitLastHp = new Map<string, number>();
 /** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild).
  * Each mob owns a raw canvas + Sprites.Animator (Walk/Idle + facing — dungeon-style;
  * NOT UI.spriteCanvas so the shared live-set doesn't fight over draw/update). */
@@ -654,7 +690,9 @@ function syncEnemies(dt = 0): void {
         const segDx = b.x - a.x, segDy = b.y - a.y;
         if (Math.hypot(segDx, segDy) > 0.5) entry.anim.dir = Sprites.dirFromAngle(Math.atan2(segDy, segDx));
         const moving = entry.lastP !== m.progress;
-        entry.anim.loop(moving ? 'Walk' : 'Idle', moving ? Math.max(0.6, Math.min(2.2, m.spd * 1.6)) : 1);
+        // bulwark stop-&-fight (D2a): Attack while halted, else Walk/Idle
+        const fighting = (m.stopT || 0) > 0;
+        entry.anim.loop(fighting ? 'Attack' : moving ? 'Walk' : 'Idle', moving ? Math.max(0.6, Math.min(2.2, m.spd * 1.6)) : 1.4);
         entry.lastP = m.progress;
         if (dt > 0) entry.anim.update(dt);
         // dirt kick-up behind walking mobs — dungeon World dirt-trail flavour (Fase L)
@@ -1473,13 +1511,28 @@ function stepFx(dt: number): void {
 }
 
 function updateCombatBars(): void {
-  // player unit hp fills
+  // player unit hp fills + death/damage feedback (GDD common §1 — Pilar 1)
   for (const cell of document.querySelectorAll<HTMLElement>('#ac-me-grid .ac-cell')) {
     const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
     const fill = cell.querySelector('.hp i') as HTMLElement | null;
-    if (!fill) continue;
-    const b = st.units.find((bu) => bu.x === x && bu.y === y && bu.alive);
-    fill.style.width = b ? Math.max(0, (b.hpCur / b.hp) * 100) + '%' : '0%';
+    const key = x + ',' + y;
+    const b = st.units.find((bu) => bu.x === x && bu.y === y);
+    if (fill) fill.style.width = b && b.alive ? Math.max(0, (b.hpCur / b.hp) * 100) + '%' : '0%';
+    // death: Faint hold + grey petak (prep re-render rebuilds cells → class cleared)
+    if (b && !b.alive && !cell.classList.contains('ac-dead')) {
+      const ucv = cell.querySelector('canvas');
+      if (ucv) UI.spriteFaint(ucv);
+      cell.classList.add('ac-dead');
+      Audio.sfx('faint', undefined);
+    }
+    // mob hits: hp drop → red dmg number (threshold skips runner chip spam — bar still moves)
+    const prevU = unitLastHp.get(key);
+    if (b && b.alive && prevU != null && prevU - b.hpCur >= 3) {
+      const c = cellCenter(x, y);
+      FX.dmgText(c.x, c.y - LIFT, Math.round(prevU - b.hpCur), '#ff8a8a');
+      Audio.sfx('hit', undefined);
+    }
+    if (b) unitLastHp.set(key, b.hpCur); else unitLastHp.delete(key);
   }
   // enemy hp fills (sprites synced by syncEnemies)
   for (const cell of document.querySelectorAll<HTMLElement>('#ac-foe-grid .ac-cell')) {
@@ -1500,6 +1553,7 @@ function reset(): void {
   stopDrag();
   clearTdMobs();
   foeLastHp.clear();
+  unitLastHp.clear();
   lastBaseHp = null;
   lastRoundWave = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
@@ -1533,6 +1587,7 @@ function open(mode: 'auto' | 'td' = 'auto'): void {
   $('ac-over').classList.add('hidden');
   UI.chrome(false);
   UI.show('scr-ac');
+  fitAutoTiles(); // layout now measurable (screen visible) — size auto tiles before first frame
   Audio.sfx('confirm', undefined);
   requestAnimationFrame(loop);
 }
@@ -1541,6 +1596,7 @@ function close(): void {
   st.open = false;
   st.paused = false;
   buffPending = false;
+  clearTdLayers(); // no TD leftovers while sitting in the menu / next mode
   $('ac-pause')?.classList.add('hidden');
   $('ac-over')?.classList.add('hidden');
   Audio.sfx('back', undefined);
