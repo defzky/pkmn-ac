@@ -4,6 +4,7 @@
  */
 import { register } from '../core/registry';
 import { moveOf } from './champions';
+import { evoEntry } from './evo';
 
 export interface BoardStats {
   dex: number;
@@ -73,29 +74,32 @@ export function moveFor(e: any, range: number, Moves: any): string {
   return Moves.startFor?.(e) || 'tackle';
 }
 
-/** Derive board stats. Dex entry shape matches PokedexEntry (src/types/data-globals.d.ts). */
+/** Derive board stats. Dex entry shape matches PokedexEntry (src/types/data-globals.d.ts).
+ * ★2/★3 follow evolution form (stats/types/name/rarity from evo entry — evo.ts);
+ * move stays the champion signature (keyed on base dex). */
 export function boardStats(dex: number, star: number = 1): BoardStats | null {
   const DEX_BY: Record<string, any> = (G as any).DEX_BY;
   const Moves: any = (G as any).Moves;
   if (!DEX_BY) return null;
   const e = DEX_BY[String(dex)] || DEX_BY[dex];
   if (!e) return null;
+  const s = evoEntry(dex, star) || e;
   const m = starMul(star);
   // phys (pa>=sa) → melee range 2; spec → ranged 3.
   // Rock board = cells 0..2, ring = cells -1..3: center (1,1) is dist 2 from
   // every ring cell — melee range 1 made center units permanently idle.
   const range = (e.pa ?? 1) >= (e.sa ?? 1) ? 2 : 3;
-  const atkCd = clamp(1.2 - (e.spd ?? 50) / 400, 0.4, 1.6) / starAsMul(star);
+  const atkCd = clamp(1.2 - (s.spd ?? 50) / 400, 0.4, 1.6) / starAsMul(star);
   const move = moveFor(e, range, Moves);
   return {
     dex,
-    name: e.name,
-    types: e.types || [],
-    rarity: e.rarity || 1,
-    gen: e.gen || 1,
-    hp: Math.round(e.hp * m),
-    atk: Math.round(e.atk * m * ATK_SCALE),
-    spd: clamp((e.spd ?? 50) / 50, 0.5, 3),
+    name: s.name,
+    types: s.types || [],
+    rarity: s.rarity || 1,
+    gen: s.gen || 1,
+    hp: Math.round(s.hp * m),
+    atk: Math.round(s.atk * m * ATK_SCALE),
+    spd: clamp((s.spd ?? 50) / 50, 0.5, 3),
     range,
     atkCd,
     move,

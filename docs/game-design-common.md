@@ -12,6 +12,8 @@ Sistem *level-up* menggunakan mekanik *merge* 2 unit yang sama:
 * **★2 (Stage 1):** Gabungan 2x unit ★1.
 * **★3 (Final Stage):** Gabungan 2x unit ★2 (total 4x ★1).
 
+**Evolusi saat merge:** ★2/★3 menampilkan **bentuk evolusi** (sprite, nama, tipe, dan base stats HP/ATK/spd mengikuti entri evolusi, di-*multiply* star multiplier seperti biasa). Data rantai dari PokeAPI → `src/data/evo-map.ts` (generate: `node tools/fetch-evo.mjs`). Yang **tetap** identitas champion: Skill Dasar, signature move, harga jual — semua tetap di-key base dex (`unit.dex` tidak pernah berubah saat merge). Contoh: Charmander ★3 = sprite/stats/tipe Charizard (Fire+Flying), skill tetap skill line Charmander.
+
 ### Daftar Line-Up Pokémon
 
 | Cost | ★1 | ★2 | ★3 | Tipe | Skill Dasar |

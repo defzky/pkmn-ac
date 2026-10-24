@@ -4,6 +4,7 @@
  */
 import { register } from '../core/registry';
 import { Path } from './path';
+import { evoEntry } from './evo';
 
 export interface BoardUnit {
   dex: number;
@@ -125,11 +126,11 @@ function mergeAll(state: BoardState): number {
   return n;
 }
 
-/** Synergy view: board units only, with types from pokedex. */
+/** Synergy view: board units only; types follow evolution form (★2/★3). */
 function placed(state: BoardState): Array<{ dex: number; types: string[] }> {
   const DEX_BY: Record<string, any> = (G as any).DEX_BY || {};
   return state.units.filter(onBoard).map((u) => {
-    const e = DEX_BY[String(u.dex)] || DEX_BY[u.dex] || {};
+    const e = evoEntry(u.dex, u.star) || DEX_BY[String(u.dex)] || DEX_BY[u.dex] || {};
     return { dex: u.dex, types: e.types || [] };
   });
 }

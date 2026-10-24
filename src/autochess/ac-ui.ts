@@ -27,6 +27,7 @@ import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { Buffs, type BuffDef } from './buffs';
 import { planMoveFx } from './move-fx';
+import { evoDex } from './evo';
 import type { UnitBattle } from './unit';
 import type { MobBattle } from './unitAI';
 import { Path } from './path';
@@ -171,7 +172,7 @@ function renderHud(): void {
   else if (r.phase === 'combat') { btn.textContent = 'Fighting…'; btn.disabled = true; btn.classList.add('fighting'); }
   // avatars: first player unit / first enemy
   const fu = st.board.units.find((u) => u.x !== null);
-  lastPCap = setCap('ac-p-cap', fu ? fu.dex : null, lastPCap);
+  lastPCap = setCap('ac-p-cap', fu ? evoDex(fu.dex, fu.star) : null, lastPCap);
   if (!td) {
     const fe = st.run.mobs.find((m: any) => m.alive) || null;
     lastFoeCap = setCap('ac-foe-cap', fe ? fe.dex : null, lastFoeCap);
@@ -379,7 +380,7 @@ function renderStage(): void {
       const u = unitAt(x, y);
       if (u) {
         if (st.sel === u) cell.classList.add('sel');
-        const cv = UI.spriteCanvas(u.dex, 44, 44, { scale: 2, lively: true });
+        const cv = UI.spriteCanvas(evoDex(u.dex, u.star), 44, 44, { scale: 2, lively: true });
         cell.appendChild(cv);
         unitCv.set(x + ',' + y, cv);
         const st2 = boardStats(u.dex, u.star);
@@ -886,7 +887,7 @@ function playSwings(): void {
     const kind: string = M?.kind || 'melee';
     if (cv) {
       // dungeon player.cast(): pace anim to cooldown so fast atks chain, slow atks linger
-      const meta = Sprites.animMeta(String(b.dex), anim);
+      const meta = Sprites.animMeta(String(evoDex(b.dex, b.star || 1)), anim);
       const len = meta ? meta.d.reduce((a: number, c: number) => a + c, 0) / 60 : 0.4;
       const cd = Math.max(0.12, b.atkCd || 0.5);
       UI.spriteHit(cv, anim, b.face, Math.max(1, len / (cd * 0.9)));

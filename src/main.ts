@@ -70,6 +70,7 @@ import './ui/news-ui.ts';
 import './core/updater.ts';
 import './game.ts';
 import './autochess/path.ts';
+import './autochess/evo.ts';
 import './autochess/unit-stats.ts';
 import './autochess/wave.ts';
 import './autochess/synergy.ts';
