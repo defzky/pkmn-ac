@@ -15,14 +15,14 @@ baru:  taruh unit di grid → auto-battle wave → gold → shop → repeat
 
 Run = N wave. Kalah = base HP 0. Menang = boss wave N. Ranking = **waves survived** (bukan time).
 
-### Core loop
+### Core loop (final — sinkron GDD `game-design.md`)
 
 ```
-PREP (15s)        BATTLE              REWARD
-shop 5 slot   →   units auto-kill  →  gold += kills+wave
-bench 9       →   mobs march path  →  augment pick (every 5)
-drag place    →   base HP -= leak  →  star merge check
-reroll 2g     →   boss every 5     →  next wave timer
+PREP (30s)         BATTLE               CLEAR
+shop 3 kartu   →   units auto-kill  →   +3 gold + shop refresh
+bench 2        →   target terdepan  →   buff pick (tiap 3 wave)
+drag/tap place →   base HP -= leak  →   merge-2 check
+reroll 2g      →   boss tiap 5      →   next wave / menang @20
 ```
 
 ---
@@ -33,7 +33,7 @@ reroll 2g     →   boss every 5     →  next wave timer
 |---|---|
 | `Gacha.pool/pull` | Shop pool — beli unit dgn gold; pity → shop refresh odds |
 | `Types` chart | Synergy — hitung type di board → buff team |
-| `Upgrades` | Tech-tree antar run (persist) + star system (3 copy → 2★, 3×2★ → 3★) |
+| `Upgrades` | Tech-tree antar run (persist) + star system (**merge-2**: 2 copy → 2★, 2×2★ → 3★) |
 | `Spawner` + `Events` | Wave director — fixed path TD, boss tiap 5 wave |
 | `Combat`/`Moves`/`Projectiles` | Unit auto-battle: acquire nearest, attack, pakai move asli |
 | `World`/`Tiles` | Board grid + lane path tile khusus |
@@ -49,83 +49,45 @@ reroll 2g     →   boss every 5     →  next wave timer
 
 ---
 
-## 3. Architecture (module plan)
+## 3. Architecture (final — kode `src/autochess/*` sekarang)
 
 ```
-src/autochess/         # semua baru
-  board.ts             # grid cells, place/remove, occupancy, bench
-  path.ts              # lane waypoints per arena
-  unit.ts              # UnitBoard: pos, star, hp, atk timer, target
-  unitAI.ts            # acquire → range check → cast move → cooldown
-  wave.ts              # WaveDirector: composition, spawn timing, boss
-  shop.ts              # pool roll, buy/sell/reroll, bench(9), merge star
-  synergy.ts           # count types → modifiers (atkMul/defMul/spdMul)
-  gold.ts              # economy: kill reward, round income, interest
-  base.ts              # base HP, leak penalty
-  combat.ts            # battle tick loop (glue unit/enemy/projectile)
-  save.ts              # save v4 shape + migrate v3→v4
+src/autochess/
+  path.ts         # ring 2 cabang 16 sel, rock 0..2, cek placement
+  board.ts        # grid 3×3, bench 2, cap min(8,1+floor(lvl/2)), merge-2
+  unit-stats.ts   # derive dari pokedex (ATK_SCALE 40, range melee 2/ranged 3)
+  unit.ts         # UnitBattle: mana, star, swing (nama anim), totalAtk, effCd
+  unitAI.ts       # targeting terdepan, damage pipeline, statuses, KIND_ANIM
+  skills.ts       # 11 skill aktif (trigger mana 100)
+  champions.ts    # 12 chain GDD, cost 1–4, odds per band wave
+  shop.ts         # 3 kartu, buy/sell/reroll, sell by star (c / 2c−1 / 3c)
+  synergy.ts      # 5 tipe GDD, tier 2/3
+  team.ts         # board → synergy mods → spawn battle units
+  wave.ts         # komposisi, roles, elite w10+, boss tetap, HP waveMul
+  wave-runner.ts  # state machine prep/combat/buff/won/lost + economy
+  buffs.ts        # pool 5 buff, roll 3
+  base.ts         # HP 100, leak −5 / boss −20
+  ac-ui.ts        # screen scr-ac: render, drag-drop buy, loop, walkers
 ```
 
-Modified (not replaced): `db.ts` (v4+migrate), `game.ts` (state machine prep→battle→reward), `ui/*` (board screen, shop bar, bench bar), `ranking.ts` (waves metric), `firestore.rules` (sanity gold/wave).
-
-Deleted later: `player.ts` movement path (fields pindah ke `unit.ts`), joystick/touch stick, `spawner` free-AI mode.
+Sisa rencana lama yang **belum** diimplementasi (kandidat tahap lanjut):
+save v4 roster/star (P18), augment/items (P19), co-op (P20).
 
 ---
 
-## 4. Data spec (P11 details)
+## 4. Data spec
 
-### Board
-- Grid 8×5 cells (enemy path row 3 runs through it). Cell 96px.
-- Bench: 9 slots below board.
-- Max units on board: `min(8, 1 + floor(playerLevel/2))` — level via XP items / augments.
-
-### Path
-- Single lane, waypoints `[{x:0,y:2},{x:7,y:2}]` per arena; rift arena: serpentine 3-leg.
-- Mobs walk waypoint list at `spd` cell/s; leak when x > board.w.
-
-### Wave table
-- 30 waves. Composition = f(wave#):
-  - count = `3 + floor(wave/2)` mobs (cap 16)
-  - rarity bias: w1-5 mostly ★1, w6-15 ★1-2, w16+ ★2-3
-  - every 5th = boss (single unit, hp ×8, atk ×2, size big)
-- Gen filter: w1-9 gen≤3, w10+ all gens.
-- Mob stats = pokedex `hp/atk/spd` × waveMul (hp: 0.5+wave*0.15, atk: 0.4+wave*0.08).
-
-### Unit board stats (dari pokedex)
-```
-hp  = dex.hp * starMul(star)        starMul: 1★=1, 2★=1.8, 3★=3.2
-atk = dex.atk * starMul
-spd = clamp(dex.spd/50, 0.5, 3)     cell/s movement (unit melee chase)
-range = dex.pa > dex.sa ? 1 : 2     phys → melee 1 cell, spec → ranged 2 cell
-atkCd = 1.2 - dex.spd/400           seconds (clamp 0.4..1.6)
-move  = strongest of first 2 dex moves
-```
-
-### Synergy (threshold by distinct units of type on board)
-| Type group | T2 | T4 | Effect |
-|---|---|---|---|
-| fire/water/grass | +10% atk | +25% atk | type-boosted moves ×1.3 (seperti weather lama) |
-| electric/ice/rock | +8% atkSpd | +20% atkSpd | crit +10% |
-| normal/psychic/fairy | +15% baseHP | +35% baseHP | lifesteal 5% |
-| fighting/ground/steel | +10% dmgReduce | +25% dmgReduce | thorns 20% |
-| dark/ghost/dragon | +20% bounty | +50% bounty | gold per kill |
-| flying/bug/poison | +15% range | +30% range | slows hit 20% |
-
-Thresholds count unique dex (bukan copy). Cap 6 type max aktif (top-6 dari synergy graph).
-
-### Economy
-- Start gold 20. Round income: `5 + floor(wave/3)` + interest `floor(gold/10)` (cap 5).
-- Kill bounty: `1 + rarity` (boss ×10). Leak: base HP −5 (boss −20).
-- Shop: 5 slot, refresh 2g. Unit cost = `rarity × 2` (★1=2 … ★5=10).
-- Sell: ceil(cost/2). Bench 9, board max 8.
-
-### Star merge
-- 3 copy identical (dex+star) on bench/board → auto-merge to next star.
-- 3★ cap. Merge picks lowest star first.
+> **Pindah ke GDD:** spesifikasi data berlaku ada di `docs/game-design.md`
+> (Bagian 1–5). Spec lama di dokumen ini (grid 8×5, bench 9, shop 5,
+> start gold 20 + interest, merge-3, synergy 6 grup T2/T4, 30 waves,
+> range melee 1/ranged 2) sudah **deprecated dan dihapus** — jangan dipakai.
 
 ---
 
 ## 5. Phases
+
+> **Status: P11–P17 ✅ selesai** (2026-10-24, semua test hijau).
+> P18–P20 (save v4, augment/items, co-op) belum dikerjakan.
 
 | # | Isi | Test |
 |---|---|---|
