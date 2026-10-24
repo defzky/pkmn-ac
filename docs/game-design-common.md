@@ -12,6 +12,8 @@ Sistem *level-up* menggunakan mekanik *merge* 2 unit yang sama:
 * **★2 (Stage 1):** Gabungan 2x unit ★1.
 * **★3 (Final Stage):** Gabungan 2x unit ★2 (total 4x ★1).
 
+**Aturan merge (same-cell drop):** 2 unit sama **boleh** berada di petak berbeda (beli tidak auto-merge). Naik bintang **hanya** saat satu unit di-*drop* ke petak berisi unit dengan **dex + star sama** (drag kartu shop ke petak champion ★1, atau tap-select lalu tap petak target) — hasil merge ada di petak target. ★3 adalah batas.
+
 **Evolusi saat merge:** ★2/★3 menampilkan **bentuk evolusi** (sprite, nama, tipe, dan base stats HP/ATK/spd mengikuti entri evolusi, di-*multiply* star multiplier seperti biasa). Data rantai dari PokeAPI → `src/data/evo-map.ts` (generate: `node tools/fetch-evo.mjs`). Yang **tetap** identitas champion: Skill Dasar, signature move, harga jual — semua tetap di-key base dex (`unit.dex` tidak pernah berubah saat merge). Contoh: Charmander ★3 = sprite/stats/tipe Charizard (Fire+Flying), skill tetap skill line Charmander.
 
 ### Daftar Line-Up Pokémon
@@ -98,7 +100,7 @@ Kekuatan meningkat per gelombang (*Wave*). 20 wave total.
   * Musuh Biasa: +1 Gold per 3–5 kill (atau drop koin langsung).
   * Musuh Elite: +2 Gold per kill.
   * Boss: +10 Gold per kill.
-* **End of Wave Bonus:** +3 Gold setiap kali berhasil menyelesaikan 1 Wave.
+* **End of Wave Bonus:** `3 + floor(wave / 2)` Gold setiap kali berhasil menyelesaikan 1 Wave (wave 1 → 3, wave 10 → 8, wave 20 → 13).
 * **Biaya Reroll Shop:** 1 Gold (flat).
 * **Harga Jual Unit (Refund):**
   * Jual ★1 = Kembali 100% harga beli (Misal: Cost 1 dijual dapat 1 Gold).
