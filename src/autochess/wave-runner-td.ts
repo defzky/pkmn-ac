@@ -158,8 +158,9 @@ export function tick(
   if (st.spawnQ.length) {
     st.spawnT -= dt;
     while (st.spawnQ.length && st.spawnT <= 0) {
-      const m = toMob(st.spawnQ.shift()!);
-      m.branch = st.mobs.length % 2; // alternate left/right ring lane (mob never steps on board cells)
+      const spec = st.spawnQ.shift()!;
+      const m = toMob(spec);
+      m.branch = spec.side ?? (st.mobs.length % 2); // D2b: wave side composition (runner 0 / bulwark 1)
       st.mobs.push(m);
       st.spawnT += st.spawnGap;
     }

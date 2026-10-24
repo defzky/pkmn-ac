@@ -849,3 +849,21 @@ describe('D2a — unit death visual + respawn', () => {
     expect(u.hpCur).toBe(u.hp);
   });
 });
+
+describe('D2b — flank highlight + wave preview chips', () => {
+  it('prep: flank cells (not center) get .flank; wave strip has side + type chips', () => {
+    ACUI.open('td');
+    const flankCell = $('#ac-me-grid [data-xy="0,0"]');
+    const centerCell = $('#ac-me-grid [data-xy="1,1"]');
+    expect(flankCell).toBeTruthy();
+    expect(flankCell!.classList.contains('flank')).toBe(true);
+    expect(centerCell!.classList.contains('flank')).toBe(false);
+    // preview strip: per-mob side arrows + type chips + side summary
+    const strip = $('#ac-td-wave');
+    expect(strip!.querySelectorAll('.ac-td-side').length).toBeGreaterThan(0);
+    const types = strip!.querySelector('.ac-td-types');
+    expect(types).toBeTruthy();
+    expect(types!.querySelectorAll('i').length).toBeGreaterThan(0);
+    expect(types!.querySelector('em')!.textContent).toMatch(/kiri|kanan|both/);
+  });
+});

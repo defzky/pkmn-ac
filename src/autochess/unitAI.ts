@@ -11,7 +11,7 @@
 import { register } from '../core/registry';
 import Types from '../data/types';
 import { Path } from './path';
-import { UnitBattle, totalAtk, effCd } from './unit';
+import { UnitBattle, totalAtk, effCd, FLANK_ATK_MUL } from './unit';
 import { SynergyMods, NONE } from './synergy';
 import { cast as castSkill, MANA_PER_ATTACK } from './skills';
 
@@ -364,7 +364,8 @@ export function tick(
     u.cd -= dt;
     if (u.cd > 0) continue;
     // frontmost alive mob in range: max progress (path) or front row (dual-board)
-    const range = u.range + ((mods as any).rangeAdd || 0);
+    // D2b: corner flank +1 range
+    const range = u.range + ((mods as any).rangeAdd || 0) + (u.flankRange ? 1 : 0);
     let best: MobBattle | null = null, bestP = -Infinity, bestD = Infinity;
     for (const m of mobs) {
       if (!m.alive) continue;
@@ -398,7 +399,8 @@ export function tick(
     // fire
     const moveType = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.type ?? '') : '';
     const tm = typeMult(moveType, best.types);
-    let dmg = totalAtk(u) * tm;
+    // D2b flank: +10% ATK when standing on a lane-touching cell
+    let dmg = totalAtk(u) * tm * (u.flankAtk ? FLANK_ATK_MUL : 1);
     dmg *= (mods as any).typeBoostMul ?? 1;
     // armor (geodude): flat reduce of direct attack damage
     if (best.armor > 0) dmg *= 1 - best.armor;

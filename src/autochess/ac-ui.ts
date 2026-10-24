@@ -26,6 +26,7 @@ import { WaveRunner } from './wave-runner';
 import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { Buffs, type BuffDef } from './buffs';
+import { isFlank } from './unit';
 import { planMoveFx } from './move-fx';
 import { evoDex } from './evo';
 import type { UnitBattle } from './unit';
@@ -235,6 +236,14 @@ function renderHud(): void {
   if (!td) {
     const fe = st.run.mobs.find((m: any) => m.alive) || null;
     lastFoeCap = setCap('ac-foe-cap', fe ? fe.dex : null, lastFoeCap);
+  }
+  // D2b: flank highlight — lane-touching cells glow during prep (TD only)
+  if (td) {
+    const hlOn = r.phase === 'prep';
+    for (const cell of document.querySelectorAll<HTMLElement>('#ac-me-grid .ac-cell')) {
+      const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
+      cell.classList.toggle('flank', hlOn && isFlank(x, y));
+    }
   }
 }
 
@@ -507,10 +516,27 @@ function renderStage(): void {
     waveBox.innerHTML = '';
     const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunnerTd.MAX_MOBS);
     waveBox.insertAdjacentHTML('beforeend', '<span class="ac-td-gate">⬇ Spawn</span>');
+    // D2b: type chips (counter-building) + side summary of the coming wave
+    if (preview.length) {
+      const tset: string[] = [];
+      for (const spec of preview) {
+        const e = ((G as any).DEX_BY || {})[spec.dex] || {};
+        for (const t of e.types || []) if (!tset.includes(t)) tset.push(t);
+      }
+      const sides = preview.map((s) => s.side ?? 0);
+      const sideHint = sides.every((s) => s === 0) ? '⬅ kiri'
+        : sides.every((s) => s === 1) ? '⭢ kanan' : '⬌ both';
+      waveBox.insertAdjacentHTML('beforeend',
+        `<span class="ac-td-types">${tset.map((t) =>
+          `<i style="background:${(U.TYPE_COLOR as any)[t] || '#888'}">${esc(t)}</i>`).join('')}` +
+        `<em>${sideHint}</em></span>`);
+    }
     preview.forEach((spec) => {
       const g = document.createElement('span');
       g.className = 'ac-td-ghost';
-      g.appendChild(UI.spriteCanvas(spec.dex, 72, 72, { scale: 3 })); // res ×2, fitDraw
+      g.appendChild(UI.spriteCanvas(spec.dex, 72, 72, { scale: 3, lively: true }));
+      if (spec.boss) g.classList.add('boss');
+      g.insertAdjacentHTML('beforeend', `<span class="ac-td-side">${(spec.side ?? 0) === 1 ? '⭢' : '⬅'}</span>`);
       waveBox.appendChild(g);
     });
     if (!preview.length) waveBox.insertAdjacentHTML('beforeend', '<span class="sub" style="font-size:11px">next wave…</span>');
@@ -982,8 +1008,8 @@ function renderSyn(): void {
 }
 
 function renderAll(): void {
+  renderStage(); // cells first — renderHud's flank pass needs .ac-cell[data-xy] present
   renderHud();
-  renderStage();
   renderShop();
   renderSyn();
   $('ac-sell').classList.toggle('off', !st.sel);

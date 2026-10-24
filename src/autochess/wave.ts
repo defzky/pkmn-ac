@@ -27,6 +27,8 @@ export interface MobSpec {
   rest: boolean;       // snorlax
   roar: boolean;       // gyarados
   disable: boolean;    // mewtwo
+  /** TD lane side (D2b): 0 = left runner lane, 1 = right bulwark lane */
+  side?: 0 | 1;
 }
 
 export interface WaveComp {
@@ -127,11 +129,24 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
   wave = Math.max(1, Math.min(MAX_WAVE, Math.floor(wave)));
   const mul = waveMul(wave);
 
-  // boss wave → single named boss
+  // boss wave → single named boss + one escort per lane (both lanes press)
   const bossDef = BOSSES[wave];
   if (bossDef) {
     const e = dexEntry(bossDef.dex);
     const hp = Math.round((e.hp ?? 100) * mul.hp * bossDef.hpMul);
+    const escorts: MobSpec[] = ([0, 1] as const).map((side) => {
+      const role = EARLY[wave % EARLY.length] || EARLY[0];
+      const ee = dexEntry(role.dex);
+      const ehp = Math.round((ee.hp ?? 100) * mul.hp * 0.5);
+      return {
+        ...baseSpec(ee),
+        dex: role.dex,
+        hp: ehp,
+        atk: Math.round((ee.atk ?? 20) * mul.atk * 0.7),
+        spd: mobSpd(ee.spd ?? 50, (role.spdMul ?? 1) * 1.2),
+        side,
+      };
+    });
     return {
       wave,
       boss: true,
@@ -148,7 +163,8 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
         rest: !!bossDef.rest,
         roar: !!bossDef.roar,
         disable: !!bossDef.disable,
-      }],
+        side: 0,
+      }, ...escorts],
     };
   }
 
@@ -175,6 +191,8 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
       regen: role.regen ?? 0,
       kbImmune: !!role.kbImmune,
       slowImmune: !!role.slowImmune,
+      // D2b side: odd waves press LEFT (80%), even press RIGHT (80%)
+      side: (wave % 2 === 1 ? (i % 5 === 4 ? 1 : 0) : (i % 5 === 0 ? 0 : 1)) as 0 | 1,
     });
   }
   return { wave, mobs, boss: false };

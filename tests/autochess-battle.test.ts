@@ -439,3 +439,45 @@ describe('mobs fight back (D2a — Pilar 1)', () => {
     expect(u.hpCur).toBe(100);
   });
 });
+
+describe('D2b — flank bonus (unit.ts isFlank/isCorner + unitAI)', () => {
+  it('flank cell gets +10% atk vs center cell', () => {
+    const flankU = unitAt(6, 0, 1); // edge column — touches lane
+    const midU = unitAt(6, 1, 1);   // center — no flank
+    expect(flankU.flankAtk).toBe(true);
+    expect(midU.flankAtk).toBe(false);
+    flankU.atk = 100; midU.atk = 100;
+    flankU.atkCd = 0; midU.atkCd = 0;
+    const m1 = mob({ progress: 4, hp: 1e9, atk: 0 }); // cell (-1,1): dist1 to (0,1), dist2 to (1,1)
+    const m2 = mob({ progress: 4, hp: 1e9, atk: 0 });
+    UnitAI.tick([flankU], [m1], 0.01, undefined, Path.laneCells());
+    UnitAI.tick([midU], [m2], 0.01, undefined, Path.laneCells());
+    const dFlank = 1e9 - m1.hp, dMid = 1e9 - m2.hp;
+    expect(dFlank).toBeGreaterThan(dMid);
+    expect(dFlank / dMid).toBeCloseTo(1.1, 2);
+  });
+
+  it('corner cell +1 range: hits cell at chebyshev 3, edge cell does not', () => {
+    const corner = unitAt(66, 2, 0); // machop melee range 2, corner → 3
+    const edge = unitAt(66, 2, 1);   // edge, no corner → range 2
+    expect(corner.flankRange).toBe(true);
+    expect(edge.flankRange).toBe(false);
+    corner.atk = 999; corner.atkCd = 0.5;
+    edge.atk = 999; edge.atkCd = 0.5;
+    const m1 = mob({ progress: 4, hp: 1, atk: 0 }); // cell (-1,1): dist to (2,0)=3, to (2,1)=3
+    const m2 = mob({ progress: 4, hp: 1, atk: 0 });
+    const r1 = UnitAI.tick([corner], [m1], 0.05, undefined, Path.laneCells());
+    const r2 = UnitAI.tick([edge], [m2], 0.05, undefined, Path.laneCells());
+    expect(r1.kills).toBe(1);
+    expect(r2.kills).toBe(0);
+    expect(m2.alive).toBe(true);
+  });
+
+  it('center cell is not flank; corners are', () => {
+    expect(Unit.isFlank(1, 1)).toBe(false);
+    expect(Unit.isFlank(0, 0)).toBe(true);
+    expect(Unit.isFlank(2, 2)).toBe(true);
+    expect(Unit.isCorner(0, 0)).toBe(true);
+    expect(Unit.isCorner(0, 1)).toBe(false);
+  });
+});

@@ -59,12 +59,12 @@ describe('ring lanes (TD) — minions never step on board cells', () => {
       }
     }
   });
-  it('spawned mobs alternate lane branch 0/1', () => {
+  it('spawned mobs use wave side (D2b: wave 1 all left lane)', () => {
     const st = WRTD.createRun();
     WRTD.startCombat(st);
     for (let i = 0; i < 60 && st.spawnQ.length; i++) WRTD.tick(st, [], 1);
     expect(st.mobs.length).toBeGreaterThanOrEqual(2);
-    st.mobs.forEach((m: any, i: number) => expect(m.branch).toBe(i % 2));
+    st.mobs.forEach((m: any) => expect(m.branch).toBe(0));
   });
 });
 
@@ -233,5 +233,46 @@ describe('D2a respawn at prep (TD)', () => {
     WRTD.tick(st, [u], 0.1); // phase prep
     expect(u.alive).toBe(true);
     expect(u.hpCur).toBe(u.hp);
+  });
+});
+
+describe('D2b lane side composition', () => {
+  it('wave 1 (odd) spawns all on left lane (branch 0)', () => {
+    const st = WRTD.createRun();
+    WRTD.startCombat(st); // wave 1 → 3 mobs, all side 0
+    expect(st.spawnQ.every((s: any) => s.side === 0)).toBe(true);
+    WRTD.tick(st, [], 1);
+    while (st.spawnQ.length) WRTD.tick(st, [], 1);
+    expect(st.mobs.length).toBeGreaterThan(0);
+    for (const m of st.mobs) expect(m.branch).toBe(0);
+  });
+
+  it('wave 2 (even) mostly right lane; wave 5 boss both lanes', () => {
+    const st = WRTD.createRun();
+    st.wave = 2;
+    WRTD.startCombat(st); // count 4: side 0,1,1,1
+    expect(st.spawnQ.filter((s: any) => s.side === 1).length).toBe(3);
+    expect(st.spawnQ.filter((s: any) => s.side === 0).length).toBe(1);
+
+    st.wave = 5;
+    st.phase = 'prep';
+    WRTD.startCombat(st); // boss (side 0) + escort per lane
+    expect(st.spawnQ.length).toBe(3);
+    expect(st.spawnQ[0].boss).toBe(true);
+    expect(st.spawnQ[0].side).toBe(0);
+    expect(st.spawnQ.some((s: any) => s.side === 1)).toBe(true);
+  });
+
+  it('compose: odd wave 80% side0, even 80% side1, boss waves both sides', async () => {
+    const WaveDef = (globalThis as any).G.WaveDef || (await import('../src/autochess/wave.ts')).WaveDef;
+    const c1 = WaveDef.compose(1);
+    expect(c1.mobs.filter((m: any) => m.side === 0).length).toBe(c1.mobs.length);
+    const c4 = WaveDef.compose(4);
+    const ones = c4.mobs.filter((m: any) => m.side === 1).length;
+    expect(ones).toBeGreaterThanOrEqual(c4.mobs.length - 1);
+    const c5 = WaveDef.compose(5);
+    expect(c5.boss).toBe(true);
+    expect(c5.mobs.length).toBe(3);
+    expect(new Set(c5.mobs.map((m: any) => m.side))).toEqual(new Set([0, 1]));
   });
 });

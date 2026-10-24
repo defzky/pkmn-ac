@@ -154,13 +154,16 @@ describe('wave', () => {
     expect(WaveDef.compose(19).mobs.length).toBe(12); // 3+9
   });
 
-  it('fixed boss every 5th wave (5/10/15/20): single named boss star 3', () => {
+  it('fixed boss every 5th wave (5/10/15/20): boss + 2 escorts', () => {
     for (const w of [5, 10, 15, 20]) {
       const c = WaveDef.compose(w);
       expect(c.boss, `wave ${w}`).toBe(true);
-      expect(c.mobs).toHaveLength(1);
+      expect(c.mobs).toHaveLength(3); // D2b: boss (side 0) + escort per lane
       expect(c.mobs[0].boss).toBe(true);
       expect(c.mobs[0].star).toBe(3);
+      expect(c.mobs[0].side).toBe(0);
+      expect(c.mobs.filter((m: any) => !m.boss)).toHaveLength(2);
+      expect(new Set(c.mobs.map((m: any) => m.side))).toEqual(new Set([0, 1]));
     }
     expect(WaveDef.compose(5).mobs[0].dex).toBe(95);   // Onix
     expect(WaveDef.compose(10).mobs[0].dex).toBe(143); // Snorlax

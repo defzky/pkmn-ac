@@ -38,7 +38,20 @@ export interface UnitBattle extends BoardStats {
   hit?: { x: number; y: number; dmg: number; eff?: 'super' | 'weak' | null };
   /** UI: skill fired this tick → charge flourish in addition to attack fx */
   skillFx?: boolean;
+  /** D2b flank: cell touches ring lane (chebyshev ≤1) → +10% ATK */
+  flankAtk?: boolean;
+  /** D2b flank: corner cell → +1 range */
+  flankRange?: boolean;
 }
+
+/** Flank = any cell except center (touching the ring lane, chebyshev ≤ 1). */
+export function isFlank(x: number, y: number): boolean { return !(x === 1 && y === 1); }
+/** Corner cells get the +1 range piece of the flank bonus. */
+export function isCorner(x: number, y: number): boolean {
+  return (x === 0 || x === 2) && (y === 0 || y === 2);
+}
+/** D2b flank ATK multiplier. */
+export const FLANK_ATK_MUL = 1.1;
 
 /** Build battle unit from board placement + synergy mods + items. */
 export function makeUnit(bu: BoardUnit, mods: SynergyMods = NONE): UnitBattle | null {
@@ -68,6 +81,8 @@ export function makeUnit(bu: BoardUnit, mods: SynergyMods = NONE): UnitBattle | 
     slowT: 0,
     roarT: 0,
     asBuffT: 0,
+    flankAtk: isFlank(bu.x as number, bu.y as number),
+    flankRange: isCorner(bu.x as number, bu.y as number),
   };
 }
 
@@ -87,7 +102,7 @@ export function effCd(u: UnitBattle, mods: SynergyMods): number {
   return u.atkCd / mul;
 }
 
-const Unit = { makeUnit, totalAtk, effCd };
+const Unit = { makeUnit, totalAtk, effCd, isFlank, isCorner };
 register('UnitAC', Unit);
 export { Unit };
 export default Unit;

@@ -931,9 +931,16 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* wave-preview strip + spawn/base gates (visible only in TD) */
 .ac-td-wave { display: none; align-items: center; gap: 4px; min-height: 32px; flex-wrap: wrap; justify-content: center; }
 .ac-arenas.td-mode .ac-td-wave { display: flex; }
-.ac-td-ghost { opacity: .75; display: inline-flex; }
+.ac-td-ghost { opacity: .75; display: inline-flex; position: relative; }
 .ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.85); max-height: calc(var(--ac-pitch, 72px) * 0.85); }
+.ac-td-ghost .ac-td-side { position: absolute; bottom: -2px; right: -2px; font-size: 10px; font-weight: bold; color: var(--gold); text-shadow: 0 1px 2px #000; }
 .ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+/* D2b: wave preview type chips + side summary */
+.ac-td-types { display: inline-flex; gap: 3px; align-items: center; margin-left: 4px; }
+.ac-td-types i { font-style: normal; font-size: 9px; font-weight: bold; padding: 1px 5px; border-radius: 999px; color: #0a0e16; }
+.ac-td-types em { font-style: normal; font-size: 10px; font-weight: bold; color: rgba(255,255,255,.7); margin-left: 2px; }
+/* D2b: flank highlight (prep) — lane-touching cells get a faint gold rim */
+.ac-cell.flank { box-shadow: inset 0 0 0 1px rgba(255,210,80,.22); }
 /* castle base: big 🏰 + conic HP ring (--hp %, --hp-col band set by renderHud) */
 .ac-td-base { position: absolute; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; filter: drop-shadow(0 2px 4px #000); display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .ac-base-ring {
