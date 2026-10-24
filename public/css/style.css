@@ -921,7 +921,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 @keyframes ac-portal-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 .ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; }
 /* display size follows cell pitch (JS sets --ac-pitch on #ac-arenas) — res interna 80×88 */
-.ac-td-mob canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 80px) * 0.55); max-height: calc(var(--ac-pitch, 80px) * 0.6); }
+.ac-td-mob canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 80px) * 0.68); max-height: calc(var(--ac-pitch, 80px) * 0.72); }
 .ac-td-mob canvas.hurt { animation: ac-hurt .18s; }
 .ac-td-mob .hp { display: block; width: calc(var(--ac-pitch, 80px) * 0.45); height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
 .ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
@@ -932,7 +932,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-wave { display: none; align-items: center; gap: 4px; min-height: 32px; flex-wrap: wrap; justify-content: center; }
 .ac-arenas.td-mode .ac-td-wave { display: flex; }
 .ac-td-ghost { opacity: .75; display: inline-flex; }
-.ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.5); max-height: calc(var(--ac-pitch, 72px) * 0.5); }
+.ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.85); max-height: calc(var(--ac-pitch, 72px) * 0.85); }
 .ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
 /* castle base: big 🏰 + conic HP ring (--hp %, --hp-col band set by renderHud) */
 .ac-td-base { position: absolute; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; filter: drop-shadow(0 2px 4px #000); display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -1002,7 +1002,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #scr-ac.td-land .ac-kbd { display: none; }
   /* compact dock: shop strip right of gold+footer, smaller cards/controls */
   #scr-ac.td-land .ac-card { width: 96px; height: 112px; }
-  #scr-ac.td-land .ac-card canvas { height: 48px; }
+  #scr-ac.td-land .ac-card canvas { height: 70%; }
   #scr-ac.td-land .ac-reroll { flex: 0 0 44px; max-width: 44px; }
   #scr-ac.td-land .ac-reroll i { font-size: 15px; }
   #scr-ac.td-land .ac-readywrap { flex-direction: row; align-items: center; gap: 6px; width: 170px; }
@@ -1146,7 +1146,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     0 0 12px rgba(255,170,40,.55), 0 2px 4px rgba(0,0,0,.35);
   border-color: rgba(255,190,70,.75);
 }
-.ac-cell canvas { max-width: 92%; max-height: 92%; image-rendering: pixelated; }
+.ac-cell canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 /* ghost preview (enemy board during prep) */
 .ac-cell.ghost { opacity: .75; border-style: dashed; border-color: rgba(255,95,109,.55); }
 .ac-cell.ghost canvas { animation: ac-ghost 2.2s ease-in-out infinite; }
@@ -1245,7 +1245,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-card:hover { border-color: var(--gold); transform: translateY(-2px); }
 .ac-card.off { opacity: .4; pointer-events: none; }
-.ac-card canvas { height: 56px; image-rendering: pixelated; }
+.ac-card canvas { height: 64px; image-rendering: pixelated; }
 /* starburst gold cost badge (top-left) */
 .ac-cost {
   position: absolute; top: -8px; left: -8px; z-index: 2;
