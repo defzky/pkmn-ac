@@ -97,6 +97,7 @@ function ensureDom(): HTMLElement {
         <span class="ac-td-base" id="ac-td-base" hidden>🏰</span>
         <div class="ac-td-lanes" id="ac-td-lanes" hidden></div>
         <canvas class="ac-fx" id="ac-fx"></canvas>
+        <div class="ac-banner" id="ac-banner" hidden></div>
       </div>
       <div class="ac-synbar" id="ac-syn"></div>
       <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
@@ -130,6 +131,34 @@ function ensureDom(): HTMLElement {
 
 let lastFoeCap = -1;
 let lastPCap = -1;
+let lastBaseHp: number | null = null;
+
+/** centered status banner (wave start / clear / boss / leak) — Fase J juice */
+function banner(kind: 'wave' | 'clear' | 'boss' | 'leak', big: string, sub = ''): void {
+  const el = $('ac-banner');
+  el.hidden = false;
+  el.className = 'ac-banner' + (kind === 'boss' ? ' boss' : kind === 'leak' ? ' leak' : kind === 'clear' ? ' clear' : '');
+  el.innerHTML = `<b>${esc(big)}</b>${sub ? `<span>${esc(sub)}</span>` : ''}`;
+  // retrigger the pop-in animation
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = '';
+  clearTimeout((banner as any)._t);
+  (banner as any)._t = setTimeout(() => {
+    el.classList.add('out');
+    (banner as any)._t2 = setTimeout(() => { el.hidden = true; }, 350);
+  }, 1600);
+}
+
+/** base took a leak — flash base + pulse heart + red banner (Fase J) */
+function leakFx(dmg: number): void {
+  const base = $('ac-td-base');
+  base.classList.remove('flash'); void base.offsetWidth; base.classList.add('flash');
+  const heart = document.querySelector('.ac-heart.blue');
+  if (heart) { heart.classList.remove('pulse'); void (heart as HTMLElement).offsetWidth; heart.classList.add('pulse'); }
+  banner('leak', `Base hit! −${dmg}`, 'a mob leaked through');
+  Audio.sfx('hurt', undefined);
+}
 
 function playerPower(): number {
   let p = 0;
@@ -166,6 +195,15 @@ function renderHud(): void {
   const prepSec = td ? WaveRunnerTd.PREP_SECONDS : WaveRunner.PREP_SECONDS;
   const pct = r.phase === 'prep' ? Math.max(0, Math.min(100, (r.prepLeft / prepSec) * 100)) : 0;
   tf.style.width = pct + '%';
+  // timer urgency: last 3s of prep → blink the fill (Fase J)
+  if (r.phase === 'prep' && r.prepLeft <= 3) tf.classList.add('blink');
+  else tf.classList.remove('blink');
+  // leak feedback: base hp dropped → flash base + pulse heart + red banner (Fase J)
+  if (td) {
+    const hp = r.base.hp;
+    if (lastBaseHp != null && hp < lastBaseHp) leakFx(hp - lastBaseHp);
+    lastBaseHp = hp;
+  }
   // Ready button state
   const btn = $('ac-start') as HTMLButtonElement;
   if (r.phase === 'prep') { btn.textContent = 'Ready'; btn.disabled = false; btn.classList.remove('fighting'); }
@@ -1052,7 +1090,14 @@ function loop(ts: number): void {
     const changed = Runner.tick(r, st.units, dt, battleMods());
     const after: string = r.phase;
     if (changed) {
-      if (prev === 'prep' && after === 'combat') enterCombat();
+      if (prev === 'prep' && after === 'combat') {
+        enterCombat();
+        // wave-start banner — boss waves red + boss sfx, else gold + confirm (Fase J)
+        const mobs: any[] = r.mobs || [];
+        const boss = mobs.some((m: any) => m.boss);
+        banner(boss ? 'boss' : 'wave', boss ? `BOSS — Wave ${r.wave}` : `Wave ${r.wave}`, `${mobs.length} mons incoming`);
+        Audio.sfx(boss ? 'boss' : 'confirm', undefined);
+      }
       else if (after === 'buff') {
         st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
         renderAll(); offerBuff(); return;
@@ -1061,7 +1106,13 @@ function loop(ts: number): void {
       else {
         if (prev === 'combat' && after === 'prep') {
           st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
-          UI.toast(`+${Runner.waveBonus(r.wave - 1)} gold`); // wave already advanced
+          const bonus = Runner.waveBonus(r.wave - 1);
+          UI.toast(`+${bonus} gold`); // wave already advanced
+          // wave-cleared banner + gold pill pop (Fase J)
+          banner('clear', `Wave ${r.wave - 1} cleared!`, `+${bonus} ☀ gold`);
+          Audio.sfx('levelup', undefined);
+          const gold = $('ac-gold');
+          gold.classList.remove('pop'); void gold.offsetWidth; gold.classList.add('pop');
         }
         renderAll();
       }
@@ -1367,6 +1418,7 @@ function reset(): void {
   stopDrag();
   clearTdMobs();
   foeLastHp.clear();
+  lastBaseHp = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   st.run = Runner.createRun();
   st.shop = Shop.createShop(1);

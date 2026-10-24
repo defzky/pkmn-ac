@@ -1123,6 +1123,45 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   image-rendering: pixelated; z-index: 5; pointer-events: none;
 }
 
+/* wave / status banner (Fase J juice) — centered, slides in + fades */
+.ac-banner {
+  position: absolute; left: 50%; top: 14%; transform: translateX(-50%);
+  z-index: 30; pointer-events: none; text-align: center; white-space: nowrap;
+  padding: 8px 22px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(28,34,54,.92), rgba(10,14,26,.92));
+  border: 1px solid rgba(255,210,80,.5); box-shadow: 0 6px 20px rgba(0,0,0,.6);
+  animation: ac-banner .55s cubic-bezier(.2,1.4,.35,1) forwards;
+}
+.ac-banner b { display: block; font-size: 22px; font-weight: 800; color: #ffd465; letter-spacing: .5px; text-shadow: 0 2px 4px #000; }
+.ac-banner span { display: block; font-size: 13px; color: #cfd6e6; margin-top: 2px; }
+.ac-banner.boss { border-color: #ff5f6d; }
+.ac-banner.boss b { color: #ff8090; }
+.ac-banner.warn { border-color: #ff8090; }
+.ac-banner.warn b { color: #ff9aa6; }
+.ac-banner.leak { border-color: #ff5060; }
+.ac-banner.leak b { color: #ff6f7e; }
+.ac-banner.out { animation: ac-bannerout .35s ease forwards; }
+@keyframes ac-banner {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-18px) scale(.85); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes ac-bannerout {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px) scale(.96); }
+}
+
+/* leak flash on base + heart pulse (Fase J) */
+@keyframes ac-baseflash { 0%,100% { filter: none; } 30% { filter: brightness(3) saturate(2) hue-rotate(-20deg); } }
+.ac-td-base.flash { animation: ac-baseflash .5s ease; }
+@keyframes ac-heartpulse { 0%,100% { transform: scale(1); } 35% { transform: scale(1.35); color: #ff5f6d; } }
+.ac-heart.pulse { animation: ac-heartpulse .45s ease; }
+
+/* ready button fighting state (was dead class) */
+.ac-ready.fighting { background: linear-gradient(180deg, #6b7385, #3a4152); cursor: default; }
+/* gold pill pop on wave-clear reward */
+@keyframes ac-pop { 0% { transform: scale(1); } 35% { transform: scale(1.28); } 100% { transform: scale(1); } }
+.ac-goldsun.pop { animation: ac-pop .5s ease; }
+
 /* synergy chips */
 .ac-synbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 18px; }
 .syn-chip {

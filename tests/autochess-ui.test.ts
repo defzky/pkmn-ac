@@ -523,3 +523,48 @@ describe('TD landscape layout + dungeon bg', () => {
     }
   });
 });
+
+describe('Fase J — combat juice (banner / leak / timer)', () => {
+  it('wave-start banner shows on prep→combat (step drives loop hook)', () => {
+    ACUI.open('td');
+    const el = document.getElementById('ac-banner')!;
+    ACUI.run.prepLeft = 0.01;
+    ACUI.step(performance.now() + 50);
+    expect(el.hidden).toBe(false);
+    expect(el.innerHTML).toMatch(/Wave/);
+  });
+
+  it('leak → base flash + heart pulse + red banner', () => {
+    ACUI.open('td');
+    ACUI.run.phase = 'combat';
+    ACUI.run.base.hp -= 5; // simulate leak — renderHud detects the drop
+    ACUI.step(performance.now() + 50);
+    expect(document.getElementById('ac-td-base')!.classList.contains('flash')).toBe(true);
+    expect(document.querySelector('.ac-heart.blue')!.classList.contains('pulse')).toBe(true);
+    const el = document.getElementById('ac-banner')!;
+    expect(el.hidden).toBe(false);
+    expect(el.classList.contains('leak')).toBe(true);
+  });
+
+  it('wave clear → gold-clear banner + gold pill pop', () => {
+    ACUI.open('td');
+    const gold = document.getElementById('ac-gold')!;
+    gold.classList.remove('pop');
+    ACUI.run.phase = 'combat';
+    ACUI.run.spawnQ = []; ACUI.run.mobs = [];
+    ACUI.step(performance.now() + 50); // tick detects clear → prep, loop fires banner
+    expect(gold.classList.contains('pop')).toBe(true);
+    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/cleared/i);
+  });
+
+  it('prep timer blinks in last 3s', () => {
+    ACUI.open('td');
+    const tf = document.getElementById('ac-timer-fill')!;
+    ACUI.run.phase = 'prep'; ACUI.run.prepLeft = 2;
+    ACUI.step(performance.now() + 50);
+    expect(tf.classList.contains('blink')).toBe(true);
+    ACUI.run.prepLeft = 5;
+    ACUI.step(performance.now() + 100);
+    expect(tf.classList.contains('blink')).toBe(false);
+  });
+});
