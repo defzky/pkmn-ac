@@ -119,6 +119,21 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > castle HP pill `#ac-td-hptext` di bawah ring (heart lama sembunyi di TD),
 > synbar pindah `.ac-arow` gap 32px dari papan + kontras chip; 270 test hijau
 > (GDD §1a).
+> **Konsep rework ✅ (2026-10-25): D1** — 5 pilar senior-designer pass,
+> dokumen ditulis ulang (common/td/autochess): 5-menit sprint (10 wave, prep
+> 25/15/12, base 60, leak 6/15), **monsters fight back** (unit HP mati/respawn,
+> TD runner-chip vs bulwark-stop, auto slot war), lane asimetris + flank bonus,
+> interest/streak, affix + shop bias, augment rule-changer P19, score/endless.
+> **Sisa D2a–D2e implementasi**, lalu save v4, co-op P20.
+> **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
+> (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
+> di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /
+> `.mode-autochess` + `.ac-td-base[hidden]`), layout auto anti-overflow
+> (`.ac-app` grid `auto/1fr/auto` → dock selalu tampil, `fitAutoTiles()` set
+> `--ac-tile` 36–76px persegi dari rect arena, landscape auto board
+> side-by-side + dock horizontal), topbar terpadu (Round · ♥45 · ♥20 · ⚔ ·
+> pause/close — heart pindah dari arena, `.ac-foehud`/`.ac-me-hud` disembunyi
+> di auto); 275 test hijau (GDD §1a autochess).
 > Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |

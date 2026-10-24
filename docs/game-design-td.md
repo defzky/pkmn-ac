@@ -1,106 +1,155 @@
 # Pokémon Auto Chess — Game Design: Mode Tower Defence
 
 > Mode **TD path-walk**. Musuh spawn di tepi atas, berjalan menyusuri *path*
-> serpentine yang melewati board pemain 3×3, menuju base di kanan-bawah.
-> Leak = base HP damage. Bertahan 20 wave = menang.
-> Sistem bersama (unit, shop, sinergi, ekonomi, buff): `game-design-common.md`.
+> serpentine yang melewati board pemain 3×3, menuju base di bawah-tengah.
+> **Musuh menyerang unit yang mereka lewati** (Pilar 1) — leak = base damage.
+> Sprint **10 wave** ≈ 5 menit. Sistem bersama (unit, shop, sinergi, ekonomi,
+> augment, skor): `game-design-common.md`.
 
 ---
 
 ## 1. Arena, Path, & Penempatan
 
-* **Satu board pemain 3×3** (y 0 … y 2) — semua cell placeable, **khusus pokemon**. Portrait: grid di-center 56% lebar. Landscape (`.td-land`): board square full-height (sisi = tinggi arena kolom), semua ruang layar dipakai (lihat §1a).
-* **Jalur minion = ring lane DI LUAR board** (2 cabang simetris, `Path.branchCells`, spawn alternating kiri/kanan) — minion **tidak pernah** menempati petak pokemon:
-  * Spawn gate: top-center `{x:1, y:−1}` (dua cabang sama)
-  * Cabang kiri: `(1,−1) → (0,−1) → (−1,−1) → (−1,0) → (−1,1) → (−1,2) → (−1,3) → (0,3) → (1,3)`
-  * Cabang kanan: cermin (x 3), Base: bottom-center `{x:1, y:3}`
-  * Jarak Chebyshev tiap petak board ke lane terdekat ≤ 2 → melee range 2 tetap kena semua petak.
-* **Lane di-highlight** tile kuning tipis `.ac-td-lane` di luar grid. Ukuran = `pitch × 0.86`; pad atas/bawah host = `pitch × 0.28` via CSS var `--ac-lane-pad` (di-set JS dari rect cell — bukan 56px fixed).
-* **Musuh ghost-walk:** berjalan melewati unit tanpa *blocking* — unit murni DPS tower.
-* **Placement:** sama seperti autochess — drag & drop / tap, auto-place back-to-front, **tanpa batas unit** (grid 3x3 = 9 petak = limit). Penempatan & merge (drop) terkunci saat combat; beli tetap boleh.
-* **Keyboard:** `1`–`3` beli, `R` reroll (1 Gold), `Space`/`Enter` Ready, `Esc` pause.
+* **Satu board pemain 3×3** (y 0 … y 2) — semua cell placeable, **khusus
+  pokemon**. Portrait: grid di-center 56% lebar. Landscape (`.td-land`): board
+  square full-height (lihat §1a).
+* **Lane kiri = RUNNER, kanan = BULWARK** (asimetris — Pilar 2):
+  * **Runner lane (kiri):** mob cepat, tipis, **chip damage 50% sambil jalan**
+    (tak berhenti) — ancaman jumlah & kecepatan.
+  * **Bulwark lane (kanan):** mob lambat, tebal/armor, **berhenti & fight**
+    unit terdekat (aggro); stop dibatasi **2s** lalu lanjut jalan (anti-stall).
+  * Wave komposisi: wave ganjil menekan kiri, genap menekan kanan, boss =
+    kedua lane. Preview menampilkan side hint (⬅ / ⭢ / ⬌).
+* **Path** (`Path.branchCells`, sama seperti sekarang):
+  * Spawn `{x:1, y:−1}`, base `{x:1, y:3}`; cabang kiri x −1, kanan x 3.
+  * Chebyshev petak board ke lane terdekat ≤ 2 (melee range 2 tetap relevan).
+* **Flank bonus (Pilar 2):** unit di petak yang **menyentuh lane** (Chebyshev
+  ≤ 1 ke sel lane) → **+10% ATK**; petak **sudut** (0,0 / 2,0 / 0,2 / 2,2)
+  dapat tambahan **+1 range**. Saat prep, petak flank di-highlight (glow tipis)
+  dan coverage tiap unit (sel yang bisa dicapai) ditampilkan saat unit dipilih.
+* **Placement:** drag & drop / tap, auto-place back-to-front, limit = 9 petak.
+  Penempatan & merge (drop) terkunci saat combat; beli tetap boleh.
+* **Keyboard:** `1`–`3` beli, `R` reroll (1 Gold), `Space`/`Enter` Ready, `Esc`
+  pause.
 
-### 1a. Layout Landscape + Backdrop Dungeon (refresh + rework M–P)
+### 1a. Layout Landscape + Backdrop Dungeon (rework M–P + Q)
 
-* **Aktivasi:** class `#scr-ac.td-land` (di-toggle `renderStage`, TD saja) + `@media (orientation: landscape)`. Dual-board (`auto`) tetap desain portrait-column lama.
-* **Grid penuh tanpa dead-space** (rework M+N, refined Q): `.ac-app` → grid **1 kolom**, areas `"top" "arena" "dock"`:
-  * Baris 1: **topbar glass pill terpusat** — Round kiri · power pill (pindah dari arena ke topbar) · pause/exit kanan.
-  * Baris 2: **arena** — wrapper `.ac-arow` flex row terpusat: board square height-driven + lane pad proporsional + wave strip · **synbar glass sidebar** `gap: 32px` dari papan (bukan nempel tepi layar; chips 16px, non-aktif `rgba(255,255,255,.75)`). Portrait: `.ac-arow { display:contents }` → alur column lama.
-  * Baris 3: **dock glass fit-content terpusat** (`.ac-dock`: `width:fit-content; max-width:90vw; margin:0 auto; gap:24px; padding:12px 24px`) — gold pill 18px · reroll + Ready + timer (⏳ legible 12px) · divider vertikal 1px · shop 3 kartu berdekatan (tak ada ruang kosong tengah). Portrait: `.ac-dock { display:contents }`.
+* **Aktivasi:** class `#scr-ac.td-land` (di-toggle `renderStage`, TD saja) +
+  `@media (orientation: landscape)`. Dual-board (`auto`) tetap portrait-column.
+* **Grid penuh tanpa dead-space** (rework M+N, refined Q): `.ac-app` → grid
+  **1 kolom**, areas `"top" "arena" "dock"`:
+  * Baris 1: **topbar glass pill terpusat** — Round kiri · power pill ·
+    pause/exit kanan.
+  * Baris 2: **arena** — wrapper `.ac-arow` flex row terpusat: board square
+    height-driven + lane pad proporsional + wave strip · **synbar glass
+    sidebar** `gap: 32px` dari papan (chips 16px, non-aktif
+    `rgba(255,255,255,.75)`). Portrait: `.ac-arow { display:contents }`.
+  * Baris 3: **dock glass fit-content terpusat** (`.ac-dock`:
+    `width:fit-content; max-width:90vw; margin:0 auto; gap:24px;
+    padding:12px 24px`) — gold 18px · reroll + Ready + timer ⏳ legible ·
+    divider 1px · shop 3 kartu. Portrait: `.ac-dock { display:contents }`.
   * `ac-kbd` disembunyikan (touch layout).
-* **Backdrop dungeon:** canvas `#ac-bg` kini **child pertama `#scr-ac`** (z0, meng-cover seluruh viewport — hilangkan hitam di luar arena) → `Tiles.paintChunk` biome **0 (Bosque)** floor-only + blob dirt sinus + radial vignette — pixel ground **identik** dengan `World.chunkImage`. RO mengamati `#scr-ac` + `#ac-arenas`. Arena `.me` transparent di landscape supaya forest floor tembus.
-* **Sprite penuh (rework O):** `.ac-cell canvas { width/height:100% }` (fill ≥65% tile landscape, atribut canvas 96×80 tidak berubah), kartu shop sprite 70% tinggi kartu (portrait 64px), mob TD `pitch×0.72`, ghost preview `pitch×0.85` — semua via `--ac-pitch`, `image-rendering:pixelated`.
-* **HUD polish (rework P):** Round/power/gold font 15px; Ready gradient oranye + hover lift; Reroll hover lift; kartu hover −5px + shadow emas; sel papan gradien lebih hidup; star chip `.ac-pill b` gold.
-* **Proporsi (rework Q):** `.ac-pill` (★/⚔️) jadi chip tipis **pojok kanan-atas** tile — tak menutupi/menekan sprite. Kartu shop: canvas 72px (min 64) + nama utuh (badge harga 26px, nama 11px). Minion spawn `max(44px, pitch×0.68)` + `drop-shadow` kontras di rumput. Castle HP: pill `#ac-td-hptext` (`♥ N` biru) **di bawah ring castle** (flex column), heart lama `.ac-heart` disembunyikan di TD (tabrakan).
+* **Backdrop dungeon:** `#ac-bg` child pertama `#scr-ac` (z0, full viewport) →
+  `Tiles.paintChunk` biome 0 (Bosque) + blob dirt sinus + vignette — identik
+  `World.chunkImage`.
+* **Sprite penuh (rework O):** cell canvas 100%, kartu shop 72px (min 64),
+  mob `max(44px, pitch×0.72)` + drop-shadow, ghost `pitch×0.85`.
+* **HUD polish (P) + proporsi (Q):** pill star/atk chip pojok kanan-atas tile;
+  nama kartu utuh; castle HP pill `#ac-td-hptext` di bawah ring; heart lama
+  disembunyikan di TD.
 
-### 1b. Juice / Feedback (Fase J+K+L — "kaku & kurang menarik" rework)
+### 1b. Juice / Feedback (Fase J+K+L)
 
 Combat:
-* **Wave banner** `#ac-banner`: wave-start (`Wave N` / `BOSS — Wave`), wave-cleared (`+N ☀ gold`), leak (`Base hit! −N`). Anim pop-in/out; varian `.boss .warn .leak`.
-* **Leak feedback:** base sprite flash (`.ac-td-base.flash`) + heart pulse (`.ac-heart.blue.pulse`) + red banner + `hurt` sfx. Base tak lagi diam.
-* **Dungeon hit polish:** `u.hit.eff` (type effectiveness) → `dmgText` warna: super `#ffe14d` besar, weak `#a3abb8`, else putih. Hit → `Hurt` anim + `hit` sfx; death → `Faint hold` + `.ac-dying` opacity fade ~0.9s + burst + `faint`/`bossDown`. Shadow pakai `Sprites.drawShadow` (PMD `ShadowSize`).
-* **Telegraph:** radial/aura/meteor/mine → `drawTelegraph` dashed ring tumbuh (grow + pulse) sebelum impact. Status ground FX: burn ellipse oranye / poison ungu di bawah mob; shield = bubble biru berdenyut. Roar boss → ring merah + burst + `boss` sfx.
+* **Wave banner** `#ac-banner`: wave-start (`Wave N` / `BOSS — Wave`),
+  wave-cleared (`+N ☀ gold`), leak (`Base hit! −N`).
+* **Leak feedback:** base flash + heart pulse + red banner + `hurt` sfx.
+* **Dungeon hit polish:** `u.hit.eff` → dmgText kuning (super) / abu (weak);
+  hit → `Hurt` anim + `hit` sfx; death → `Faint hold` + `.ac-dying` fade ~0.9s.
+  Shadow = `Sprites.drawShadow` (PMD `ShadowSize`).
+* **Telegraph:** radial/aura/meteor/mine → dashed ring tumbuh. Status ground
+  FX: burn/poison ellipse; shield bubble; roar → ring merah + `boss` sfx.
 * **Prep timer:** blink di 3 detik terakhir.
 
-Interaksi (prep):
-* **Buy/place:** `placeFx('land')` — blue ring + burst + `land` sfx + squash-pop sprite (`ac-pop`).
-* **Merge:** `placeFx('merge')` — gold ring + burst + `★N` text + `levelup` sfx + cell gold flash (`mergeflash`).
-* **Sell:** `placeFx('sell')` — coin burst + `coin` sfx.
-* **Drag ghost:** ikut pointer + mini live-sprite canvas (40px).
+Interaksi (prep): buy/place `land` FX + squash-pop; merge gold ring + ★N +
+`levelup` + cell flash; sell coin burst; drag ghost = mini live-sprite.
 
-Lanskap:
-* **Lane = dirt path** (`.ac-td-lane` tanah coklat + rim olive, forest tembus) + `FX.trail('dirt')` sporadis dari mob berjalan.
-* **Spawn portal** `#ac-td-portal` di `(1,−1)`: double dashed ring berputar + glow.
-* **Base HP ring:** 🏰 besar dibungkus `.ac-base-ring` conic-gradient (`--hp` %, `--hp-col` band green/amber/red by hp). Leak = ring ikut flash.
-* **Cell hover:** `translateY(-1px)` + gold glow. **Round pill pulse** saat wave naik.
+Lanskap: lane dirt path + `FX.trail('dirt')`; spawn portal putar di `(1,−1)`;
+castle 🏰 + ring conic-gradient + pill HP; cell hover lift; Round pill pulse.
 
-## 2. Pertempuran (Targeting & Leak)
+---
 
-* **Targeting:** unit menyerang musuh dalam jangkauan dengan **progress terbesar** (paling dekat ke base).
-* **Mobs jalan** mengikuti path: `progress` bertambah per detik (`spd × slowMul`). Leak saat `progress ≥ pathLength − 1`.
-* **Leak penalty** (`base.ts`):
-  * Mob normal: base HP −5
-  * Boss: base HP −20
-* **Base HP:** 100. Base mati → **Game Over**.
-* **Round win:** semua musuh mati (terbunuh) → `3 + floor(wave/2)` Gold, advance wave.
-* **Tidak ada foe heart** — TD klasik, murni defend base.
-* **Animasi & damage formula:** sama dengan common (auto-attack, skill, ★3 skill ×2, mana 10/hit → 100). Mob jalan: anim **Walk** + facing mengikuti arah path, berhenti → **Idle** (gaya dungeon, `Sprites.Animator` per mob).
+## 2. Pertempuran (Pilar 1 — mobs menyerang unit)
 
-## 3. Alur State Permainan (Game State Machine)
+* **Targeting unit:** menyerang musuh dalam jangkauan (melee 2 / ranged 3)
+  dengan **progress terbesar** (paling dekat ke base) — tetap.
+* **Mobs menyerang unit:**
+  * **Runner lane (kiri):** selama melewati petak dengan unit dalam 2 sel —
+    **chip 50% `mob.atk` per detik** (DOT) ke unit terdekat; mob **tidak
+    berhenti**.
+  * **Bulwark lane (kanan):** unit dalam 2 sel → **stop & fight**: serang
+    `mob.atk` tiap 1.2s ke unit terdekat; berhenti maks **2 detik** (stopT
+    cap) lalu lanjut walau unit masih hidup (anti-stall, base tetap terancam).
+  * Kedua lane: type effectiveness tetap berlaku (atk mob vs tipe unit).
+* **Unit mati:** Faint + fade; petak `ac-dead` (abu, tak menyerang/move,
+  boleh sell). **Respawn满血** di prep berikutnya (common §1).
+* **Leak:** tetap `progress ≥ pathLength − 1` → base −6 (normal) / −15 (boss).
+* **Base HP 60.** 0 → game over.
+* **Wave clear:** semua mob mati → interest (common §4) + streak bonus +
+  `2 + floor(wave/2)` gold; wave kelipatan 3 → augment pick.
+* **Animasi & damage formula:** sama common (anim mengikuti move kind, mana
+  10/hit, ★3 skill ×2).
 
-1. **PREP PHASE (30 detik atau "Ready"):**
-   * Shop refresh gratis (3 kartu), beli/susun unit di board; merge via drop same-cell (prep only).
-   * Path cells highlight kuning.
-   * Spawn marker (⬇) di top-center sebagai preview.
-2. **COMBAT PHASE:**
-   * Mobs spawn bertahap di path[0] (top-center), langsung jalan.
-   * Unit board auto-attack mobs dalam jangkauan.
-   * Leak → base damage; base 0 → **lost**.
-3. **ROUND RESULT:**
-   * Semua mobs mati → `3 + floor(wave/2)` Gold, advance wave.
-   * Wave kelipatan 3 → BUFF SELECTION PHASE (pop-up 3 kartu).
-4. **WIN / GAME OVER:**
-   * **Menang:** wave 20 dimenangkan (semua mobs wave 20 mati).
-   * **Kalah:** base HP mencapai 0.
+---
 
-## 4. Konstanta (TD-specific)
+## 3. Alur State Permainan
+
+1. **PREP (25s wave 1; 15s wave 2+; 12s wave 8+ / Ready):**
+   * Semua unit **respawn** (hidup, HP penuh) di sini.
+   * Shop refresh gratis; beli/susun; merge drop same-cell.
+   * Lane highlight + flank glow; coverage saat unit dipilih.
+   * Wave preview: sprite + type chip + affix + side hint.
+2. **COMBAT:** mob spawn (side sesuai komposisi wave); unit auto-attack; mob
+   menyerang unit (§2); leak → base damage.
+3. **ROUND RESULT:** clear → interest + streak + wave bonus; kelipatan 3 →
+   augment (3 pilihan).
+4. **WAVE 10 CLEAR → RUN COMPLETE:** tampil **skor** (`wave×100 + HP×5 +
+   gold`); tombol **Endless** (lanjut wave 11+, skor akumulasi) / **Menu**.
+5. **GAME OVER:** base 0 → skor tetap dihitung & disimpan (best local).
+
+---
+
+## 4. Konstanta (TD-specific, 5-menit sprint)
 
 | Konstanta | Nilai | Catatan |
 | :--- | :--- | :--- |
-| `TD_BASE_HP` | 100 | `base.ts START_HP` |
-| `LEAK_NORMAL` | 5 | `base.ts` |
-| `LEAK_BOSS` | 20 | `base.ts` |
-| `START_GOLD` | 5 | Sama autochess |
-| `PREP_SECONDS` | 30 | Sama |
-| `WAVE_BONUS` | `3 + floor(wave/2)` | `waveBonus()` — wave 1 → 3, wave 20 → 13 |
-| `BUFF_EVERY` | 3 | Sama |
-| `MAX_MOBS` | 12 | Cap concurrent walking mobs |
-| `MAX_WAVE` | 20 | Win condition |
+| `TD_BASE_HP` | 60 | `base.ts` |
+| `LEAK_NORMAL` | 6 | |
+| `LEAK_BOSS` | 15 | |
+| `START_GOLD` | 5 | |
+| `PREP_SECONDS` | 25 → 15 → 12 | wave 1 / 2–7 / 8+ |
+| `WAVE_BONUS` | `2 + floor(wave/2)` | |
+| `INTEREST` | +1 per 10 gold, cap +5 | |
+| `STREAK_BONUS` | +2/+3/+4 (3+ win streak) | |
+| `BUFF_EVERY` | 3 | augment pick |
+| `MAX_WAVE` | 10 | endless setelahnya |
+| `MOB_ATK_CD` | 1.2s | bulwark stop-fight |
+| `STOP_CAP` | 2s | anti-stall |
+| `RUNNER_CHIP` | 0.5 | 50% atk DOT |
+| `FLANK_ATK` | +10% | petak menyentuh lane |
+| `FLANK_RANGE` | +1 | petak sudut |
+
+---
 
 ## 5. UI Notes
 
-* Foe arena **disembunyikan** (`td-mode` class).
-* Path cells di-highlight kuning di player grid.
-* Mobs dirender sebagai sprite absolut-positioned di atas arenas, posisi = interpolate path cells berdasarkan `progress`. Sprite punya canvas + `Sprites.Animator` sendiri (Walk/Idle, facing dari segmen path) — bukan cell-sprite bersama.
-* Base HP tampil di HUD (heart badge), foe heart disembunyikan.
-* Layout landscape + backdrop forest: §1a (desain baru, TD-only).
+* Foe arena **disembunyikan** (`td-mode`).
+* Mobs sprite absolut di atas arenas (Walk/Idle/facing path + **Attack** saat
+  fight unit bulwark) — `Sprites.Animator` per mob.
+* Base HP = ring conic + pill `#ac-td-hptext`; heart HUD disembunyikan.
+* **Unit mati:** petak `.ac-dead` (greyscale + red rim), Faint anim hold.
+* **Flank glow:** prep-only class di petak flank; coverage = outline cell saat
+  unit selected.
+* Wave strip: sprite ghost + type chip + affix tag + side hint.
+* Score screen = overlay `#ac-over` (ikon + skor breakdown + Endless/Menu).
+* Layout landscape + backdrop forest: §1a; juice: §1b.
