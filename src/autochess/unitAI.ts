@@ -2,27 +2,80 @@
  * Units stand on cells; acquire nearest alive mob in range; attack on cooldown.
  * Mobs advance along lane cells (progress in cell units); leak handled by caller.
  * Damage = totalAtk × typeMult(move type vs mob types) via Types chart (soft).
- * Units do NOT take damage from mobs in v1 (pure TD); boss flag only affects leak.
+ * Statuses: burn/poison DoT, slow (spd), stun (halt). Roles: armor, shield,
+ * dodge, regen, death-slow (koffing). Boss abilities: rest, roar, barrier, disable.
+ * Units do NOT take damage from mobs (pure TD — blockers deferred to v2).
  */
 import { register } from '../core/registry';
 import Types from '../data/types';
 import { Path } from './path';
 import { UnitBattle, totalAtk, effCd } from './unit';
 import { SynergyMods, NONE } from './synergy';
+import { cast as castSkill, MANA_PER_ATTACK } from './skills';
+
+/** move kind → sprite anim (same table as dungeon player.ts cast) */
+const KIND_ANIM: Record<string, string> = {
+  melee: 'Attack', nova: 'Attack', dash: 'Attack',
+  beam: 'Shoot', projectile: 'Shoot', boomerang: 'Shoot', chain: 'Shoot', cone: 'Shoot',
+  aura: 'Charge', buff: 'Charge', orbit: 'Charge', mine: 'Charge', meteor: 'Charge', turret: 'Charge',
+  trail: 'Walk',
+};
+
+export interface MobStatus {
+  type: 'burn' | 'poison' | 'slow' | 'stun';
+  /** seconds remaining */
+  t: number;
+  /** DoT damage per second (burn/poison) */
+  dps?: number;
+  /** slow amount 0..1 (slow) */
+  mul?: number;
+}
 
 export interface MobBattle {
   dex: number;
   hp: number;
+  /** max hp (regen / snorlax rest scale off this) */
+  maxHp: number;
   atk: number;
   spd: number;      // cells/s
   types: string[];
   star: number;
   boss: boolean;
+  /** ring branch: 0 = left, 1 = right (set at spawn; default branch 0) */
+  branch?: number;
   /** distance travelled along lane in cells */
   progress: number;
   alive: boolean;
   /** bounty in gold */
   bounty: number;
+  // ---- roles / elites / bosses ----
+  /** flat physical damage reduction 0..1 (geodude/graveler) */
+  armor: number;
+  /** absorb-before-hp pool (magnemite) */
+  shield: number;
+  /** dodge chance 0..1 (scyther) */
+  dodge: number;
+  /** hp regen fraction of maxHp per second (golbat) */
+  regen: number;
+  /** damage reduction 0..1 (mewtwo barrier) */
+  barrier: number;
+  stunImmune: boolean;
+  slowImmune: boolean;
+  kbImmune: boolean;
+  /** snorlax rest */
+  rest: boolean;
+  rested: boolean;
+  restT: number;
+  /** gyarados roar */
+  roar: boolean;
+  roarCd: number;
+  /** mewtwo disable tower */
+  disable: boolean;
+  disT: number;
+  statuses: MobStatus[];
+  /** temporary armor shred (machop skill) */
+  shred: number;
+  shredT: number;
 }
 
 export interface TickResult {
@@ -38,6 +91,16 @@ export function mobCell(m: MobBattle, cells: Array<{ x: number; y: number }>): {
   return cells[i];
 }
 
+/** Cells of a mob's branch; fallback = shared array (no branch set). */
+export function cellsOf(m: MobBattle, fallback: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  return typeof m.branch === 'number' ? Path.branchCells(m.branch) : fallback;
+}
+
+/** Mob's current cell, honoring its branch. */
+export function mobPos(m: MobBattle, fallback: Array<{ x: number; y: number }>): { x: number; y: number } {
+  return mobCell(m, cellsOf(m, fallback));
+}
+
 /** Chebyshev-ish cell distance (max of dx,dy — grid-friendly). */
 export function cellDist(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
@@ -49,9 +112,50 @@ export function typeMult(moveType: string, mobTypes: string[]): number {
   return Types.mult(moveType, mobTypes);
 }
 
+// ---------------- status helpers (exported for skills.ts) ----------------
+
+export function addBurn(m: MobBattle, type: 'burn' | 'poison', t: number, dps: number): void {
+  (m.statuses = m.statuses || []).push({ type, t, dps });
+}
+
+export function addSlow(m: MobBattle, t: number, mul: number): void {
+  if (m.slowImmune) return;
+  (m.statuses = m.statuses || []).push({ type: 'slow', t, mul });
+}
+
+export function addStun(m: MobBattle, t: number): void {
+  if (m.stunImmune) return;
+  (m.statuses = m.statuses || []).push({ type: 'stun', t });
+}
+
+/** Apply damage: barrier reduce → shield absorb → hp. */
+export function applyDamage(m: MobBattle, dmg: number): void {
+  let d = dmg;
+  if (m.barrier > 0) d *= 1 - m.barrier;
+  if (m.shield > 0) {
+    const absorbed = Math.min(m.shield, d);
+    m.shield -= absorbed;
+    d -= absorbed;
+  }
+  m.hp -= d;
+}
+
+/** Koffing-style death explosion: slow nearby unit attack speed. */
+function onMobDeath(m: MobBattle, units: UnitBattle[], cells: Array<{ x: number; y: number }>): void {
+  if (m.dex !== 109) return; // koffing
+  const c = mobCell(m, cells);
+  for (const u of units) {
+    if (!u.alive) continue;
+    if (cellDist(c.x, c.y, u.x, u.y) <= 1) {
+      u.slowT = 3; // AS −50% for 3s (handled in effCd)
+    }
+  }
+}
+
 /**
  * Advance battle by dt seconds.
- * mods: team synergy (atkSpd, rangeAdd, bountyMul, typeBoostMul).
+ * mods: team synergy (atkSpd, rangeAdd, bountyMul, typeBoostMul, manaRegenMul, skillDmgMul,
+ * burnOnHit, poisonOnHit, chainChance, regen).
  */
 export function tick(
   units: UnitBattle[],
@@ -63,11 +167,90 @@ export function tick(
   let kills = 0, gold = 0;
   const leaks: MobBattle[] = [];
 
-  // mobs advance
+  // unit timers + grass regen
+  for (const u of units) {
+    if (!u.alive) continue;
+    if (u.disabledT > 0) u.disabledT = Math.max(0, u.disabledT - dt);
+    if (u.slowT > 0) u.slowT = Math.max(0, u.slowT - dt);
+    if (u.roarT > 0) u.roarT = Math.max(0, u.roarT - dt);
+    if (u.asBuffT > 0) u.asBuffT = Math.max(0, u.asBuffT - dt);
+    const regen = (mods as any).regen || 0;
+    if (regen > 0) u.hpCur = Math.min(u.hp, u.hpCur + u.hp * regen * dt);
+  }
+
+  // mobs: statuses, abilities, movement
   for (const m of mobs) {
     if (!m.alive) continue;
-    m.progress += m.spd * dt;
-    if (m.progress >= cells.length - 1) {
+
+    // status tick
+    let slowAmt = 0;
+    let stunned = false;
+    const sts = m.statuses || [];
+    for (const s of sts) {
+      s.t -= dt;
+      if (s.type === 'burn' || s.type === 'poison') m.hp -= (s.dps || 0) * dt;
+      else if (s.type === 'slow') slowAmt = Math.max(slowAmt, s.mul || 0);
+      else if (s.type === 'stun') stunned = true;
+    }
+    m.statuses = sts.filter((s) => s.t > 0);
+    if (m.shredT > 0) {
+      m.shredT -= dt;
+      if (m.shredT <= 0) m.shred = 0;
+    }
+    if (m.hp <= 0) {
+      m.alive = false;
+      kills++;
+      gold += Math.round(m.bounty * ((mods as any).bountyMul ?? 1));
+      onMobDeath(m, units, cellsOf(m, cells));
+      continue;
+    }
+
+    // role regen (golbat)
+    if (m.regen > 0) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * m.regen * dt);
+
+    // snorlax rest at 50%: stop 2s then heal 20%
+    if (m.rest && !m.rested && m.hp <= m.maxHp * 0.5) {
+      m.rested = true;
+      m.restT = 2;
+    }
+    if (m.restT > 0) {
+      m.restT -= dt;
+      if (m.restT <= 0) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.2);
+      continue; // halted while resting
+    }
+
+    if (stunned) continue;
+
+    // mewtwo disable tower every 8s
+    if (m.disable) {
+      m.disT -= dt;
+      if (m.disT <= 0) {
+        m.disT = 8;
+        const candidates = units.filter((u) => u.alive && u.disabledT <= 0);
+        if (candidates.length) {
+          const t = candidates[Math.floor(Math.random() * candidates.length)];
+          t.disabledT = 3;
+        }
+      }
+    }
+
+    // gyarados roar every 10s: −30% AD to units within 3 cells, 3s
+    if (m.roar) {
+      m.roarCd -= dt;
+      if (m.roarCd <= 0) {
+        m.roarCd = 10;
+        const c = mobPos(m, cells);
+        for (const u of units) {
+          if (!u.alive) continue;
+          if (cellDist(c.x, c.y, u.x, u.y) <= 3) u.roarT = 3;
+        }
+      }
+    }
+
+    // move (slow status unless immune)
+    const spdMul = m.slowImmune ? 1 : 1 - slowAmt;
+    m.progress += m.spd * spdMul * dt;
+    if (m.progress >= cellsOf(m, cells).length - 1) {
       m.alive = false;
       leaks.push(m);
     }
@@ -76,29 +259,90 @@ export function tick(
   // units attack
   for (const u of units) {
     if (!u.alive) continue;
+    if (u.disabledT > 0) continue;
     u.cd -= dt;
     if (u.cd > 0) continue;
-    // nearest alive mob within range (+ synergy rangeAdd)
-    const range = u.range + mods.rangeAdd;
-    let best: MobBattle | null = null, bestD = Infinity;
+    // frontmost alive mob in range (terdepan = max progress toward base; tie → nearest)
+    const range = u.range + ((mods as any).rangeAdd || 0);
+    let best: MobBattle | null = null, bestP = -Infinity, bestD = Infinity;
     for (const m of mobs) {
       if (!m.alive) continue;
-      const c = mobCell(m, cells);
+      const c = mobPos(m, cells);
       const d = cellDist(u.x, u.y, c.x, c.y);
-      if (d <= range && d < bestD) { bestD = d; best = m; }
+      if (d > range) continue;
+      if (!best || m.progress > bestP || (m.progress === bestP && d < bestD)) {
+        bestP = m.progress; bestD = d; best = m;
+      }
     }
     if (!best) { /* idle: keep cd at 0 so first in-range shot is instant */ u.cd = 0; continue; }
-    // fire
+
+    // mana gain on attack (water synergy speeds this via manaRegenMul)
+    u.mana = Math.min(100, (u.mana || 0) + MANA_PER_ATTACK * ((mods as any).manaRegenMul ?? 1));
+    // UI flourish: one-shot move anim by kind on this unit's stage sprite (dungeon-style)
     const move = (u as any).move || '';
+    const moveKind = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.kind ?? '') : '';
+    u.swing = KIND_ANIM[moveKind] || 'Attack';
+    // UI: face the target cell (sprite dir; dungeon attackFace equivalent)
+    const ftc = mobPos(best, cells);
+    u.face = Math.atan2(ftc.y - u.y, ftc.x - u.x);
+
+    // dodge (scyther)
+    if (best.dodge > 0 && Math.random() < best.dodge) {
+      u.cd = effCd(u, mods);
+      continue; // missed
+    }
+
+    // fire
     const moveType = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.type ?? '') : '';
     let dmg = totalAtk(u) * typeMult(moveType, best.types);
-    dmg *= mods.typeBoostMul;
-    best.hp -= dmg;
+    dmg *= (mods as any).typeBoostMul ?? 1;
+    // armor (geodude): flat reduce of direct attack damage
+    if (best.armor > 0) dmg *= 1 - best.armor;
+    // machop shred: bonus damage taken
+    if (best.shred > 0) dmg *= 1 + best.shred;
+    applyDamage(best, dmg);
     u.cd = effCd(u, mods);
-    if (best.hp <= 0) {
+    // UI: impact point + damage for projectile/slash vfx + damage number
+    u.hit = { x: ftc.x, y: ftc.y, dmg };
+
+    // synergy on-hit effects
+    const burnOnHit = (mods as any).burnOnHit || 0;
+    if (burnOnHit > 0 && Math.random() < burnOnHit) addBurn(best, 'burn', 2, dmg * 0.15);
+    const poisonOnHit = (mods as any).poisonOnHit || 0;
+    if (poisonOnHit > 0 && Math.random() < poisonOnHit) addBurn(best, 'poison', 3, dmg * 0.1);
+    const chainChance = (mods as any).chainChance || 0;
+    if (chainChance > 0 && Math.random() < chainChance && best.alive) {
+      const bc = mobPos(best, cells);
+      for (const m of mobs) {
+        if (!m.alive || m === best) continue;
+        const mc = mobPos(m, cells);
+        if (cellDist(bc.x, bc.y, mc.x, mc.y) <= 2) { applyDamage(m, dmg * 0.5); break; }
+      }
+    }
+
+    if (best.hp <= 0 && best.alive) {
       best.alive = false;
       kills++;
-      gold += Math.round(best.bounty * mods.bountyMul);
+      gold += Math.round(best.bounty * ((mods as any).bountyMul ?? 1));
+      onMobDeath(best, units, cellsOf(best, cells));
+    }
+
+    // skill cast on full mana
+    if (u.mana >= 100) {
+      u.mana = 0;
+      // GDD ★3: max skill — skill damage ×2 at star 3
+      const starSkillMul = u.star >= 3 ? 2 : 1;
+      castSkill(u, mobs, best.alive ? best : null, cells, ((mods as any).skillDmgMul ?? 1) * starSkillMul);
+      u.swing = 'Charge'; // skill flourish (dungeon aura/buff/meteor → Charge)
+      // skill kills
+      for (const m of mobs) {
+        if (m.alive && m.hp <= 0) {
+          m.alive = false;
+          kills++;
+          gold += Math.round(m.bounty * ((mods as any).bountyMul ?? 1));
+          onMobDeath(m, units, cellsOf(m, cells));
+        }
+      }
     }
   }
 
@@ -110,7 +354,7 @@ export function over(mobs: MobBattle[]): boolean {
   return mobs.every((m) => !m.alive);
 }
 
-const UnitAI = { tick, over, mobCell, cellDist, typeMult };
+const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, typeMult, addBurn, addSlow, addStun, applyDamage };
 register('UnitAI', UnitAI);
 export { UnitAI };
 export default UnitAI;

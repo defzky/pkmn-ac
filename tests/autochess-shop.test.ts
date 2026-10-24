@@ -1,11 +1,12 @@
 /**
- * P15 tests — shop: roll odds, buy/sell/reroll gold clamp, bench full, star merge.
+ * P15 tests — shop: wave-banded cost odds, buy/sell/reroll gold clamp, bench full, merge-2 stars.
+ * GDD Bagian 5: odds band by wave, sell = star-based refund (★1 full, ★2 2c−1, ★3 3c).
  */
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 let Shop: any;
 let Board: any;
-let Gacha: any;
+let Champions: any;
 
 beforeAll(async () => {
   (globalThis as any).G = (globalThis as any).G || {};
@@ -14,59 +15,73 @@ beforeAll(async () => {
   await import('../src/data/types.ts');
   await import('../src/autochess/path.ts');
   await import('../src/autochess/unit-stats.ts');
+  await import('../src/autochess/champions.ts');
   await import('../src/autochess/synergy.ts');
   await import('../src/autochess/board.ts');
-  await import('../src/systems/gacha.ts');
   Shop = (await import('../src/autochess/shop.ts')).default;
   Board = (await import('../src/autochess/board.ts')).default;
-  Gacha = (await import('../src/systems/gacha.ts')).default;
+  Champions = (await import('../src/autochess/champions.ts')).default;
 });
 
 const seeded = (seq: number[]) => () => seq.shift() ?? 0.5;
 
-describe('rollRarity', () => {
-  it('uses Gacha.RATES weights', () => {
-    // total 100; roll 0.001*100=0.1 → first band r1 (45)
-    expect(Shop.rollRarity(seeded([0.001]))).toBe(1);
-    // 0.5*100=50 → past r1(45) → r2 (30) band
-    expect(Shop.rollRarity(seeded([0.5]))).toBe(2);
-    // 0.99*100=99 → last band r5
-    expect(Shop.rollRarity(seeded([0.99]))).toBe(5);
+describe('rollCost — wave-banded odds (GDD Bagian 5)', () => {
+  it('bands: w1-4 80/20/0/0, w5-9 55/30/15/0, w10-14 35/35/25/5, w15+ 20/30/35/15', () => {
+    expect(Champions.costWeights(1)).toEqual([[1, 80], [2, 20], [3, 0], [4, 0]]);
+    expect(Champions.costWeights(4)).toEqual([[1, 80], [2, 20], [3, 0], [4, 0]]);
+    expect(Champions.costWeights(5)).toEqual([[1, 55], [2, 30], [3, 15], [4, 0]]);
+    expect(Champions.costWeights(9)).toEqual([[1, 55], [2, 30], [3, 15], [4, 0]]);
+    expect(Champions.costWeights(10)).toEqual([[1, 35], [2, 35], [3, 25], [4, 5]]);
+    expect(Champions.costWeights(15)).toEqual([[1, 20], [2, 30], [3, 35], [4, 15]]);
+    expect(Champions.costWeights(20)).toEqual([[1, 20], [2, 30], [3, 35], [4, 15]]);
   });
-  it('matches Gacha.RATES export', () => {
-    expect(Gacha.RATES).toEqual([[1, 45], [2, 30], [3, 17], [4, 6.5], [5, 1.5]]);
+  it('wave 1: 0.001 → 1g, 0.85 → 2g, never 3/4 cost', () => {
+    expect(Shop.rollCost(1, seeded([0.001]))).toBe(1);
+    expect(Shop.rollCost(1, seeded([0.85]))).toBe(2);
+    expect(Shop.rollCost(1, seeded([0.99]))).toBe(2); // 80/20 → max 2 cost
+  });
+  it('wave 6: 0.6 → 2g, 0.9 → 3g, 4g never (band 55/30/15/0)', () => {
+    expect(Shop.rollCost(6, seeded([0.6]))).toBe(2);
+    expect(Shop.rollCost(6, seeded([0.9]))).toBe(3);
+    expect(Shop.rollCost(6, seeded([0.999]))).toBe(3);
+  });
+  it('wave 20: 0.5 → 3g, 0.95 → 4g', () => {
+    expect(Shop.rollCost(20, seeded([0.5]))).toBe(3);
+    expect(Shop.rollCost(20, seeded([0.95]))).toBe(4);
   });
 });
 
 describe('createShop', () => {
-  it('5 slots, star 1, unplaced', () => {
-    const shop = Shop.createShop();
-    expect(shop.slots.length).toBe(5);
+  it('3 slots, star 1, unplaced, all champions, wave-1 odds only', () => {
+    const shop = Shop.createShop(1);
+    expect(shop.slots.length).toBe(3);
     for (const s of shop.slots) {
       if (!s) continue;
       expect(s.star).toBe(1);
       expect(s.x).toBeNull();
       expect(s.bench).toBeNull();
+      expect(Champions.isChampion(s.dex)).toBe(true);
+      expect(Champions.costOf(s.dex)).toBeLessThanOrEqual(2); // w1 band
     }
   });
-  it('dex rarity within 1..5', () => {
-    const shop = Shop.createShop();
+  it('cost within band', () => {
+    const shop = Shop.createShop(15);
     for (const s of shop.slots) {
       if (!s) continue;
-      const r = (G as any).DEX_BY[s.dex].rarity;
-      expect(r).toBeGreaterThanOrEqual(1);
-      expect(r).toBeLessThanOrEqual(5);
+      const c = Shop.slotCost(s);
+      expect(c).toBeGreaterThanOrEqual(1);
+      expect(c).toBeLessThanOrEqual(4);
     }
   });
 });
 
 describe('buy / gold clamp', () => {
-  it('deducts rarity×2, slot consumed, unit on bench', () => {
-    const shop = Shop.createShop();
+  it('deducts champion cost, slot consumed, unit on bench', () => {
+    const shop = Shop.createShop(1);
     const board = { units: [] };
     const idx = shop.slots.findIndex((s: any) => s);
     const cost = Shop.slotCost(shop.slots[idx]);
-    expect(cost).toBeGreaterThanOrEqual(2);
+    expect(cost).toBeGreaterThanOrEqual(1);
     const r = Shop.buy(shop, idx, board, 100);
     expect(r.ok).toBe(true);
     expect(r.gold).toBe(100 - cost);
@@ -75,20 +90,20 @@ describe('buy / gold clamp', () => {
     expect(board.units[0].bench).not.toBeNull();
   });
   it('insufficient gold → refuse, slot kept', () => {
-    const shop = Shop.createShop();
+    const shop = Shop.createShop(1);
     const board = { units: [] };
-    const idx = shop.slots.findIndex((s: any) => s && Shop.slotCost(s) > 1);
-    // force high cost if cheap
-    shop.slots[idx].dex = (G as any).DEX.find((e: any) => e.rarity === 5).dex;
-    const r = Shop.buy(shop, idx, board, 1);
+    // force a 4-cost slot (Dratini 147)
+    shop.slots[0] = { dex: 147, star: 1, x: null, y: null, bench: null };
+    expect(Shop.slotCost(shop.slots[0])).toBe(4);
+    const r = Shop.buy(shop, 0, board, 1);
     expect(r.ok).toBe(false);
     expect(r.gold).toBe(1);
-    expect(shop.slots[idx]).not.toBeNull();
+    expect(shop.slots[0]).not.toBeNull();
   });
   it('bench full → refuse, gold untouched', () => {
-    const shop = Shop.createShop();
+    const shop = Shop.createShop(1);
     const board = { units: [] };
-    for (let i = 0; i < 9; i++) board.units.push({ dex: 999 + i, star: 1, x: null, y: null, bench: i });
+    for (let i = 0; i < 2; i++) board.units.push({ dex: 999 + i, star: 1, x: null, y: null, bench: i });
     const idx = shop.slots.findIndex((s: any) => s);
     const r = Shop.buy(shop, idx, board, 100);
     expect(r.ok).toBe(false);
@@ -96,24 +111,31 @@ describe('buy / gold clamp', () => {
   });
 });
 
-describe('star merge via buy', () => {
-  it('3 same dex → 2★', () => {
+describe('merge-2 stars', () => {
+  it('2 same dex (bench) → 2★ immediately', () => {
     const board = { units: [] };
-    const dex = 25;
-    for (let i = 0; i < 3; i++) Board.add(board, dex, 1);
+    Board.add(board, 25, 1);
+    Board.add(board, 25, 1);
     const merged = Board.mergeAll(board);
     expect(merged).toBe(1);
     expect(board.units.length).toBe(1);
     expect(board.units[0].star).toBe(2);
   });
-  it('shop buy of dup triggers auto-merge', () => {
+  it('4 copies cascade → 3 merges → one 3★', () => {
+    const s: any = { units: [] };
+    for (let i = 0; i < 4; i++) s.units.push({ dex: 4, star: 1, x: null, y: null, bench: null });
+    const merged = Board.mergeAll(s);
+    expect(merged).toBe(3); // 2 merges → 2×2★, 1 merge → 1×3★
+    expect(s.units.length).toBe(1);
+    expect(s.units[0].star).toBe(3);
+  });
+  it('shop buy of dup triggers auto-merge (bench 1 → buy → ★2)', () => {
     const board = { units: [] };
-    Board.add(board, 1, 1);
-    Board.add(board, 1, 1);
-    const shop = { slots: [{ dex: 1, star: 1, x: null, y: null, bench: null }, null, null, null, null] };
+    Board.add(board, 1, 1); // bench 0
+    const shop = { slots: [{ dex: 1, star: 1, x: null, y: null, bench: null }, null, null] };
     const r = Shop.buy(shop, 0, board, 100);
     expect(r.ok).toBe(true);
-    expect(r.merged).toBe(1);
+    expect(r.merged).toBe(1); // merge-2: 2 copies → ★2
     expect(board.units.length).toBe(1);
     expect(board.units[0].star).toBe(2);
   });
@@ -121,34 +143,44 @@ describe('star merge via buy', () => {
 
 describe('reroll', () => {
   it('costs 2g', () => {
-    const shop = Shop.createShop();
-    const r = Shop.reroll(shop, 10);
+    const shop = Shop.createShop(1);
+    const r = Shop.reroll(shop, 10, 1);
     expect(r.ok).toBe(true);
     expect(r.gold).toBe(8);
-    expect(shop.slots.length).toBe(5);
+    expect(shop.slots.length).toBe(3);
   });
   it('refuse below 2g', () => {
-    const shop = Shop.createShop();
-    const r = Shop.reroll(shop, 1);
+    const shop = Shop.createShop(1);
+    const r = Shop.reroll(shop, 1, 1);
     expect(r.ok).toBe(false);
     expect(r.gold).toBe(1);
   });
 });
 
-describe('sell', () => {
-  it('refund = ceil(cost/2), unit removed', () => {
+describe('sell — star refund (GDD Bagian 5)', () => {
+  it('★1 = full cost', () => {
+    expect(Shop.sellPrice(1)).toBe(1); // Bulbasaur cost 1
+    expect(Shop.sellPrice(1, 1)).toBe(1);
+    expect(Shop.sellPrice(147, 1)).toBe(4); // Dratini cost 4
+  });
+  it('★2 = 2c−1, ★3 = 3c', () => {
+    expect(Shop.sellPrice(1, 2)).toBe(1); // 2*1-1
+    expect(Shop.sellPrice(147, 2)).toBe(7); // 2*4-1
+    expect(Shop.sellPrice(147, 3)).toBe(12); // 3*4
+    expect(Shop.sellPrice(1, 3)).toBe(3);
+  });
+  it('sell uses unit star: ★1 full refund, unit removed', () => {
     const board = { units: [] };
-    const u = Board.add(board, 25, 1);
-    const r = (G as any).DEX_BY[25].rarity;
-    const g = Shop.sell(board, u, 10);
-    expect(g).toBe(10 + Math.ceil((r * 2) / 2));
+    const u = Board.add(board, 147, 1); // Dratini cost 4
+    const g = Shop.sell(board, u, 0);
+    expect(g).toBe(4);
     expect(board.units.length).toBe(0);
   });
-  it('5★ refund 5', () => {
+  it('sell ★2 unit refunds 2c−1', () => {
     const board = { units: [] };
-    const leg = (G as any).DEX.find((e: any) => e.rarity === 5);
-    const u = Board.add(board, leg.dex, 1);
+    const u = Board.add(board, 147, 2);
     const g = Shop.sell(board, u, 0);
-    expect(g).toBe(5); // cost 10 → ceil(10/2)
+    expect(g).toBe(7);
+    expect(board.units.length).toBe(0);
   });
 });

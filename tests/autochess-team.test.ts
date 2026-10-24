@@ -41,21 +41,23 @@ describe('teamMods', () => {
     expect(m.atkMul).toBe(1);
     expect(m.dmgReduce).toBe(0);
   });
-  it('2 fire units → elemental T2 atkMul 1.1', () => {
+  it('2 unique fire units → fire T2 atkMul 1.1 + burnOnHit', () => {
     const board = { units: [] };
-    const f1 = dexWithType('fire');
-    let f2 = dexWithType('water');
-    if (f2 === f1) f2 = dexWithType('grass'); // elemental shares water/grass
-    expect(placeAt(board, f1, 0, 0)).toBe(true);
-    expect(placeAt(board, f2, 1, 0)).toBe(true);
+    const DEX: any[] = (G as any).DEX;
+    const f = DEX.filter((e: any) => !e.leg && (e.types || []).includes('fire')).slice(0, 2);
+    expect(f.length).toBe(2);
+    expect(placeAt(board, f[0].dex, 0, 0)).toBe(true);
+    expect(placeAt(board, f[1].dex, 1, 0)).toBe(true);
     const m = Team.teamMods(board);
     expect(m.atkMul).toBeCloseTo(1.1, 5);
-    expect(m.typeBoostMul).toBeCloseTo(1.3, 5);
+    expect(m.burnOnHit).toBeCloseTo(0.2, 5);
   });
   it('bench units do NOT count', () => {
     const board = { units: [] };
-    Board.add(board, dexWithType('fire'), 1);
-    Board.add(board, dexWithType('water'), 1);
+    const DEX: any[] = (G as any).DEX;
+    const f = DEX.filter((e: any) => !e.leg && (e.types || []).includes('fire')).slice(0, 2);
+    Board.add(board, f[0].dex, 1);
+    Board.add(board, f[1].dex, 1);
     const m = Team.teamMods(board);
     expect(m.atkMul).toBe(1);
   });
@@ -67,12 +69,14 @@ describe('teamActive', () => {
     placeAt(board, dexWithType('fire'), 0, 0);
     expect(Team.teamActive(board).length).toBe(0);
   });
-  it('2 units → elemental T2 listed', () => {
+  it('2 unique fire units → fire T2 listed', () => {
     const board = { units: [] };
-    placeAt(board, dexWithType('fire'), 0, 0);
-    placeAt(board, dexWithType('water'), 1, 0);
+    const DEX: any[] = (G as any).DEX;
+    const f = DEX.filter((e: any) => !e.leg && (e.types || []).includes('fire')).slice(0, 2);
+    placeAt(board, f[0].dex, 0, 0);
+    placeAt(board, f[1].dex, 1, 0);
     const list = Team.teamActive(board);
-    const el = list.find((a: any) => a.def.id === 'elemental');
+    const el = list.find((a: any) => a.def.id === 'fire');
     expect(el).toBeTruthy();
     expect(el.count).toBe(2);
     expect(el.tier).toBe(2);
@@ -92,8 +96,10 @@ describe('spawnUnits', () => {
   });
   it('mods baked: atkMul raises bonusAtk', () => {
     const board = { units: [] };
-    placeAt(board, dexWithType('fire'), 0, 0);
-    placeAt(board, dexWithType('water'), 1, 0);
+    const DEX: any[] = (G as any).DEX;
+    const f = DEX.filter((e: any) => !e.leg && (e.types || []).includes('fire')).slice(0, 2);
+    placeAt(board, f[0].dex, 0, 0);
+    placeAt(board, f[1].dex, 1, 0);
     const units = Team.spawnUnits(board);
     const m = Team.teamMods(board);
     expect(m.atkMul).toBeCloseTo(1.1, 5); // wiring proven
@@ -120,7 +126,8 @@ describe('full loop integration', () => {
     WR.forceStart(st);
     let guard = 0;
     while (st.phase === 'combat' && guard++ < 600) WR.tick(st, units, 0.1, mods);
-    expect(st.phase).toBe('reward');
+    expect(st.phase).toBe('prep'); // wave 1 not a buff wave (every 3rd)
+    expect(st.wave).toBe(2);
     expect(st.kills).toBeGreaterThan(0);
   });
 });

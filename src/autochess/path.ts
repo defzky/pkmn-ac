@@ -1,61 +1,72 @@
-/* ============ autochess/path.ts — board grid + lane waypoints ============
- * Board 8x5 cells. Enemy lane runs row 2 (0-indexed) left→right.
- * Rift arena: serpentine 3-leg path.
+/* ============ autochess/path.ts — 3x3 rock board + ring lane ============
+ * Rock placement grid: 3x3 cells (0..2, 0..2) — units stand here.
+ * Enemy ring lane wraps the rocks (stage -1..3): spawn top-center →
+ * two symmetric branches (left / right) → base bottom-center.
  */
 import { register } from '../core/registry';
 
 export interface Cell { x: number; y: number }
-export interface PathDef { name: string; waypoints: Cell[]; w: number; h: number }
 
-const W = 8, H = 5;
+/** Rock board size (placement bounds). */
+const W = 3, H = 3;
 
-/** Default lane: straight row 2. */
-const LANE: PathDef = {
-  name: 'lane',
-  waypoints: [{ x: 0, y: 2 }, { x: W - 1, y: 2 }],
-  w: W, h: H,
-};
+/** Spawn gate (top center) / Base (bottom center) on the ring. */
+const SPAWN: Cell = { x: 1, y: -1 };
+const BASE: Cell = { x: 1, y: 3 };
 
-/** Rift serpentine: row 1 → row 3 → row 1, 3 legs. */
-const SERPENTINE: PathDef = {
-  name: 'serpentine',
-  waypoints: [
-    { x: 0, y: 1 }, { x: W - 1, y: 1 },
-    { x: W - 1, y: 3 }, { x: 0, y: 3 },
-    { x: 0, y: 2 }, { x: W - 1, y: 2 },
+/** Branch waypoints: spawn → around → base. Same length (9 cells each). */
+const BRANCH_WP: Cell[][] = [
+  // left branch
+  [
+    { x: 1, y: -1 }, { x: 0, y: -1 }, { x: -1, y: -1 },
+    { x: -1, y: 0 }, { x: -1, y: 1 }, { x: -1, y: 2 },
+    { x: -1, y: 3 }, { x: 0, y: 3 }, { x: 1, y: 3 },
   ],
-  w: W, h: H,
-};
+  // right branch
+  [
+    { x: 1, y: -1 }, { x: 2, y: -1 }, { x: 3, y: -1 },
+    { x: 3, y: 0 }, { x: 3, y: 1 }, { x: 3, y: 2 },
+    { x: 3, y: 3 }, { x: 2, y: 3 }, { x: 1, y: 3 },
+  ],
+];
 
-const BY_NAME: Record<string, PathDef> = { lane: LANE, serpentine: SERPENTINE };
-
-/** In-bounds check. */
-function inside(x: number, y: number, path?: PathDef): boolean {
-  const p = path || LANE;
-  return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < p.w && y < p.h;
-}
-
-/** Cells occupied by the lane (units may not place on lane). */
-function laneCells(path?: PathDef): Cell[] {
-  const p = path || LANE;
+/** Rasterize waypoint polyline into cell list (no duplicate joins). */
+function rasterize(wps: Cell[]): Cell[] {
   const cells: Cell[] = [];
-  for (let i = 0; i < p.waypoints.length - 1; i++) {
-    const a = p.waypoints[i], b = p.waypoints[i + 1];
+  for (let i = 0; i < wps.length - 1; i++) {
+    const a = wps[i], b = wps[i + 1];
     const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y);
     let x = a.x, y = a.y;
-    cells.push({ x, y });
+    if (i === 0) cells.push({ x, y }); // only first segment pushes its start
     while (x !== b.x || y !== b.y) { x += dx; y += dy; cells.push({ x, y }); }
   }
   return cells;
 }
 
-/** Total lane length in cells (for travel time). */
-function laneLen(path?: PathDef): number {
-  const cells = laneCells(path);
-  return Math.max(1, cells.length - 1);
+/** Cached branch cell lists (9 cells each). */
+const BRANCHES: Cell[][] = BRANCH_WP.map(rasterize);
+
+/** Cells of one branch (0 = left, 1 = right). */
+function branchCells(branch: number): Cell[] {
+  return BRANCHES[branch === 1 ? 1 : 0];
 }
 
-const Path = { W, H, LANE, SERPENTINE, BY_NAME, inside, laneCells, laneLen };
+/** Default branch (compat callers). */
+function laneCells(): Cell[] {
+  return BRANCHES[0];
+}
+
+/** Travel length in cells (cells − 1). */
+function laneLen(): number {
+  return Math.max(1, BRANCHES[0].length - 1);
+}
+
+/** Placement bounds: rock cells only (ring never placeable). */
+function inside(x: number, y: number): boolean {
+  return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && x < W && y >= 0 && y < H;
+}
+
+const Path = { W, H, SPAWN, BASE, BRANCH_WP, branchCells, laneCells, laneLen, inside };
 // 'BoardPath' — avoids clobbering legacy systems/pathing.js registered as 'Path'
 register('BoardPath', Path);
 export { Path };

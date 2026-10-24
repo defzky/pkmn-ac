@@ -1,78 +1,83 @@
 /**
- * shop.ts — autochess shop: 5 slots, reroll 2g, buy → bench → auto-merge stars.
+ * shop.ts — autochess shop: 3 cards + reroll 2g, buy → bench → auto-merge stars.
  *
- * P15. Pool odds reuse Gacha.RATES (1:45, 2:30, 3:17, 4:6.5, 5:1.5).
- * Unit cost = rarity × 2 (unit-stats.unitCost); sell = ceil(cost/2).
+ * P15 (updated 2026-10-24): pool = 12 GDD champions (champions.ts).
+ * Cost = champion cost 1–4 (wave-banded odds per GDD Bagian 5).
+ * Sell = star-based full-ish refund: ★1 = cost, ★2 = 2c−1, ★3 = 3c.
  * Gold lives on caller (RunState) — functions return updated gold.
  */
 import { register } from '../core/registry';
-import { Gacha } from '../systems/gacha';
 import { Board, type BoardState, type BoardUnit } from './board';
-import { unitCost, sellPrice } from './unit-stats';
+import { costWeights, costOf, poolByCost } from './champions';
 
-export const SHOP_SIZE = 5;
+export const SHOP_SIZE = 3;
 export const REROLL_COST = 2;
 
 export interface ShopState {
   slots: Array<BoardUnit | null>;
 }
 
-/** weighted rarity pick from Gacha.RATES (weights sum 100) */
-export function rollRarity(rnd: () => number = Math.random): number {
-  const rates = Gacha.RATES as Array<[number, number]>;
+/** weighted cost pick from wave-banded weights (sum 100) */
+export function rollCost(wave = 1, rnd: () => number = Math.random): number {
   let roll = rnd() * 100;
-  for (const [r, w] of rates) {
+  for (const [c, w] of costWeights(wave)) {
     roll -= w;
-    if (roll < 0) return r;
+    if (roll < 0) return c;
   }
-  return rates[rates.length - 1][0];
+  return 1;
 }
 
-/** random dex of given rarity from G.DEX (legs allowed, like banners) */
-function pickDex(rarity: number, rnd: () => number): number | null {
-  const pool: any[] = ((G as any).DEX || []).filter(
-    (e: any) => e && e.rarity === rarity
-  );
+/** one fresh champion card (star 1, unplaced) of rolled cost */
+export function rollSlot(wave = 1, rnd: () => number = Math.random): BoardUnit | null {
+  const cost = rollCost(wave, rnd);
+  const pool = poolByCost(cost);
   if (!pool.length) return null;
-  return pool[Math.floor(rnd() * pool.length)].dex;
-}
-
-/** one fresh unit card (star 1, unplaced) */
-export function rollSlot(rnd: () => number = Math.random): BoardUnit | null {
-  for (let tries = 0; tries < 6; tries++) {
-    const dex = pickDex(rollRarity(rnd), rnd);
-    if (dex !== null) return { dex, star: 1, x: null, y: null, bench: null };
-  }
-  // rarity pool miss fallback: any dex
-  const all: any[] = (G as any).DEX || [];
-  if (!all.length) return null;
-  const e = all[Math.floor(rnd() * all.length)];
+  const e = pool[Math.floor(rnd() * pool.length)];
   return { dex: e.dex, star: 1, x: null, y: null, bench: null };
 }
 
-export function createShop(rnd: () => number = Math.random): ShopState {
+export function createShop(wave = 1, rnd: () => number = Math.random): ShopState {
   const slots: Array<BoardUnit | null> = [];
-  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(rnd));
+  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd));
   return { slots };
 }
 
 /** reroll all slots for 2g — ok=false leaves gold untouched */
-export function reroll(shop: ShopState, gold: number, rnd: () => number = Math.random): { ok: boolean; gold: number } {
+export function reroll(
+  shop: ShopState,
+  gold: number,
+  wave = 1,
+  rnd: () => number = Math.random
+): { ok: boolean; gold: number } {
   if (gold < REROLL_COST) return { ok: false, gold };
   const slots: Array<BoardUnit | null> = [];
-  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(rnd));
+  for (let i = 0; i < SHOP_SIZE; i++) slots.push(rollSlot(wave, rnd));
   shop.slots = slots;
   return { ok: true, gold: gold - REROLL_COST };
 }
 
-export function slotCost(slot: BoardUnit | null): number {
-  if (!slot) return 0;
-  return unitCost(rarityOf(slot.dex));
+/** effective cost: champion table first; fallback rarity×2 for non-champions */
+export function effectiveCost(dex: number): number {
+  const c = costOf(dex);
+  if (c) return c;
+  const e = ((globalThis as any).G?.DEX_BY || {})[dex];
+  const r = e && typeof e.rarity === 'number' ? e.rarity : 1;
+  return r * 2;
 }
 
-function rarityOf(dex: number): number {
-  const e = ((G as any).DEX_BY || {})[dex];
-  return e && typeof e.rarity === 'number' ? e.rarity : 1;
+export function slotCost(slot: BoardUnit | null): number {
+  if (!slot) return 0;
+  return effectiveCost(slot.dex);
+}
+
+/**
+ * sell refund (GDD Bagian 5): ★1 = full cost, ★2 = 2c−1, ★3 = 3c (~75% of 4c).
+ */
+export function sellPrice(dex: number, star = 1): number {
+  const c = effectiveCost(dex);
+  if (star >= 3) return 3 * c;
+  if (star === 2) return 2 * c - 1;
+  return c;
 }
 
 /**
@@ -87,18 +92,18 @@ export function buy(
 ): { ok: boolean; gold: number; merged: number } {
   const slot = shop.slots[idx];
   if (!slot) return { ok: false, gold, merged: 0 };
-  const cost = unitCost(rarityOf(slot.dex));
+  const cost = slotCost(slot);
   if (gold < cost) return { ok: false, gold, merged: 0 };
   const u = Board.add(board, slot.dex, slot.star);
-  if (!u) return { ok: false, gold, merged: 0 }; // bench full 9
+  if (!u) return { ok: false, gold, merged: 0 }; // bench full
   shop.slots[idx] = null; // consumed
   const merged = Board.mergeAll(board);
   return { ok: true, gold: gold - cost, merged };
 }
 
-/** sell board/bench unit at half cost */
+/** sell board/bench unit at star-based refund */
 export function sell(board: BoardState, unit: BoardUnit, gold: number): number {
-  const g = gold + sellPrice(rarityOf(unit.dex));
+  const g = gold + sellPrice(unit.dex, unit.star);
   Board.remove(board, unit);
   return g;
 }
@@ -107,12 +112,14 @@ const Shop = {
   SHOP_SIZE,
   REROLL_COST,
   createShop,
-  rollRarity,
+  rollCost,
   rollSlot,
   reroll,
   buy,
   sell,
   slotCost,
+  sellPrice,
+  effectiveCost,
 };
 register('ShopAC', Shop);
 export { Shop };

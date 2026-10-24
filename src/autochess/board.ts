@@ -1,5 +1,5 @@
 /* ============ autochess/board.ts — placement grid + bench + star merge ============
- * Board cells: units only (lane cells blocked). Bench: 9 slots.
+ * Board cells: 3x3 rocks (0..2) — ring lane cells never placeable. Bench: 2 slots.
  * Merge: 3 identical (dex+star) anywhere on board+bench → next star (cap 3★).
  */
 import { register } from '../core/registry';
@@ -11,7 +11,7 @@ export interface BoardUnit {
   /** board position, or null if on bench */
   x: number | null;
   y: number | null;
-  /** bench slot 0..8, or null if on board */
+  /** bench slot 0..1, or null if on board */
   bench: number | null;
   /** optional equipped item ids */
   items?: string[];
@@ -21,7 +21,7 @@ export interface BoardState {
   units: BoardUnit[];
 }
 
-export const BENCH_SIZE = 9;
+export const BENCH_SIZE = 2;
 export const BOARD_MAX_UNITS = 8;
 export const MAX_STAR = 3;
 
@@ -38,17 +38,14 @@ function occupied(state: BoardState, x: number, y: number): boolean {
   return state.units.some((u) => u.x === x && u.y === y);
 }
 
-/** Lane cells blocked. */
+/** Placement cell = rock cell (ring lane is outside rock bounds). */
 function isPlacementCell(x: number, y: number): boolean {
-  if (!Path.inside(x, y)) return false;
-  return !Path.laneCells().some((c) => c.x === x && c.y === y);
+  return Path.inside(x, y);
 }
 
 /** Place from bench → board cell. Returns false if invalid. */
 function place(state: BoardState, unit: BoardUnit, x: number, y: number, level = 8): boolean {
-  if (!Path.inside(x, y)) return false;
-  // lane cells blocked for placement
-  if (Path.laneCells().some((c) => c.x === x && c.y === y)) return false;
+  if (!Path.inside(x, y)) return false; // rock bounds only — ring lane excluded
   if (occupied(state, x, y)) return false;
   const boardCount = state.units.filter(onBoard).length;
   if (unit.x === null && boardCount >= boardCap(level)) return false;
@@ -85,7 +82,7 @@ function remove(state: BoardState, unit: BoardUnit): void {
   if (i >= 0) state.units.splice(i, 1);
 }
 
-/** Find merge candidates: groups of 3 identical (dex,star<MAX_STAR). */
+/** Find merge candidates: groups of 2 identical (dex,star<MAX_STAR) — GDD merge-2. */
 function mergeCandidates(state: BoardState): Array<{ dex: number; star: number; units: BoardUnit[] }> {
   const groups: Record<string, BoardUnit[]> = {};
   for (const u of state.units) {
@@ -95,20 +92,20 @@ function mergeCandidates(state: BoardState): Array<{ dex: number; star: number; 
   }
   const out: Array<{ dex: number; star: number; units: BoardUnit[] }> = [];
   for (const g of Object.values(groups)) {
-    if (g.length >= 3) out.push({ dex: g[0].dex, star: g[0].star, units: g.slice(0, 3) });
+    if (g.length >= 2) out.push({ dex: g[0].dex, star: g[0].star, units: g.slice(0, 2) });
   }
   return out;
 }
 
-/** Apply one merge: consume 3 units, place upgraded where the first was. */
+/** Apply one merge: consume 2 units, place upgraded where the first was. */
 function applyMerge(state: BoardState, m: { dex: number; star: number; units: BoardUnit[] }): BoardUnit {
-  const [a, b, c] = m.units;
+  const [a, b] = m.units;
   const target: BoardUnit = {
     dex: m.dex, star: m.star + 1,
     x: a.x, y: a.y, bench: a.bench,
-    items: [...(a.items || []), ...(b.items || []), ...(c.items || [])].slice(0, 3),
+    items: [...(a.items || []), ...(b.items || [])].slice(0, 3),
   };
-  remove(state, b); remove(state, c); remove(state, a);
+  remove(state, b); remove(state, a);
   state.units.push(target);
   return target;
 }

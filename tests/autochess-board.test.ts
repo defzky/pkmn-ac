@@ -1,4 +1,4 @@
-/* P12 board tests: placement, bench, merge stars */
+/* P12 board tests: placement (3x3 rocks), bench (2), merge stars */
 import { describe, it, expect, beforeAll } from 'vitest';
 
 let Board: any, Path: any;
@@ -12,6 +12,13 @@ beforeAll(async () => {
 
 const st = () => ({ units: [] as any[] });
 
+/** push unit directly (bypasses bench capacity — for merge tests) */
+function push(s: any, over: any = {}): any {
+  const u = { dex: 25, star: 1, x: null, y: null, bench: null, ...over };
+  s.units.push(u);
+  return u;
+}
+
 describe('board placement', () => {
   it('add → bench slot 0; second → slot 1', () => {
     const s = st();
@@ -23,24 +30,25 @@ describe('board placement', () => {
     expect(s.units).toHaveLength(2);
   });
 
-  it('bench full at 9', () => {
+  it('bench full at 2', () => {
     const s = st();
-    for (let i = 0; i < 9; i++) expect(Board.add(s, 1)).not.toBeNull();
+    expect(Board.add(s, 1)).not.toBeNull();
+    expect(Board.add(s, 1)).not.toBeNull();
     expect(Board.add(s, 1)).toBeNull();
   });
 
-  it('place on free cell succeeds; lane cell blocked', () => {
+  it('place on free rock cell succeeds; ring cell blocked', () => {
     const s = st();
     const a = Board.add(s, 25);
-    expect(Board.place(s, a, 3, 1, 8)).toBe(true);
-    expect(a.x).toBe(3);
+    expect(Board.place(s, a, 1, 1, 8)).toBe(true);
+    expect(a.x).toBe(1);
     expect(a.y).toBe(1);
     expect(a.bench).toBeNull();
-    // lane row 2 blocked
+    // ring cells rejected (top / right / bottom)
     const b = Board.add(s, 1);
-    expect(Board.place(s, b, 3, 2, 8)).toBe(false);
-    // try another lane cell
-    expect(Board.place(s, b, 0, 2, 8)).toBe(false);
+    expect(Board.place(s, b, 1, -1, 8)).toBe(false); // spawn row
+    expect(Board.place(s, b, 3, 1, 8)).toBe(false);  // right lane col
+    expect(Board.place(s, b, 1, 3, 8)).toBe(false);  // base row
   });
 
   it('occupied cell rejected', () => {
@@ -55,7 +63,8 @@ describe('board placement', () => {
     const s = st();
     const a = Board.add(s, 25);
     expect(Board.place(s, a, -1, 0, 8)).toBe(false);
-    expect(Board.place(s, a, 8, 0, 8)).toBe(false);
+    expect(Board.place(s, a, 3, 0, 8)).toBe(false);
+    expect(Board.place(s, a, 0, 3, 8)).toBe(false);
     expect(Board.place(s, a, 1.5, 1, 8)).toBe(false);
   });
 
@@ -64,8 +73,8 @@ describe('board placement', () => {
     const a = Board.add(s, 25);
     const b = Board.add(s, 1);
     expect(Board.place(s, a, 1, 0, 1)).toBe(true);
-    expect(Board.place(s, b, 3, 0, 1)).toBe(false); // cap 1
-    expect(Board.place(s, b, 3, 0, 2)).toBe(true);  // cap 2
+    expect(Board.place(s, b, 2, 0, 1)).toBe(false); // cap 1
+    expect(Board.place(s, b, 2, 0, 2)).toBe(true);  // cap 2
   });
 
   it('boardCap formula', () => {
@@ -92,21 +101,20 @@ describe('board placement', () => {
     expect(s.units).toHaveLength(0);
   });
 
-  it('isPlacementCell: lane false, other true', () => {
-    expect(Board.isPlacementCell(0, 2)).toBe(false);
-    expect(Board.isPlacementCell(4, 2)).toBe(false);
-    expect(Board.isPlacementCell(0, 1)).toBe(true);
-    expect(Board.isPlacementCell(0, 4)).toBe(true);
+  it('isPlacementCell: rock true, ring false', () => {
+    expect(Board.isPlacementCell(0, 0)).toBe(true);
+    expect(Board.isPlacementCell(2, 2)).toBe(true);
+    expect(Board.isPlacementCell(0, -1)).toBe(false); // ring
+    expect(Board.isPlacementCell(1, 3)).toBe(false);  // base row
+    expect(Board.isPlacementCell(3, 1)).toBe(false);  // right lane
   });
 });
 
-describe('star merge', () => {
-  it('3 identical 1★ → one 2★ at first position', () => {
+describe('star merge (merge-2 per GDD)', () => {
+  it('2 identical 1★ → one 2★ at first position', () => {
     const s = st();
-    const a = Board.add(s, 25);
-    const b = Board.add(s, 25);
-    const c = Board.add(s, 25);
-    Board.place(s, a, 1, 0, 8);
+    push(s, { dex: 25, x: 1, y: 0 });
+    push(s, { dex: 25 });
     expect(Board.mergeAll(s)).toBe(1);
     expect(s.units).toHaveLength(1);
     expect(s.units[0].star).toBe(2);
@@ -117,43 +125,50 @@ describe('star merge', () => {
 
   it('different dex do not merge', () => {
     const s = st();
-    Board.add(s, 25); Board.add(s, 1); Board.add(s, 4);
+    push(s, { dex: 25 }); push(s, { dex: 1 }); push(s, { dex: 4 });
     expect(Board.mergeAll(s)).toBe(0);
     expect(s.units).toHaveLength(3);
   });
 
-  it('merge cascades 1★→2★→3★ when 9 copies', () => {
+  it('merge cascades 1★→2★→3★ when 4 copies', () => {
     const s = st();
-    for (let i = 0; i < 9; i++) Board.add(s, 6);
+    for (let i = 0; i < 4; i++) push(s, { dex: 6 });
     const n = Board.mergeAll(s);
-    expect(n).toBe(4); // 3+1 first round, then 1 more (3 of 2★... wait 9→3 merges →3×2★; 3×2★→1 merge = 4 total)
+    expect(n).toBe(3); // 4→2×2★ (2 merges), 2×2★→1×3★ (1 merge)
     expect(s.units).toHaveLength(1);
     expect(s.units[0].star).toBe(3);
   });
 
-  it('MAX_STAR units do not merge further', () => {
+  it('9 copies: 6 merges → 2×3★ + 1×1★ remainder', () => {
     const s = st();
-    for (let i = 0; i < 3; i++) {
-      const u = Board.add(s, 6);
-      u.star = 3;
-    }
-    expect(Board.mergeAll(s)).toBe(0);
+    for (let i = 0; i < 9; i++) push(s, { dex: 6 });
+    const n = Board.mergeAll(s);
+    expect(n).toBe(6); // 4 pairs → 4×2★, 2 pairs → 2×3★, 1×1★ left
     expect(s.units).toHaveLength(3);
+    const stars = s.units.map((u: any) => u.star).sort();
+    expect(stars).toEqual([1, 3, 3]);
   });
 
-  it('mergeCandidates needs ≥3', () => {
+  it('MAX_STAR units do not merge further', () => {
     const s = st();
-    Board.add(s, 25); Board.add(s, 25);
+    push(s, { dex: 6, star: 3 });
+    push(s, { dex: 6, star: 3 });
+    expect(Board.mergeAll(s)).toBe(0);
+    expect(s.units).toHaveLength(2);
+  });
+
+  it('mergeCandidates needs ≥2', () => {
+    const s = st();
+    push(s, { dex: 25 });
     expect(Board.mergeCandidates(s)).toHaveLength(0);
-    Board.add(s, 25);
+    push(s, { dex: 25 });
     expect(Board.mergeCandidates(s)).toHaveLength(1);
   });
 
-  it('merged unit carries items from all 3 (cap 3)', () => {
+  it('merged unit carries items from both (cap 3)', () => {
     const s = st();
-    const a = Board.add(s, 25); a.items = ['x'];
-    const b = Board.add(s, 25); b.items = ['y'];
-    const c = Board.add(s, 25); c.items = ['z', 'w'];
+    const a = push(s, { dex: 25 }); a.items = ['x'];
+    const b = push(s, { dex: 25 }); b.items = ['y', 'z', 'w'];
     Board.applyMerge(s, Board.mergeCandidates(s)[0]);
     expect(s.units[0].items).toEqual(['x', 'y', 'z']);
   });

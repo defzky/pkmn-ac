@@ -1,6 +1,7 @@
-/* ============ autochess/synergy.ts — type-count team buffs ============
- * Thresholds count UNIQUE dex (not copies). Cap 6 active synergies (top-6).
- * T2 / T4 tiers by total count of units whose types include the group.
+/* ============ autochess/synergy.ts — 5 GDD type synergies ============
+ * Fire / Water / Grass / Electric / Psychic (GDD Bagian 1 "Sinergi Tipe Dasar").
+ * Thresholds count UNIQUE dex (not copies). T2 at 2, T4 at 4.
+ * Old 6-group synergies removed 2026-10-24 (decision: hapus total).
  */
 import { register } from '../core/registry';
 
@@ -16,6 +17,13 @@ export interface SynergyMods {
   critAdd: number;     // 0..1
   slowOnHit: number;   // 0..1 chance × slow amount
   typeBoostMul: number; // damage of matching-type moves
+  // ---- GDD type-synergy additions ----
+  manaRegenMul: number;  // water: mana gain multiplier
+  burnOnHit: number;     // fire: chance to apply burn
+  poisonOnHit: number;   // grass T4: chance to apply poison
+  chainChance: number;   // electric: chance to bounce attack
+  skillDmgMul: number;   // psychic: skill damage multiplier
+  regen: number;         // grass: hp regen fraction per second
 }
 
 export interface SynergyDef {
@@ -23,44 +31,44 @@ export interface SynergyDef {
   name: string;
   types: string[];
   t2: Partial<SynergyMods>;
-  t4: Partial<SynergyMods>;
+  t3: Partial<SynergyMods>;
 }
 
 const NONE: SynergyMods = {
   atkMul: 1, atkSpdMul: 1, baseHpMul: 1, dmgReduce: 0, bountyMul: 1,
   rangeAdd: 0, lifesteal: 0, thorns: 0, critAdd: 0, slowOnHit: 0, typeBoostMul: 1,
+  manaRegenMul: 1, burnOnHit: 0, poisonOnHit: 0, chainChance: 0, skillDmgMul: 1, regen: 0,
 };
+
+/** additive-vs-multiplicative key sets */
+const ADDITIVE = new Set(['dmgReduce', 'lifesteal', 'thorns', 'critAdd', 'slowOnHit',
+  'rangeAdd', 'burnOnHit', 'poisonOnHit', 'chainChance', 'regen']);
 
 const DEFS: SynergyDef[] = [
   {
-    id: 'elemental', name: 'Elemental', types: ['fire', 'water', 'grass'],
-    t2: { atkMul: 1.1, typeBoostMul: 1.3 },
-    t4: { atkMul: 1.25, typeBoostMul: 1.3 },
+    id: 'fire', name: 'Fire', types: ['fire'],
+    t2: { atkMul: 1.1, burnOnHit: 0.2 },
+    t3: { atkMul: 1.25, burnOnHit: 0.4 },
   },
   {
-    id: 'charged', name: 'Charged', types: ['electric', 'ice', 'rock'],
-    t2: { atkSpdMul: 1.08, critAdd: 0.1 },
-    t4: { atkSpdMul: 1.2, critAdd: 0.1 },
+    id: 'water', name: 'Water', types: ['water'],
+    t2: { manaRegenMul: 1.2 },
+    t3: { manaRegenMul: 1.5 },
   },
   {
-    id: 'aegis', name: 'Aegis', types: ['normal', 'psychic', 'fairy'],
-    t2: { baseHpMul: 1.15, lifesteal: 0.05 },
-    t4: { baseHpMul: 1.35, lifesteal: 0.05 },
+    id: 'grass', name: 'Grass', types: ['grass'],
+    t2: { regen: 0.01 },
+    t3: { regen: 0.02, poisonOnHit: 0.3 },
   },
   {
-    id: 'bulwark', name: 'Bulwark', types: ['fighting', 'ground', 'steel'],
-    t2: { dmgReduce: 0.1, thorns: 0.2 },
-    t4: { dmgReduce: 0.25, thorns: 0.2 },
+    id: 'electric', name: 'Electric', types: ['electric'],
+    t2: { chainChance: 0.15 },
+    t3: { chainChance: 0.3 },
   },
   {
-    id: 'shadow', name: 'Shadow', types: ['dark', 'ghost', 'dragon'],
-    t2: { bountyMul: 1.2 },
-    t4: { bountyMul: 1.5 },
-  },
-  {
-    id: 'skirmisher', name: 'Skirmisher', types: ['flying', 'bug', 'poison'],
-    t2: { rangeAdd: 1, slowOnHit: 0.2 },
-    t4: { rangeAdd: 1, slowOnHit: 0.2 },
+    id: 'psychic', name: 'Psychic', types: ['psychic'],
+    t2: { skillDmgMul: 1.15 },
+    t3: { skillDmgMul: 1.35 },
   },
 ];
 
@@ -94,14 +102,11 @@ export function mods(units: Array<{ dex: number; types: string[] }>): SynergyMod
     .slice(0, 6);
   const out: SynergyMods = { ...NONE };
   for (const { d, n } of active) {
-    const tier = n >= 4 ? d.t4 : d.t2;
+    const tier = n >= 3 ? d.t3 : d.t2;
     for (const [k, v] of Object.entries(tier)) {
       const key = k as keyof SynergyMods;
-      if (key === 'dmgReduce' || key === 'lifesteal' || key === 'thorns' ||
-          key === 'critAdd' || key === 'slowOnHit') {
+      if (ADDITIVE.has(key)) {
         (out[key] as number) += v as number;
-      } else if (key === 'rangeAdd') {
-        out.rangeAdd += v as number;
       } else {
         (out[key] as number) *= v as number;
       }
@@ -114,7 +119,7 @@ export function mods(units: Array<{ dex: number; types: string[] }>): SynergyMod
 export function active(units: Array<{ dex: number; types: string[] }>) {
   const c = counts(units);
   return DEFS
-    .map((d) => ({ def: d, count: c[d.id], tier: c[d.id] >= 4 ? 4 : c[d.id] >= 2 ? 2 : 0 }))
+    .map((d) => ({ def: d, count: c[d.id], tier: c[d.id] >= 3 ? 3 : c[d.id] >= 2 ? 2 : 0 }))
     .filter((x) => x.tier > 0)
     .sort((a, b) => b.count - a.count);
 }

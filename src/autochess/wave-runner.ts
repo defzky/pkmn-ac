@@ -1,8 +1,9 @@
 /**
- * wave-runner.ts — autochess TD phase machine: prep → combat → reward → … → won/lost.
+ * wave-runner.ts — autochess TD phase machine: prep → combat → (buff every 3) → … → won/lost.
  *
- * P14. Owns run state: wave number, spawn queue, mobs, gold, base.
+ * P14. Owns run state: wave number, spawn queue, mobs, gold, base, permanent buffs.
  * Combat math delegated to UnitAI.tick; composition to WaveDef.compose.
+ * GDD Bagian 5: start 5g, +3 per wave clear, buff pick every 3rd wave.
  */
 import { register } from '../core/registry';
 import { WaveDef, type MobSpec } from './wave';
@@ -12,8 +13,9 @@ import { tick as aiTick } from './unitAI';
 import type { MobBattle } from './unitAI';
 import type { UnitBattle } from './unit';
 import { NONE, type SynergyMods } from './synergy';
+import { initBuffs, type RunBuffs, type BuffDef } from './buffs';
 
-export type Phase = 'prep' | 'combat' | 'reward' | 'won' | 'lost';
+export type Phase = 'prep' | 'combat' | 'buff' | 'won' | 'lost';
 
 export interface RunState {
   wave: number;
@@ -31,37 +33,59 @@ export interface RunState {
   base: BaseState;
   /** kills this run (for stats) */
   kills: number;
+  /** permanent buffs picked at buff phases (merged into combat mods) */
+  buffs: RunBuffs;
 }
 
-export const PREP_SECONDS = 20;
+/** buy/placement window before wave auto-starts (Start button skips; user asked longer) */
+export const PREP_SECONDS = 30;
 export const SPAWN_GAP = 0.4;
-export const START_GOLD = 20;
-
-/** income = 5 + floor(w/3) + interest min(5, floor(g/10)) */
-export function income(wave: number, gold: number): number {
-  const base = 5 + Math.floor(wave / 3);
-  const interest = Math.min(5, Math.floor(Math.max(0, gold) / 10));
-  return base + interest;
-}
+export const START_GOLD = 5;
+/** flat gold granted on every wave clear (GDD Bagian 5 — no interest) */
+export const WAVE_BONUS = 3;
+/** grant a buff pick every N waves */
+export const BUFF_EVERY = 3;
 
 function dexEntry(dex: number): any {
   return ((G as any).DEX_BY || {})[dex];
 }
 
-function toMob(s: MobSpec): MobBattle {
+function toMob(s: MobSpec, branch: number): MobBattle {
   const e = dexEntry(s.dex);
-  const rarity = e && typeof e.rarity === 'number' ? e.rarity : 1;
+  // GDD bounty: boss 10, elite 2, normal ~1 per 3–5 kills (direct coin drop 28% ≈ 1/3.6)
+  const bounty = s.boss ? 10 : s.elite ? 2 : Math.random() < 0.28 ? 1 : 0;
   return {
     dex: s.dex,
     hp: s.hp,
+    maxHp: s.hp,
     atk: s.atk,
     spd: s.spd,
     types: Array.isArray(e?.types) ? e.types : [],
     star: s.star,
     boss: s.boss,
+    branch, // ring branch: alternate 0/1 so both sides get mobs
     progress: 0,
     alive: true,
-    bounty: (1 + rarity) * (s.boss ? 10 : 1),
+    bounty,
+    // roles / elites / bosses (defaults 0/false)
+    armor: s.armor ?? 0,
+    shield: s.shield ?? 0,
+    dodge: s.dodge ?? 0,
+    regen: s.regen ?? 0,
+    barrier: s.barrier ?? 0,
+    stunImmune: !!s.stunImmune,
+    slowImmune: !!s.slowImmune,
+    kbImmune: !!s.kbImmune,
+    rest: !!s.rest,
+    rested: false,
+    restT: 0,
+    roar: !!s.roar,
+    roarCd: 10,
+    disable: !!s.disable,
+    disT: 8,
+    statuses: [],
+    shred: 0,
+    shredT: 0,
   };
 }
 
@@ -78,6 +102,7 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): RunState {
     gold,
     base: createBase(),
     kills: 0,
+    buffs: initBuffs(),
   };
 }
 
@@ -91,9 +116,15 @@ export function startCombat(st: RunState): void {
   st.phase = 'combat';
 }
 
+function advanceWave(st: RunState): void {
+  st.wave++;
+  st.phase = 'prep';
+  st.prepLeft = PREP_SECONDS;
+}
+
 /**
  * advance one dt. units = player board battle units (alive flags respected).
- * returns true when phase changed (combat→reward | →lost) for UI hook.
+ * returns true when phase changed (combat→buff/prep/won/lost) for UI hook.
  */
 export function tick(
   st: RunState,
@@ -115,7 +146,7 @@ export function tick(
   if (st.spawnQ.length) {
     st.spawnT -= dt;
     while (st.spawnQ.length && st.spawnT <= 0) {
-      st.mobs.push(toMob(st.spawnQ.shift()!));
+      st.mobs.push(toMob(st.spawnQ.shift()!, st.mobs.length % 2));
       st.spawnT += st.spawnGap;
     }
   }
@@ -130,29 +161,31 @@ export function tick(
     }
   }
 
-  // all spawned and cleared → reward
+  // all spawned and cleared → wave bonus, then buff pick (every 3rd) / advance
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
-    st.phase = 'reward';
+    st.gold += WAVE_BONUS;
+    if (WaveDef.isFinal(st.wave)) {
+      st.phase = 'won';
+      return true;
+    }
+    if (st.wave % BUFF_EVERY === 0) {
+      st.phase = 'buff';
+      return true;
+    }
+    advanceWave(st);
     return true;
   }
   return false;
 }
 
 /**
- * collect reward, advance wave. returns income granted (0 if not in reward phase).
+ * apply a picked buff, then advance to next wave. no-op outside buff phase.
  */
-export function claimReward(st: RunState): number {
-  if (st.phase !== 'reward') return 0;
-  const gain = income(st.wave, st.gold);
-  st.gold += gain;
-  if (WaveDef.isFinal(st.wave)) {
-    st.phase = 'won';
-    return gain;
-  }
-  st.wave++;
-  st.phase = 'prep';
-  st.prepLeft = PREP_SECONDS;
-  return gain;
+export function pickBuff(st: RunState, buff: BuffDef): boolean {
+  if (st.phase !== 'buff') return false;
+  buff.apply(st);
+  advanceWave(st);
+  return true;
 }
 
 /** skip remaining prep (manual Start button) */
@@ -164,12 +197,13 @@ const WaveRunner = {
   createRun,
   startCombat,
   tick,
-  claimReward,
+  pickBuff,
   forceStart,
-  income,
   PREP_SECONDS,
   SPAWN_GAP,
   START_GOLD,
+  WAVE_BONUS,
+  BUFF_EVERY,
 };
 register('WaveRunner', WaveRunner);
 export { WaveRunner };

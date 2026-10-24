@@ -15,31 +15,45 @@ beforeAll(async () => {
 });
 
 describe('path', () => {
-  it('lane is straight row 2, 8 wide', () => {
-    expect(Path.LANE.w).toBe(8);
-    expect(Path.LANE.h).toBe(5);
-    expect(Path.LANE.waypoints).toEqual([{ x: 0, y: 2 }, { x: 7, y: 2 }]);
-    expect(Path.laneLen()).toBe(7);
+  it('ring: 2 branches × 9 cells, spawn top → base bottom', () => {
+    const L = Path.branchCells(0), R = Path.branchCells(1);
+    expect(L).toHaveLength(9);
+    expect(R).toHaveLength(9);
+    expect(L[0]).toEqual({ x: 1, y: -1 }); // spawn top-center
+    expect(L[8]).toEqual({ x: 1, y: 3 });  // base bottom-center
+    expect(R[0]).toEqual({ x: 1, y: -1 });
+    expect(R[8]).toEqual({ x: 1, y: 3 });
+    // branches are distinct routes (left vs right side)
+    expect(L).not.toEqual(R);
+    expect(L[2]).toEqual({ x: -1, y: -1 });
+    expect(R[2]).toEqual({ x: 3, y: -1 });
   });
 
-  it('laneCells fills row 2', () => {
-    const cells = Path.laneCells();
-    expect(cells).toHaveLength(8);
-    expect(cells.every((c: any) => c.y === 2)).toBe(true);
+  it('laneCells = default (left) branch; laneLen = 8', () => {
+    expect(Path.laneCells()).toEqual(Path.branchCells(0));
+    expect(Path.laneLen()).toBe(8);
   });
 
-  it('serpentine has 3 legs and full length', () => {
-    const cells = Path.laneCells(Path.SERPENTINE);
-    // leg1 row1 (8) + leg2 row3 (8) + leg3 row2 partial from (0,2)→(7,2) (8) but shared corners dedup? we push each waypoint step — expect 22 (8+7+7)
-    expect(cells.length).toBeGreaterThanOrEqual(20);
-    expect(Path.SERPENTINE.waypoints[0]).toEqual({ x: 0, y: 1 });
+  it('ring has 16 unique cells; rocks never on ring', () => {
+    const all = new Set([...Path.branchCells(0), ...Path.branchCells(1)].map((c) => c.x + ',' + c.y));
+    expect(all.size).toBe(16);
+    for (const k of all) {
+      const [x, y] = k.split(',').map(Number);
+      expect(Path.inside(x, y)).toBe(false); // ring not placeable
+    }
   });
 
-  it('inside bounds', () => {
+  it('spawn/base exports', () => {
+    expect(Path.SPAWN).toEqual({ x: 1, y: -1 });
+    expect(Path.BASE).toEqual({ x: 1, y: 3 });
+  });
+
+  it('inside = rock bounds 0..2', () => {
     expect(Path.inside(0, 0)).toBe(true);
-    expect(Path.inside(7, 4)).toBe(true);
+    expect(Path.inside(2, 2)).toBe(true);
+    expect(Path.inside(3, 0)).toBe(false);
+    expect(Path.inside(0, 3)).toBe(false);
     expect(Path.inside(-1, 0)).toBe(false);
-    expect(Path.inside(8, 2)).toBe(false);
     expect(Path.inside(1.5, 2)).toBe(false);
   });
 });
@@ -53,13 +67,13 @@ describe('unit-stats', () => {
     expect(s.atk).toBeGreaterThan(0);
     expect(s.spd).toBeGreaterThanOrEqual(0.5);
     expect(s.spd).toBeLessThanOrEqual(3);
-    expect([1, 2]).toContain(s.range);
+    expect([2, 3]).toContain(s.range); // melee 2 / ranged 3 (ring dist from center = 2)
     expect(s.atkCd).toBeGreaterThanOrEqual(0.4);
     expect(s.atkCd).toBeLessThanOrEqual(1.6);
     expect(typeof s.move).toBe('string');
   });
 
-  it('star multipliers scale hp/atk', () => {
+  it('star multipliers scale hp/atk (GDD: ★3 = 3.5, faster AS)', () => {
     const s1 = UnitStats.boardStats(25, 1);
     const s2 = UnitStats.boardStats(25, 2);
     const s3 = UnitStats.boardStats(25, 3);
@@ -67,8 +81,12 @@ describe('unit-stats', () => {
     expect(s3.hp).toBeGreaterThan(s2.hp);
     expect(UnitStats.starMul(1)).toBe(1);
     expect(UnitStats.starMul(2)).toBe(1.8);
-    expect(UnitStats.starMul(3)).toBe(3.2);
-    expect(UnitStats.starMul(5)).toBe(3.2); // cap
+    expect(UnitStats.starMul(3)).toBe(3.5);
+    expect(UnitStats.starMul(5)).toBe(3.5); // cap
+    expect(UnitStats.starAsMul(1)).toBe(1);
+    expect(UnitStats.starAsMul(2)).toBe(1.2);
+    expect(UnitStats.starAsMul(3)).toBe(1.5);
+    expect(s3.atkCd).toBeLessThan(s1.atkCd); // higher star attacks faster
   });
 
   it('all 966 dex derive valid stats', () => {
@@ -99,7 +117,7 @@ describe('unit-stats', () => {
 });
 
 describe('wave', () => {
-  it('wave 1: 3 mobs, rarity band 1, no boss', () => {
+  it('wave 1: 3 mobs, no boss', () => {
     const c = WaveDef.compose(1);
     expect(c.wave).toBe(1);
     expect(c.boss).toBe(false);
@@ -110,17 +128,30 @@ describe('wave', () => {
   it('count formula 3+floor(w/2) cap 16 (non-boss waves)', () => {
     expect(WaveDef.compose(2).mobs.length).toBe(4);
     expect(WaveDef.compose(9).mobs.length).toBe(7);
-    expect(WaveDef.compose(28).mobs.length).toBe(16); // 3+14=17 cap 16; 28 not boss
+    expect(WaveDef.compose(19).mobs.length).toBe(12); // 3+9
   });
 
-  it('boss every 5th: single unit hp×8 atk×2', () => {
-    for (const w of [5, 10, 15, 20, 25, 30]) {
+  it('fixed boss every 5th wave (5/10/15/20): single named boss star 3', () => {
+    for (const w of [5, 10, 15, 20]) {
       const c = WaveDef.compose(w);
       expect(c.boss, `wave ${w}`).toBe(true);
       expect(c.mobs).toHaveLength(1);
       expect(c.mobs[0].boss).toBe(true);
       expect(c.mobs[0].star).toBe(3);
     }
+    expect(WaveDef.compose(5).mobs[0].dex).toBe(95);   // Onix
+    expect(WaveDef.compose(10).mobs[0].dex).toBe(143); // Snorlax
+    expect(WaveDef.compose(15).mobs[0].dex).toBe(130); // Gyarados
+    expect(WaveDef.compose(20).mobs[0].dex).toBe(150); // Mewtwo
+  });
+
+  it('boss abilities flagged', () => {
+    expect(WaveDef.compose(5).mobs[0].stunImmune).toBe(true);   // Onix
+    expect(WaveDef.compose(10).mobs[0].rest).toBe(true);        // Snorlax
+    expect(WaveDef.compose(15).mobs[0].roar).toBe(true);        // Gyarados
+    const m20 = WaveDef.compose(20).mobs[0];
+    expect(m20.barrier).toBeGreaterThan(0);
+    expect(m20.disable).toBe(true);
   });
 
   it('non-boss waves have no boss flag', () => {
@@ -129,45 +160,40 @@ describe('wave', () => {
     }
   });
 
-  it('gen filter: w1-9 gen≤3, w10+ all', () => {
-    const DEX: any[] = (globalThis as any).G.DEX;
-    for (const w of [1, 3, 5, 7, 9]) {
-      const c = WaveDef.compose(w);
-      for (const m of c.mobs) {
-        const e = DEX.find((d) => d.dex === m.dex);
-        expect(e.gen, `w${w} dex ${m.dex}`).toBeLessThanOrEqual(3);
-      }
+  it('role pools: w1-9 EARLY dex, w11-19 MID dex', () => {
+    const EARLY = new Set([19, 41, 50, 74]);
+    const MID = new Set([20, 42, 75, 123, 93, 109, 81]);
+    for (let i = 0; i < 20; i++) {
+      for (const m of WaveDef.compose(3).mobs) expect(EARLY.has(m.dex)).toBe(true);
+      for (const m of WaveDef.compose(17).mobs) expect(MID.has(m.dex)).toBe(true);
     }
-    // w10+ can include gen>3 (seeded many times)
-    let sawHighGen = false;
-    for (let i = 0; i < 50 && !sawHighGen; i++) {
-      const c = WaveDef.compose(20);
-      for (const m of c.mobs) {
-        const e = DEX.find((d) => d.dex === m.dex);
-        if (e.gen > 3) { sawHighGen = true; break; }
-      }
-    }
-    expect(sawHighGen).toBe(true);
   });
 
-  it('hp/atk scale with wave', () => {
+  it('hp/atk scale with wave (GDD: hp = 1+wave*0.25)', () => {
+    expect(WaveDef.waveMul(1).hp).toBeCloseTo(1.25);
+    expect(WaveDef.waveMul(4).hp).toBeCloseTo(2);
+    expect(WaveDef.waveMul(11).hp).toBeGreaterThan(WaveDef.waveMul(1).hp);
+    expect(WaveDef.waveMul(11).atk).toBeGreaterThan(WaveDef.waveMul(1).atk);
     const w1 = WaveDef.compose(1).mobs[0];
-    const w10 = WaveDef.compose(10).mobs[0];
-    // different dex possible — compare mul functions instead
-    expect(WaveDef.waveMul(10).hp).toBeGreaterThan(WaveDef.waveMul(1).hp);
-    expect(WaveDef.waveMul(10).atk).toBeGreaterThan(WaveDef.waveMul(1).atk);
+    const w11 = WaveDef.compose(11).mobs[0];
     expect(w1.hp).toBeGreaterThan(0);
-    expect(w10.hp).toBeGreaterThan(0);
+    expect(w11.hp).toBeGreaterThan(0);
   });
 
-  it('isFinal only at 30', () => {
-    expect(WaveDef.isFinal(29)).toBe(false);
-    expect(WaveDef.isFinal(30)).toBe(true);
+  it('elite flag: waves 1-9 not elite, 10+ elite (GDD bounty 2)', () => {
+    expect(WaveDef.compose(3).mobs.every((m: any) => m.elite === false)).toBe(true);
+    expect(WaveDef.compose(11).mobs.every((m: any) => m.elite === true)).toBe(true);
+    expect(WaveDef.compose(5).mobs[0].elite).toBe(false); // boss not elite
   });
 
-  it('clamps wave input', () => {
+  it('isFinal only at 20', () => {
+    expect(WaveDef.isFinal(19)).toBe(false);
+    expect(WaveDef.isFinal(20)).toBe(true);
+  });
+
+  it('clamps wave input to 20', () => {
     expect(WaveDef.compose(0).wave).toBe(1);
-    expect(WaveDef.compose(99).wave).toBe(30);
+    expect(WaveDef.compose(99).wave).toBe(20);
     expect(WaveDef.compose(3.7).wave).toBe(3);
   });
 });
@@ -184,60 +210,75 @@ describe('synergy', () => {
     expect(m.bountyMul).toBe(1);
   });
 
-  it('T2 threshold: 2 unique fire/water/grass units → elemental active', () => {
-    const units = [mk(4, ['fire']), mk(7, ['water']), mk(1, ['grass'])];
-    const c = Synergy.counts(units);
-    expect(c.elemental).toBe(3);
-    const m = Synergy.mods(units);
-    expect(m.atkMul).toBeCloseTo(1.1);
-    expect(m.typeBoostMul).toBeCloseTo(1.3);
+  it('5 GDD type synergies only (old groups removed)', () => {
+    expect(Synergy.DEFS.map((d: any) => d.id)).toEqual(['fire', 'water', 'grass', 'electric', 'psychic']);
   });
 
-  it('T4 threshold overrides T2', () => {
-    const units = [
-      mk(4, ['fire']), mk(7, ['water']), mk(1, ['grass']), mk(3, ['grass']),
-    ];
+  it('T2 threshold: 2 unique fire → fire active atkMul 1.1 + burnOnHit', () => {
+    const units = [mk(4, ['fire']), mk(6, ['fire'])];
+    const c = Synergy.counts(units);
+    expect(c.fire).toBe(2);
+    const m = Synergy.mods(units);
+    expect(m.atkMul).toBeCloseTo(1.1);
+    expect(m.burnOnHit).toBeCloseTo(0.2);
+  });
+
+  it('T3 threshold overrides T2: 3 fire → atkMul 1.25 burnOnHit 0.4', () => {
+    const units = [mk(4, ['fire']), mk(5, ['fire']), mk(6, ['fire'])];
     const m = Synergy.mods(units);
     expect(m.atkMul).toBeCloseTo(1.25);
+    expect(m.burnOnHit).toBeCloseTo(0.4);
+    // 4 fire still T3 (max)
+    const m4 = Synergy.mods([...units, mk(37, ['fire'])]);
+    expect(m4.atkMul).toBeCloseTo(1.25);
+  });
+
+  it('water T2 → manaRegenMul 1.2', () => {
+    const units = [mk(7, ['water']), mk(8, ['water'])];
+    expect(Synergy.mods(units).manaRegenMul).toBeCloseTo(1.2);
+  });
+
+  it('grass T2 → regen 0.01', () => {
+    const units = [mk(1, ['grass']), mk(2, ['grass'])];
+    expect(Synergy.mods(units).regen).toBeCloseTo(0.01);
   });
 
   it('unique dex counting (copies do not stack)', () => {
     const units = [mk(4, ['fire']), mk(4, ['fire']), mk(4, ['fire'])];
-    expect(Synergy.counts(units).elemental).toBe(1);
+    expect(Synergy.counts(units).fire).toBe(1);
   });
 
-  it('dual-type counts in both groups', () => {
-    // charizard-like: fire+flying
+  it('dual-type counts per matching type only', () => {
     const units = [mk(6, ['fire', 'flying']), mk(9, ['water'])];
     const c = Synergy.counts(units);
-    expect(c.elemental).toBe(2);
-    expect(c.skirmisher).toBe(1);
+    expect(c.fire).toBe(1);
+    expect(c.water).toBe(1);
+    expect(c.grass).toBe(0);
   });
 
-  it('all 6 groups can activate; fire+water merge into elemental T4', () => {
-    // 7 pairs, but DEFS has 6 groups; fire & water both map to elemental
-    const groups = [
-      ['fire'], ['electric'], ['normal'], ['fighting'], ['dark'], ['flying'], ['water'],
-    ];
+  it('all 5 types can activate; fire T2 wired', () => {
+    const types = ['fire', 'water', 'grass', 'electric', 'psychic'];
     const units: any[] = [];
     let dex = 1;
-    for (const g of groups) {
-      units.push(mk(dex++, g), mk(dex++, g));
-    }
-    const c = Synergy.counts(units);
-    expect(c.elemental).toBe(4); // fire×2 + water×2 unique dex
+    for (const t of types) units.push(mk(dex++, [t]), mk(dex++, [t]));
     const act = Synergy.active(units);
-    expect(act.length).toBe(6); // only 6 DEFS exist
+    expect(act.length).toBe(5);
     const m = Synergy.mods(units);
-    expect(m.atkMul).toBeCloseTo(1.25); // elemental T4
-    expect(m.dmgReduce).toBeLessThanOrEqual(0.25 + 1e-9);
+    expect(m.atkMul).toBeCloseTo(1.1); // fire T2
+    expect(m.manaRegenMul).toBeCloseTo(1.2); // water T2
+    expect(m.regen).toBeCloseTo(0.01); // grass T2
+    expect(m.chainChance).toBeCloseTo(0.15); // electric T2
+    expect(m.skillDmgMul).toBeCloseTo(1.15); // psychic T2
   });
 
-  it('active() returns tier 2/4 labels', () => {
-    const units = [mk(4, ['fire']), mk(7, ['water'])];
+  it('active() returns tier labels: 2 → t2, 3 → t3', () => {
+    const units = [mk(4, ['fire']), mk(6, ['fire'])];
     const act = Synergy.active(units);
-    expect(act[0].def.id).toBe('elemental');
+    expect(act[0].def.id).toBe('fire');
     expect(act[0].tier).toBe(2);
     expect(act[0].count).toBe(2);
+    const act3 = Synergy.active([...units, mk(5, ['fire'])]);
+    expect(act3[0].tier).toBe(3);
+    expect(act3[0].count).toBe(3);
   });
 });

@@ -1,9 +1,11 @@
 /**
- * P14 tests — wave-runner phase machine, income, spawn, reward, leak, win/lose.
+ * P14 tests — wave-runner phase machine (GDD Bagian 5):
+ * start 5g, +3 per wave clear (no interest), buff pick every 3rd wave, boss leak −20.
  */
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
 let WR: any;
+let Buffs: any;
 
 beforeAll(async () => {
   (globalThis as any).G = (globalThis as any).G || {};
@@ -19,6 +21,7 @@ beforeAll(async () => {
   await import('../src/autochess/unitAI.ts');
   const mod = await import('../src/autochess/wave-runner.ts');
   WR = mod.default;
+  Buffs = (await import('../src/autochess/buffs.ts')).default;
 });
 
 /** hand-built strong unit that one-shots everything */
@@ -31,28 +34,22 @@ function godUnit() {
   };
 }
 
-describe('income', () => {
-  it('base = 5 + floor(w/3)', () => {
-    expect(WR.income(1, 0)).toBe(5);
-    expect(WR.income(3, 0)).toBe(6);
-    expect(WR.income(9, 0)).toBe(8);
+describe('economy (GDD Bagian 5)', () => {
+  it('start gold 5, wave bonus 3 flat (no interest formula)', () => {
+    expect(WR.START_GOLD).toBe(5);
+    expect(WR.WAVE_BONUS).toBe(3);
+    expect(WR.income).toBeUndefined(); // interest removed
   });
-  it('interest floor(g/10) cap 5, none below 10', () => {
-    expect(WR.income(1, 9)).toBe(5);
-    expect(WR.income(1, 50)).toBe(10);
-    expect(WR.income(1, 999)).toBe(10); // cap 5 interest
-  });
-});
-
-describe('createRun', () => {
-  it('wave 1, prep, gold 20, base 100', () => {
+  it('createRun: wave 1, prep 30s (buy window), gold 5, base 100', () => {
     const st = WR.createRun();
+    expect(WR.PREP_SECONDS).toBe(30);
     expect(st.wave).toBe(1);
     expect(st.phase).toBe('prep');
     expect(st.prepLeft).toBe(WR.PREP_SECONDS);
-    expect(st.gold).toBe(20);
+    expect(st.gold).toBe(5);
     expect(st.base.hp).toBe(100);
     expect(st.kills).toBe(0);
+    expect(st.buffs).toEqual({ atkMul: 1, hpMul: 1, asMul: 1 });
   });
 });
 
@@ -67,7 +64,7 @@ describe('startCombat', () => {
   });
   it('ignored outside prep', () => {
     const st = WR.createRun();
-    st.phase = 'reward';
+    st.phase = 'buff';
     WR.startCombat(st);
     expect(st.spawnQ.length).toBe(0);
   });
@@ -88,16 +85,28 @@ describe('tick', () => {
     expect(st.mobs.length).toBe(1);
     expect(st.spawnQ.length).toBe(2);
   });
-  it('god unit clears wave → reward, kills counted, gold bounty added', () => {
+  it('wave 1 cleared → +3 bonus, wave 2 prep (not a buff wave)', () => {
     const st = WR.createRun();
     WR.startCombat(st);
     const u = godUnit();
     const g0 = st.gold;
     let guard = 0;
     while (st.phase === 'combat' && guard++ < 600) WR.tick(st, [u], 0.1);
-    expect(st.phase).toBe('reward');
+    expect(st.phase).toBe('prep');
+    expect(st.wave).toBe(2);
+    expect(st.prepLeft).toBe(WR.PREP_SECONDS);
+    expect(st.gold).toBeGreaterThanOrEqual(g0 + 3); // +3 bonus + random coin drops
     expect(st.kills).toBe(3);
-    expect(st.gold).toBeGreaterThan(g0); // bounty ≥ 1+1 per mob
+  });
+  it('wave 3 cleared → buff phase', () => {
+    const st = WR.createRun();
+    st.wave = 3;
+    WR.startCombat(st);
+    const u = godUnit();
+    let guard = 0;
+    while (st.phase === 'combat' && guard++ < 600) WR.tick(st, [u], 0.1);
+    expect(st.phase).toBe('buff');
+    expect(st.wave).toBe(3);
   });
   it('no units → mobs leak → base hp drops → eventually lost', () => {
     const st = WR.createRun();
@@ -105,7 +114,7 @@ describe('tick', () => {
     let guard = 0;
     while (st.phase !== 'lost' && guard++ < 6000) {
       WR.tick(st, [], 0.5);
-      if (st.phase === 'reward') WR.claimReward(st); // waves keep coming
+      if (st.phase === 'buff') WR.pickBuff(st, Buffs.POOL[0]); // waves keep coming
       if (st.phase === 'prep') WR.forceStart(st);
     }
     expect(st.phase).toBe('lost');
@@ -117,36 +126,45 @@ describe('tick', () => {
     st.spawnQ = [];
     st.mobs = [{
       dex: 150, hp: 10, atk: 1, spd: 3, types: ['grass'], star: 3,
-      boss: true, progress: 99, alive: true, bounty: 30,
+      boss: true, progress: 99, alive: true, bounty: 10,
     }];
     WR.tick(st, [], 0.1);
     expect(st.base.hp).toBe(80);
   });
 });
 
-describe('claimReward', () => {
-  it('adds income, wave++ back to prep', () => {
+describe('pickBuff', () => {
+  it('applies buff, advances to next wave prep', () => {
     const st = WR.createRun();
-    WR.startCombat(st);
-    st.phase = 'reward'; // skip combat
+    st.wave = 3;
+    st.phase = 'buff';
     const g0 = st.gold;
-    const gain = WR.claimReward(st);
-    expect(gain).toBe(WR.income(1, g0));
-    expect(st.gold).toBe(g0 + gain);
-    expect(st.wave).toBe(2);
+    const ok = WR.pickBuff(st, Buffs.POOL.find((b: any) => b.id === 'gold'));
+    expect(ok).toBe(true);
+    expect(st.gold).toBe(g0 + 5);
+    expect(st.wave).toBe(4);
     expect(st.phase).toBe('prep');
   });
-  it('final wave → won', () => {
+  it('attack buff mutates run buffs', () => {
     const st = WR.createRun();
-    st.wave = 30;
-    st.phase = 'reward';
-    WR.claimReward(st);
-    expect(st.phase).toBe('won');
-    expect(st.wave).toBe(30);
+    st.phase = 'buff';
+    WR.pickBuff(st, Buffs.POOL.find((b: any) => b.id === 'atk'));
+    expect(st.buffs.atkMul).toBeCloseTo(1.1);
   });
-  it('ignored outside reward', () => {
+  it('final wave cleared → won (no buff)', () => {
     const st = WR.createRun();
-    expect(WR.claimReward(st)).toBe(0);
+    st.wave = 20;
+    st.phase = 'combat';
+    st.spawnQ = [];
+    st.mobs = [];
+    WR.tick(st, [], 0.1); // clear with nothing alive
+    expect(st.phase).toBe('won');
+    expect(st.wave).toBe(20);
+    expect(st.gold).toBe(5 + 3); // start + bonus
+  });
+  it('ignored outside buff phase', () => {
+    const st = WR.createRun();
+    expect(WR.pickBuff(st, Buffs.POOL[0])).toBe(false);
   });
 });
 

@@ -881,3 +881,156 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #dex-detail .btn { position: sticky; bottom: 0; order: 9; margin-top: auto; padding: 8px 6px; font-size: 15px;
     box-shadow: 0 -6px 10px rgba(5,10,25,.6); }
 }
+
+/* ============ autochess (scr-ac) ============ */
+#scr-ac {
+  flex-direction: column; justify-content: flex-start; align-items: stretch;
+  gap: 6px; padding: 8px; text-shadow: none;
+  background: radial-gradient(circle at 50% 30%, #12203f, #050914 75%);
+  z-index: 60;
+}
+.ac-hud { display: flex; gap: 10px; align-items: center; font-size: 14px; flex-wrap: wrap; justify-content: center; }
+.ac-hud b { color: var(--gold); }
+.ac-hud .coin { width: 16px; height: 16px; vertical-align: -3px; }
+#ac-hp b { color: var(--red, #f66); }
+.ac-base { width: 140px; height: 12px; background: rgba(0,0,0,.45); border: 1px solid rgba(244,248,255,.25); border-radius: 6px; overflow: hidden; }
+.ac-base i { display: block; height: 100%; background: linear-gradient(var(--green), #2c8); transition: width .3s; }
+
+/* synergy bar (chips n/3 under top bar) */
+.ac-synbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+.syn-chip {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 7px;
+  border: 1px solid rgba(244,248,255,.2); border-radius: 10px; background: rgba(0,0,0,.3);
+  color: var(--muted);
+}
+.syn-chip.t2 { color: #7fd3ff; border-color: rgba(127,211,255,.5); }
+.syn-chip.t3 { color: var(--gold); border-color: rgba(255,210,63,.6); }
+.syn-chip.off { opacity: .55; }
+
+.ac-mid { flex: 1; display: flex; gap: 8px; min-height: 0; }
+.ac-left { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+/* stage 5x5: ring path (16 nodes) + rocks 3x3 + mob layer */
+.ac-stage {
+  position: relative; box-sizing: border-box;
+  display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 3px;
+  flex: 1; min-height: 0; aspect-ratio: 1; max-height: 100%; width: min(100%, 70vh); margin: 0 auto;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(244,248,255,.15); border-radius: 8px; padding: 4px;
+}
+/* dungeon-world terrain backdrop (Tiles.paintChunk: floor ring + rock platform) */
+.ac-tiles {
+  position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
+  image-rendering: pixelated; z-index: 0; pointer-events: none;
+}
+/* dungeon fx overlay: projectiles, slashes, beams, damage numbers */
+.ac-fx {
+  position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
+  image-rendering: pixelated; z-index: 5; pointer-events: none;
+}
+.ac-path-node {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  background: rgba(255,210,63,.10); border: 1px dashed rgba(255,210,63,.35); border-radius: 5px;
+  font-size: 8px; color: rgba(255,210,63,.75); letter-spacing: .5px; pointer-events: none;
+}
+.ac-path-node .ac-prop {
+  position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%);
+  width: 70%; height: auto; image-rendering: pixelated; opacity: .85;
+}
+.ac-path-node.spawn { background: rgba(120,220,140,.18); border-color: rgba(120,220,140,.5); color: #9fe8b0; }
+.ac-path-node.base { background: rgba(255,95,109,.18); border-color: rgba(255,95,109,.55); color: #ff9aa4; }
+.ac-rocks {
+  grid-area: 2 / 2 / 5 / 5; display: grid; position: relative; z-index: 2;
+  grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 3px;
+}
+.ac-cell {
+  position: relative; border-radius: 7px; cursor: pointer;
+  background: linear-gradient(155deg, rgba(96,106,124,.34), rgba(48,55,70,.4));
+  border: 1px solid rgba(0,0,0,.45); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 4px rgba(0,0,0,.35);
+  min-height: 40px; display: flex; align-items: center; justify-content: center; transition: border-color .12s;
+}
+.ac-cell:hover { border-color: rgba(244,248,255,.4); }
+.ac-cell.sel { outline: 2px solid var(--gold); }
+.ac-cell canvas { max-width: 92%; max-height: 92%; image-rendering: pixelated; }
+.ac-cell .st { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold); text-shadow: 0 0 3px #000; }
+.ac-cell .hp { position: absolute; left: 8%; right: 8%; bottom: 2px; height: 3px; background: #411; border-radius: 2px; overflow: hidden; }
+.ac-cell .hp i { display: block; height: 100%; background: var(--green); }
+
+/* mob walkers (absolute sprites over the ring) */
+.ac-mobs { position: absolute; inset: 4px; pointer-events: none; overflow: visible; z-index: 3; }
+.ac-walk { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.ac-walk canvas { position: absolute; left: -22px; top: -40px; image-rendering: pixelated; }
+.ac-walk .whp {
+  position: absolute; left: -16px; top: -46px; width: 32px; height: 3px;
+  background: #411; border-radius: 2px; overflow: hidden;
+}
+.ac-walk .whp i { display: block; height: 100%; background: var(--green); }
+.ac-walk .wsh { display: none; }
+.ac-walk .wsh.on {
+  display: block; position: absolute; left: -16px; top: -51px; width: 32px; height: 3px;
+  background: #123; border-radius: 2px; overflow: hidden;
+}
+.ac-walk .wsh i { display: block; height: 100%; background: #7fd3ff; }
+.ac-walk .wico { position: absolute; left: -18px; top: -60px; font-size: 10px; white-space: nowrap; }
+.ac-walk.boss canvas { left: -26px; top: -50px; }
+.ac-walk.boss .whp { top: -58px; left: -20px; width: 40px; }
+.ac-walk.boss .wsh.on { top: -63px; left: -20px; width: 40px; }
+.ac-walk.boss .wico { top: -72px; }
+/* hurt flash on hit (dungeon-style feedback) */
+@keyframes ac-hurt { 0% { filter: brightness(4) sepia(1) saturate(5) hue-rotate(-40deg); } 100% { filter: none; } }
+.ac-walk canvas.hurt { animation: ac-hurt .18s; }
+
+/* synergy side column removed (bar lives under hud) */
+.ac-bench { display: grid; grid-template-columns: repeat(2, 72px); gap: 6px; justify-content: start; }
+.ac-slot {
+  position: relative; background: rgba(255,255,255,.04); border: 1px solid rgba(244,248,255,.12); border-radius: 6px;
+  height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .12s;
+}
+.ac-slot:hover { border-color: rgba(244,248,255,.4); }
+.ac-slot.sel { outline: 2px solid var(--gold); }
+.ac-slot canvas { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
+.ac-slot .st { position: absolute; top: 0; right: 2px; font-size: 10px; color: var(--gold); }
+.ac-shop { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 4px; max-width: 420px; }
+.ac-card {
+  position: relative; background: rgba(0,0,0,.25); border: 1px solid rgba(244,248,255,.18); border-radius: 8px; padding: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; font-size: 11px; min-height: 74px;
+  transition: border-color .12s; touch-action: none;
+}
+.ac-card:hover { border-color: rgba(244,248,255,.45); }
+.ac-card.off { opacity: .45; pointer-events: none; }
+.ac-card canvas { height: 36px; image-rendering: pixelated; }
+.ac-card .cost { color: var(--gold); font-weight: bold; display: flex; align-items: center; gap: 3px; }
+.ac-card .cost .coin { width: 14px; height: 14px; }
+.ac-card .st { position: absolute; top: 1px; right: 3px; color: var(--gold); font-size: 10px; }
+.ac-card.reroll { color: var(--muted); border-style: dashed; line-height: 1.2; }
+.ac-btns { display: flex; gap: 6px; justify-content: center; align-items: center; }
+.ac-kbd { margin-left: 4px; }
+.ac-over {
+  position: absolute; inset: 0; background: rgba(5,6,10,.88); z-index: 70; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; font-size: 18px; padding: 20px;
+}
+.ac-over .box { width: min(420px, 92vw); }
+.ac-over-ico img { image-rendering: pixelated; }
+.ac-over .sub { margin-bottom: 4px; }
+.ac-over .ac-btns { margin-top: 10px; }
+.ac-snd { margin: 10px 0; text-align: left; }
+
+/* buff pick (GDD Bagian 5) — 3 cards */
+.ac-buff-3 { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+.ac-buff {
+  flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 12px 8px;
+  background: linear-gradient(180deg, #1b2334, #121722); border: 1px solid #3a4661;
+  border-radius: 10px; color: #e8ecf6; font-size: 14px; cursor: pointer; text-align: center;
+}
+.ac-buff b { color: #ffd465; font-size: 15px; }
+.ac-buff span { font-size: 12px; color: #aab4cc; line-height: 1.3; }
+.ac-buff:hover { border-color: #ffd465; transform: translateY(-2px); }
+
+/* drag & drop shop buy — ghost follows pointer while dragging a shop card */
+.ac-drag {
+  position: fixed; z-index: 95; pointer-events: none; transform: translate(-50%, -50%);
+  background: rgba(10,14,22,.95); border: 1px solid var(--gold); border-radius: 8px;
+  padding: 6px 10px; display: flex; gap: 6px; align-items: center;
+  color: #e8ecf6; font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+.ac-drag b { color: var(--gold); display: flex; gap: 3px; align-items: center; }
