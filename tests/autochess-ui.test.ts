@@ -669,3 +669,26 @@ describe('Fase L — dirt lanes, spawn portal, base HP ring, round pulse', () =>
     expect(rnd.textContent).toMatch(/Round/);
   });
 });
+
+describe('Fase P — HUD polish hooks', () => {
+  beforeEach(() => { vi.mocked(UI.toast).mockClear(); ACUI.reset(); });
+  it('ready button flips to fighting class during combat', () => {
+    ACUI.open('td');
+    ACUI.board.units.push({ dex: 1, star: 1, x: 1, y: 1, bench: false, items: [] } as any);
+    ACUI.render();
+    const ready = document.getElementById('ac-start')!;
+    expect(ready.classList.contains('fighting')).toBe(false);
+    ready.click(); // real user path: startCombat → renderHud
+    expect(ready.classList.contains('fighting')).toBe(true);
+    expect(ready.textContent).toContain('Fighting');
+  });
+  it('2-star unit paints gold ★ chip in its board cell', () => {
+    ACUI.open('auto');
+    ACUI.board.units.push({ dex: 1, star: 2, x: 0, y: 0, bench: false, items: [] } as any);
+    ACUI.render();
+    const cell = document.querySelector('#ac-me-grid .ac-cell[data-xy="0,0"]')!;
+    const st = cell.querySelector('.ac-pill b');
+    expect(st).toBeTruthy();
+    expect(st!.textContent).toContain('★★');
+  });
+});

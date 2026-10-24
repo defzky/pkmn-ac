@@ -1070,9 +1070,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* floating badges */
 .ac-round {
   position: absolute; top: -10px; left: 10px; z-index: 6;
-  background: linear-gradient(180deg, #2a3145, #1a1f2e);
-  border: 1px solid rgba(244,248,255,.35); border-radius: 999px;
-  color: #e8ecf6; font-size: 12px; font-weight: bold; padding: 3px 10px;
+  background: linear-gradient(180deg, #2f3850, #1c2233);
+  border: 1px solid rgba(244,248,255,.4); border-radius: 999px;
+  color: #f2f5fc; font-size: 15px; font-weight: bold; padding: 4px 12px;
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
 /* wave++ → pill pulse (Fase L) */
@@ -1082,7 +1082,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
   margin: 5px 0 4px; z-index: 6;
   background: rgba(10,14,22,.85); border: 1px solid var(--gold); border-radius: 999px;
-  color: #ffd465; font-size: 13px; font-weight: bold; padding: 3px 10px;
+  color: #ffd465; font-size: 15px; font-weight: bold; padding: 3px 11px;
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
 .ac-trash {
@@ -1115,9 +1115,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* center power divider badge */
 /* combat-power pill — static member of the unified topbar (Round · power · pause) */
 .ac-power {
-  background: linear-gradient(180deg, #2a3145, #1a1f2e);
+  background: linear-gradient(180deg, #2f3850, #1c2233);
   border: 2px solid var(--gold); border-radius: 999px;
-  color: var(--gold); font-size: 14px; font-weight: bold; padding: 4px 12px;
+  color: var(--gold); font-size: 15px; font-weight: bold; padding: 4px 12px;
   box-shadow: 0 4px 10px rgba(0,0,0,.55); white-space: nowrap; margin-right: 6px;
 }
 
@@ -1128,9 +1128,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-cell {
   position: relative; border-radius: 8px; cursor: pointer;
-  background: linear-gradient(160deg, #5a5550, #3e3a36);
+  background: linear-gradient(160deg, #66605a, #453f3a);
   border: 1px solid rgba(0,0,0,.5);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35), 0 2px 4px rgba(0,0,0,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 4px rgba(0,0,0,.3), 0 2px 4px rgba(0,0,0,.3);
   display: flex; align-items: center; justify-content: center; transition: border-color .12s, transform .12s, box-shadow .12s;
 }
 /* hover lift + gold glow (Fase L) */
@@ -1243,7 +1243,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   cursor: pointer; font-size: 12px; transition: border-color .12s, transform .12s; touch-action: none;
 }
-.ac-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.ac-card:hover { border-color: var(--gold); transform: translateY(-5px); box-shadow: 0 8px 18px rgba(0,0,0,.5), 0 0 12px rgba(255,210,80,.22); }
 .ac-card.off { opacity: .4; pointer-events: none; }
 .ac-card canvas { height: 64px; image-rendering: pixelated; }
 /* starburst gold cost badge (top-left) */
@@ -1281,16 +1281,19 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-reroll i { font-style: normal; font-size: 20px; }
 .ac-reroll b { font-size: 13px; }
-.ac-reroll:hover { filter: brightness(1.1); }
+.ac-reroll:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.ac-reroll:active { transform: translateY(0); filter: brightness(.95); }
 .ac-reroll.off { opacity: .45; pointer-events: none; }
 .ac-readywrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ac-ready {
-  height: 56px; border: none; border-radius: 10px;
-  background: linear-gradient(180deg, #ffb340, #ff7a1a 55%, #e05e00);
+  height: 56px; border: none; border-radius: 12px;
+  background: linear-gradient(180deg, #ffc24a, #ff851f 55%, #e86200);
   color: #fff; font-size: 18px; font-weight: bold; letter-spacing: .5px;
-  cursor: pointer; box-shadow: 0 4px 12px rgba(255,122,26,.45), inset 0 1px 0 rgba(255,255,255,.35);
+  cursor: pointer; box-shadow: 0 5px 16px rgba(255,130,30,.5), inset 0 1px 0 rgba(255,255,255,.4);
+  transition: filter .12s, transform .12s, box-shadow .12s;
 }
-.ac-ready:hover { filter: brightness(1.08); }
+.ac-ready:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 7px 20px rgba(255,130,30,.6), inset 0 1px 0 rgba(255,255,255,.4); }
+.ac-ready:active { transform: translateY(0); filter: brightness(.95); }
 .ac-ready:disabled { filter: grayscale(.55) brightness(.75); cursor: default; }
 /* thin yellow prep-timer bar + hourglass */
 .ac-timer {
