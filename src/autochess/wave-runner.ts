@@ -1,14 +1,13 @@
 /**
- * wave-runner.ts — autochess TD phase machine: prep → combat → (buff every 3) → … → won/lost.
+ * wave-runner.ts — dual-board auto-battler phase machine: prep → combat → (buff every 3) → …
  *
- * P14. Owns run state: wave number, spawn queue, mobs, gold, base, permanent buffs.
- * Combat math delegated to UnitAI.tick; composition to WaveDef.compose.
- * GDD Bagian 5: start 5g, +3 per wave clear, buff pick every 3rd wave.
+ * P18: NO path. Enemies stand on the top 3×3 arena (cells y −1..−3, front row y −1);
+ * player units stand on the bottom 3×3 (y 0..2). Round won = all enemies dead →
+ * damage the enemy heart; round lost = player team wiped → damage the player heart.
  */
 import { register } from '../core/registry';
 import { WaveDef, type MobSpec } from './wave';
-import { Path } from './path';
-import { create as createBase, leak as baseLeak, type BaseState } from './base';
+import { create as createBase, type BaseState } from './base';
 import { tick as aiTick } from './unitAI';
 import type { MobBattle } from './unitAI';
 import type { UnitBattle } from './unit';
@@ -30,12 +29,28 @@ export interface RunState {
   spawnGap: number;
   mobs: MobBattle[];
   gold: number;
+  /** player heart (bottom-right blue badge) */
   base: BaseState;
+  /** enemy heart (top-right red badge) */
+  foe: BaseState;
   /** kills this run (for stats) */
   kills: number;
   /** permanent buffs picked at buff phases (merged into combat mods) */
   buffs: RunBuffs;
 }
+
+/** enemy grid slots, front row first (y −1 = front … y −3 = back) */
+export const FOE_SLOTS: Array<{ x: number; y: number }> = [
+  { x: 0, y: -1 }, { x: 1, y: -1 }, { x: 2, y: -1 },
+  { x: 0, y: -2 }, { x: 1, y: -2 }, { x: 2, y: -2 },
+  { x: 0, y: -3 }, { x: 1, y: -3 }, { x: 2, y: -3 },
+];
+/** 3×3 enemy grid capacity */
+export const MAX_FIELD = FOE_SLOTS.length;
+export const PLAYER_HP = 45;
+export const FOE_HP = 20;
+/** heart damage when the player team is wiped */
+export const LOSS_DMG = 3;
 
 /** buy/placement window before wave auto-starts (Start button skips; user asked longer) */
 export const PREP_SECONDS = 30;
@@ -50,7 +65,7 @@ function dexEntry(dex: number): any {
   return ((G as any).DEX_BY || {})[dex];
 }
 
-function toMob(s: MobSpec, branch: number): MobBattle {
+function toMob(s: MobSpec, slot: { x: number; y: number }): MobBattle {
   const e = dexEntry(s.dex);
   // GDD bounty: boss 10, elite 2, normal ~1 per 3–5 kills (direct coin drop 28% ≈ 1/3.6)
   const bounty = s.boss ? 10 : s.elite ? 2 : Math.random() < 0.28 ? 1 : 0;
@@ -63,7 +78,8 @@ function toMob(s: MobSpec, branch: number): MobBattle {
     types: Array.isArray(e?.types) ? e.types : [],
     star: s.star,
     boss: s.boss,
-    branch, // ring branch: alternate 0/1 so both sides get mobs
+    cx: slot.x,
+    cy: slot.y, // fixed enemy-arena cell (no walking)
     progress: 0,
     alive: true,
     bounty,
@@ -100,17 +116,18 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): RunState {
     spawnGap: SPAWN_GAP,
     mobs: [],
     gold,
-    base: createBase(),
+    base: createBase(PLAYER_HP),
+    foe: createBase(FOE_HP),
     kills: 0,
     buffs: initBuffs(),
   };
 }
 
-/** roll composition for current wave, enter combat */
+/** roll composition for current wave (capped to the 3×3 grid), enter combat */
 export function startCombat(st: RunState): void {
   if (st.phase !== 'prep') return;
   const comp = WaveDef.compose(st.wave);
-  st.spawnQ = comp.mobs.map((m) => ({ ...m }));
+  st.spawnQ = comp.mobs.slice(0, MAX_FIELD).map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];
   st.phase = 'combat';
@@ -142,29 +159,37 @@ export function tick(
   }
   if (st.phase !== 'combat') return false;
 
-  // spawn queue
+  // spawn queue → fixed enemy-arena slots (front row first)
   if (st.spawnQ.length) {
     st.spawnT -= dt;
     while (st.spawnQ.length && st.spawnT <= 0) {
-      st.mobs.push(toMob(st.spawnQ.shift()!, st.mobs.length % 2));
+      const slot = FOE_SLOTS[st.mobs.length % MAX_FIELD];
+      st.mobs.push(toMob(st.spawnQ.shift()!, slot));
       st.spawnT += st.spawnGap;
     }
   }
 
-  const r = aiTick(units, st.mobs, dt, mods, Path.laneCells());
+  const r = aiTick(units, st.mobs, dt, mods, []);
   st.kills += r.kills;
   if (r.gold) st.gold += r.gold;
-  for (const l of r.leaks) {
-    if (baseLeak(st.base, l.boss)) {
+
+  // player team wiped (or never fielded) → damage player heart
+  if (!units.some((u) => u.alive)) {
+    st.base.hp = Math.max(0, st.base.hp - (LOSS_DMG + Math.floor(st.wave / 4)));
+    if (st.base.hp <= 0) {
       st.phase = 'lost';
       return true;
     }
+    advanceWave(st);
+    return true;
   }
 
-  // all spawned and cleared → wave bonus, then buff pick (every 3rd) / advance
+  // all enemies spawned and cleared → round won: damage enemy heart + wave bonus
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
     st.gold += WAVE_BONUS;
-    if (WaveDef.isFinal(st.wave)) {
+    const survivors = units.filter((u) => u.alive).length;
+    st.foe.hp = Math.max(0, st.foe.hp - (1 + survivors));
+    if (st.foe.hp <= 0 || WaveDef.isFinal(st.wave)) {
       st.phase = 'won';
       return true;
     }
@@ -199,6 +224,11 @@ const WaveRunner = {
   tick,
   pickBuff,
   forceStart,
+  FOE_SLOTS,
+  MAX_FIELD,
+  PLAYER_HP,
+  FOE_HP,
+  LOSS_DMG,
   PREP_SECONDS,
   SPAWN_GAP,
   START_GOLD,

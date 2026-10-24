@@ -65,15 +65,19 @@ function toBench(state: BoardState, unit: BoardUnit): boolean {
   return false; // bench full
 }
 
-/** Add unit (buy): try bench first; returns false if bench full. */
-function add(state: BoardState, dex: number, star = 1): BoardUnit | null {
-  const taken = new Set(state.units.filter(onBench).map((u) => u.bench as number));
-  let slot = -1;
-  for (let i = 0; i < BENCH_SIZE; i++) if (!taken.has(i)) { slot = i; break; }
-  if (slot < 0) return null;
-  const u: BoardUnit = { dex, star, x: null, y: null, bench: slot };
-  state.units.push(u);
-  return u;
+/** Add unit (buy): place on first free board cell (back-to-front, no bench). */
+function add(state: BoardState, dex: number, star = 1, level = 8): BoardUnit | null {
+  const boardCount = state.units.filter(onBoard).length;
+  if (boardCount >= boardCap(level)) return null;
+  for (let y = 0; y < 3; y++) {
+    for (let x = 0; x < 3; x++) {
+      if (occupied(state, x, y)) continue;
+      const u: BoardUnit = { dex, star, x, y, bench: null };
+      state.units.push(u);
+      return u;
+    }
+  }
+  return null; // grid full
 }
 
 /** Remove unit entirely (sell). */

@@ -220,6 +220,53 @@ describe('unitAI.tick', () => {
   });
 });
 
+describe('dual-board mobs (cx/cy — P18)', () => {
+  it('cx mob never walks and never leaks', () => {
+    const m = mob({ progress: 0, spd: 3, cx: 1, cy: -1 });
+    const r = UnitAI.tick([], [m], 2.0, undefined, Path.laneCells());
+    expect(m.progress).toBe(0);
+    expect(m.alive).toBe(true);
+    expect(r.leaks).toHaveLength(0);
+  });
+
+  it('fixed cell targeting: unit hits front-row mob at (1,-1)', () => {
+    const u = unitAt(6, 1, 1);
+    u.atk = 999; u.atkCd = 0.5;
+    const m = mob({ hp: 1, cx: 1, cy: -1 });
+    const r = UnitAI.tick([u], [m], 0.05, undefined, []);
+    expect(r.kills).toBe(1);
+    expect(u.hit).toEqual({ x: 1, y: -1, dmg: expect.any(Number) });
+  });
+
+  it('targeting prefers front row (cy −1) over back row (cy −3)', () => {
+    const u = unitAt(6, 1, 1); // range 3 covers back row (tdist 3)
+    u.atk = 999; u.atkCd = 0.5;
+    const front = mob({ hp: 1, cx: 1, cy: -1 });
+    const back = mob({ hp: 999, cx: 1, cy: -3 });
+    const r = UnitAI.tick([u], [front, back], 0.01, undefined, []);
+    expect(r.kills).toBe(1);
+    expect(front.alive).toBe(false);
+    expect(back.alive).toBe(true);
+  });
+
+  it('tdist: front-to-front 0, back rows compressed vs plain Chebyshev', () => {
+    expect(UnitAI.tdist(1, 2, 1, -1)).toBe(0); // player front ↔ enemy front
+    expect(UnitAI.tdist(1, 2, 1, -2)).toBe(1);
+    expect(UnitAI.tdist(1, 2, 1, -3)).toBe(2);
+    expect(UnitAI.tdist(0, 0, 2, -1)).toBe(2); // dx 2 dominates
+    expect(UnitAI.tdist(0, 0, 2, 1)).toBe(2);  // same-board = plain Chebyshev
+  });
+
+  it('back-row mob out of melee range 2, in ranged range 3', () => {
+    const u = unitAt(66, 1, 1); // machop melee range 2
+    u.atk = 999; u.atkCd = 0.5;
+    const m = mob({ hp: 1, cx: 1, cy: -3 }); // tdist 3
+    const r = UnitAI.tick([u], [m], 0.05, undefined, []);
+    expect(r.kills).toBe(0);
+    expect(m.alive).toBe(true);
+  });
+});
+
 describe('statuses / roles / skills (GDD)', () => {
   it('burn DoT ticks hp down over time', () => {
     const m = mob({ hp: 100 });

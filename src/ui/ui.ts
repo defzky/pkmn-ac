@@ -310,13 +310,14 @@ const UI = (() => {
 
   /** One-shot move flourish on an existing sprite canvas (autochess combat).
    * Same guard as dungeon player (player.ts): don't restart mid-swing.
-   * `face` (rad): turn sprite toward target first (dungeon attackFace). */
-  function spriteHit(cv: any, anim = 'Attack', face?: number): void {
+   * `face` (rad): turn sprite toward target first (dungeon attackFace).
+   * `speed`: dungeon-style animLen/atkCd pace (player.cast); default 1.8. */
+  function spriteHit(cv: any, anim = 'Attack', face?: number, speed = 1.8): void {
     const s = byCanvas.get(cv);
     if (!s || !s.cv.isConnected) return;
     if (face != null) s.a.dir = Sprites.dirFromAngle(face);
     if (s.a.busy() && s.a.progress() < 0.65) return;
-    s.a.play(anim, { speed: 1.8 });
+    s.a.play(anim, { speed });
   }
 
   return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete,

@@ -41,9 +41,15 @@ export interface MobBattle {
   types: string[];
   star: number;
   boss: boolean;
-  /** ring branch: 0 = left, 1 = right (set at spawn; default branch 0) */
+  /** ring branch: 0 = left, 1 = right (path-mode mobs; default branch 0) */
   branch?: number;
-  /** distance travelled along lane in cells */
+  /**
+   * dual-board mode: fixed cell on the shared grid (y −1..−3 = enemy arena front..back).
+   * When set the mob never walks/leaks — it stands and fights.
+   */
+  cx?: number;
+  cy?: number;
+  /** distance travelled along lane in cells (path-mode mobs only) */
   progress: number;
   alive: boolean;
   /** bounty in gold */
@@ -91,8 +97,10 @@ export function mobCell(m: MobBattle, cells: Array<{ x: number; y: number }>): {
   return cells[i];
 }
 
-/** Cells of a mob's branch; fallback = shared array (no branch set). */
+/** Cells of a mob's branch; fallback = shared array (no branch set).
+ * Dual-board mobs (cx/cy set) stand on a single fixed cell. */
 export function cellsOf(m: MobBattle, fallback: Array<{ x: number; y: number }>): Array<{ x: number; y: number }> {
+  if (typeof m.cx === 'number' && typeof m.cy === 'number') return [{ x: m.cx, y: m.cy }];
   return typeof m.branch === 'number' ? Path.branchCells(m.branch) : fallback;
 }
 
@@ -104,6 +112,18 @@ export function mobPos(m: MobBattle, fallback: Array<{ x: number; y: number }>):
 /** Chebyshev-ish cell distance (max of dx,dy — grid-friendly). */
 export function cellDist(ax: number, ay: number, bx: number, by: number): number {
   return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
+}
+
+/**
+ * Distance across the dual-board gap: player rows y0..2, enemy rows y−1..−3.
+ * Cross-team pairs compress the 3-row offset: front-to-front (py2 ↔ ey−1) = 0.
+ * Same-team pairs (or both on enemy board) = plain cellDist.
+ */
+export function tdist(ax: number, ay: number, bx: number, by: number): number {
+  const dx = Math.abs(ax - bx);
+  if (ay >= 0 && by < 0) return Math.max(dx, (2 - ay) + (-1 - by));
+  if (ay < 0 && by >= 0) return Math.max(dx, (2 - by) + (-1 - ay));
+  return cellDist(ax, ay, bx, by);
 }
 
 /** Damage multiplier: move type vs mob types, softened. Returns 1 if no move type. */
@@ -242,17 +262,19 @@ export function tick(
         const c = mobPos(m, cells);
         for (const u of units) {
           if (!u.alive) continue;
-          if (cellDist(c.x, c.y, u.x, u.y) <= 3) u.roarT = 3;
+          if (tdist(u.x, u.y, c.x, c.y) <= 3) u.roarT = 3;
         }
       }
     }
 
-    // move (slow status unless immune)
-    const spdMul = m.slowImmune ? 1 : 1 - slowAmt;
-    m.progress += m.spd * spdMul * dt;
-    if (m.progress >= cellsOf(m, cells).length - 1) {
-      m.alive = false;
-      leaks.push(m);
+    // move (slow status unless immune) — dual-board mobs (cx set) stand still
+    if (m.cx == null) {
+      const spdMul = m.slowImmune ? 1 : 1 - slowAmt;
+      m.progress += m.spd * spdMul * dt;
+      if (m.progress >= cellsOf(m, cells).length - 1) {
+        m.alive = false;
+        leaks.push(m);
+      }
     }
   }
 
@@ -262,16 +284,18 @@ export function tick(
     if (u.disabledT > 0) continue;
     u.cd -= dt;
     if (u.cd > 0) continue;
-    // frontmost alive mob in range (terdepan = max progress toward base; tie → nearest)
+    // frontmost alive mob in range: max progress (path) or front row (dual-board)
     const range = u.range + ((mods as any).rangeAdd || 0);
     let best: MobBattle | null = null, bestP = -Infinity, bestD = Infinity;
     for (const m of mobs) {
       if (!m.alive) continue;
       const c = mobPos(m, cells);
-      const d = cellDist(u.x, u.y, c.x, c.y);
+      const d = tdist(u.x, u.y, c.x, c.y);
       if (d > range) continue;
-      if (!best || m.progress > bestP || (m.progress === bestP && d < bestD)) {
-        bestP = m.progress; bestD = d; best = m;
+      // frontness: path mobs by progress; board mobs by row (cy −1 front → rank 2, −3 back → 0)
+      const p = m.cx != null ? 3 + (m.cy as number) : m.progress;
+      if (!best || p > bestP || (p === bestP && d < bestD)) {
+        bestP = p; bestD = d; best = m;
       }
     }
     if (!best) { /* idle: keep cd at 0 so first in-range shot is instant */ u.cd = 0; continue; }
@@ -354,7 +378,7 @@ export function over(mobs: MobBattle[]): boolean {
   return mobs.every((m) => !m.alive);
 }
 
-const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, typeMult, addBurn, addSlow, addStun, applyDamage };
+const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, tdist, typeMult, addBurn, addSlow, addStun, applyDamage };
 register('UnitAI', UnitAI);
 export { UnitAI };
 export default UnitAI;

@@ -1,4 +1,4 @@
-/* P12 board tests: placement (3x3 rocks), bench (2), merge stars */
+/* P18 dual-board: placement (3x3 rocks, no bench), board-cap, merge stars */
 import { describe, it, expect, beforeAll } from 'vitest';
 
 let Board: any, Path: any;
@@ -12,7 +12,7 @@ beforeAll(async () => {
 
 const st = () => ({ units: [] as any[] });
 
-/** push unit directly (bypasses bench capacity — for merge tests) */
+/** push unit directly (bypasses board capacity — for merge tests) */
 function push(s: any, over: any = {}): any {
   const u = { dex: 25, star: 1, x: null, y: null, bench: null, ...over };
   s.units.push(u);
@@ -20,21 +20,24 @@ function push(s: any, over: any = {}): any {
 }
 
 describe('board placement', () => {
-  it('add → bench slot 0; second → slot 1', () => {
+  it('add → first free cell (0,0); second → (1,0); no bench', () => {
     const s = st();
     const a = Board.add(s, 25);
     const b = Board.add(s, 1);
-    expect(a.bench).toBe(0);
-    expect(b.bench).toBe(1);
-    expect(a.x).toBeNull();
+    expect(a.x).toBe(0);
+    expect(a.y).toBe(0);
+    expect(a.bench).toBeNull();
+    expect(b.x).toBe(1);
+    expect(b.y).toBe(0);
+    expect(b.bench).toBeNull();
     expect(s.units).toHaveLength(2);
   });
 
-  it('bench full at 2', () => {
+  it('refuse when board cap reached (level 8 → 5 units)', () => {
     const s = st();
-    expect(Board.add(s, 1)).not.toBeNull();
-    expect(Board.add(s, 1)).not.toBeNull();
+    for (let i = 0; i < 5; i++) expect(Board.add(s, 1)).not.toBeNull();
     expect(Board.add(s, 1)).toBeNull();
+    expect(s.units).toHaveLength(5);
   });
 
   it('place on free rock cell succeeds; ring cell blocked', () => {
@@ -70,8 +73,9 @@ describe('board placement', () => {
 
   it('board cap by level: level 1 → 1 unit', () => {
     const s = st();
-    const a = Board.add(s, 25);
-    const b = Board.add(s, 1);
+    const a = { dex: 25, star: 1, x: null, y: null, bench: null };
+    const b = { dex: 1, star: 1, x: null, y: null, bench: null };
+    s.units.push(a, b); // off-board; place() enforces cap
     expect(Board.place(s, a, 1, 0, 1)).toBe(true);
     expect(Board.place(s, b, 2, 0, 1)).toBe(false); // cap 1
     expect(Board.place(s, b, 2, 0, 2)).toBe(true);  // cap 2
@@ -179,7 +183,7 @@ describe('placed (synergy view)', () => {
     const s = st();
     const a = Board.add(s, 4); // charmander fire
     Board.place(s, a, 1, 0, 8);
-    Board.add(s, 7); // bench — excluded
+    push(s, { dex: 7 }); // off-board — excluded
     const p = Board.placed(s);
     expect(p).toHaveLength(1);
     expect(p[0].dex).toBe(4);

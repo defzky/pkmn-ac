@@ -52,12 +52,12 @@ describe('teamMods', () => {
     expect(m.atkMul).toBeCloseTo(1.1, 5);
     expect(m.burnOnHit).toBeCloseTo(0.2, 5);
   });
-  it('bench units do NOT count', () => {
+  it('off-board units do NOT count', () => {
     const board = { units: [] };
     const DEX: any[] = (G as any).DEX;
     const f = DEX.filter((e: any) => !e.leg && (e.types || []).includes('fire')).slice(0, 2);
-    Board.add(board, f[0].dex, 1);
-    Board.add(board, f[1].dex, 1);
+    board.units.push({ dex: f[0].dex, star: 1, x: null, y: null, bench: null });
+    board.units.push({ dex: f[1].dex, star: 1, x: null, y: null, bench: null });
     const m = Team.teamMods(board);
     expect(m.atkMul).toBe(1);
   });
@@ -87,7 +87,7 @@ describe('spawnUnits', () => {
   it('only placed units, x/y carried', () => {
     const board = { units: [] };
     placeAt(board, 25, 0, 0);
-    Board.add(board, dexWithType('fire'), 1); // bench
+    board.units.push({ dex: dexWithType('fire'), star: 1, x: null, y: null, bench: null }); // off-board
     const units = Team.spawnUnits(board);
     expect(units.length).toBe(1);
     expect(units[0].x).toBe(0);

@@ -17,7 +17,7 @@ import { FX } from '../entities/fx';
 import { VFX } from '../entities/vfx';
 import { Tiles } from '../world/tiles';
 import { Board, type BoardState, type BoardUnit } from './board';
-import { Path } from './path';
+import { boardStats } from './unit-stats';
 import { Shop, type ShopState } from './shop';
 import { Synergy, type SynergyMods } from './synergy';
 import { Team } from './team';
@@ -63,28 +63,42 @@ function ensureDom(): HTMLElement {
   sec.id = 'scr-ac';
   sec.className = 'scr hidden';
   sec.innerHTML = `
-    <div class="ac-hud">
-      <span id="ac-hp">♥ <b>100/100</b></span>
-      <span id="ac-wave">Wave <b>1/20</b></span>
-      <span id="ac-phase">Prep</span>
-      <span id="ac-gold"><b>5</b> <span class="coin"></span></span>
-      <span class="ac-base"><i id="ac-base-hp" style="width:100%"></i></span>
-      <button id="ac-start" class="btn gold small">Start</button>
-      <button id="ac-pause-btn" class="btn ghost small" aria-label="Pause">II</button>
-      <button id="ac-close" class="btn ghost small">Exit</button>
-    </div>
-    <div class="ac-synbar" id="ac-syn"></div>
-    <div class="ac-mid">
-      <div class="ac-left">
-        <div class="ac-stage" id="ac-board"></div>
-        <div class="ac-bench" id="ac-bench"></div>
-        <div class="ac-shop" id="ac-shop"></div>
-        <div class="ac-btns">
-          <button id="ac-reroll" class="btn small" data-sfx="none">↻ 2 <span class="coin"></span></button>
-          <button id="ac-sell" class="btn small hidden">Sell ★</button>
-          <span class="kbd-hint ac-kbd">[1]–[3] buy · [R] reroll · [Esc] pause</span>
+    <div class="ac-app">
+      <div class="ac-topbar">
+        <button id="ac-pause-btn" class="ac-x" aria-label="Pause">II</button>
+        <button id="ac-close" class="ac-x" aria-label="Exit">✕</button>
+      </div>
+      <div class="ac-arenas" id="ac-arenas">
+        <div class="ac-arena foe" id="ac-arena-foe">
+          <span class="ac-round" id="ac-round">Round 1</span>
+          <div class="ac-foehud">
+            <span class="ac-heart red">♥ <b id="ac-foe-hp">20</b></span>
+            <span class="ac-cap" id="ac-foe-cap"></span>
+          </div>
+          <div class="ac-grid" id="ac-foe-grid"></div>
+        </div>
+        <div class="ac-power" id="ac-power">⚔️ 0</div>
+        <div class="ac-arena me" id="ac-arena-me">
+          <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
+          <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
+          <div class="ac-me-hud">
+            <span class="ac-heart blue">♥ <b id="ac-hp">45</b></span>
+            <span class="ac-cap" id="ac-p-cap"></span>
+          </div>
+          <div class="ac-grid" id="ac-me-grid"></div>
+        </div>
+        <canvas class="ac-fx" id="ac-fx"></canvas>
+      </div>
+      <div class="ac-synbar" id="ac-syn"></div>
+      <div class="ac-shoprow" id="ac-shop"></div>
+      <div class="ac-footer">
+        <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>
+        <div class="ac-readywrap">
+          <button id="ac-start" class="ac-ready">Ready</button>
+          <div class="ac-timer"><i id="ac-timer-fill"></i><span>⏳</span></div>
         </div>
       </div>
+      <div class="ac-kbd">[1]–[3] buy · [R] reroll · [Space] start · [Esc] pause</div>
     </div>
     <div class="ac-over hidden" id="ac-over"></div>
     <div class="ac-over hidden" id="ac-pause">
@@ -104,53 +118,59 @@ function ensureDom(): HTMLElement {
 
 // ---------------- rendering ----------------
 
-function phaseText(): string {
-  const r = st.run;
-  if (r.phase === 'prep') return `Prep ${Math.ceil(r.prepLeft)}s`;
-  if (r.phase === 'combat') return 'Combat!';
-  if (r.phase === 'buff') return 'Buff!';
-  if (r.phase === 'won') return 'Victory!';
-  return 'Defeat';
+let lastFoeCap = -1;
+let lastPCap = -1;
+
+function playerPower(): number {
+  let p = 0;
+  for (const u of st.board.units) {
+    if (u.x === null) continue;
+    const s = boardStats(u.dex, u.star);
+    if (s) p += s.atk + Math.round(s.hp / 20);
+  }
+  return p;
+}
+
+function setCap(id: string, dex: number | null, last: number): number {
+  const box = $(id);
+  if (dex === last) return last;
+  box.innerHTML = '';
+  if (dex != null && dex > 0) box.appendChild(UI.spriteCanvas(dex, 32, 32, { scale: 2 }));
+  return dex ?? -1;
 }
 
 function renderHud(): void {
   const r = st.run;
-  $('ac-wave').innerHTML = `Wave <b>${r.wave}/${WaveDef.MAX_WAVE}</b>`;
-  $('ac-phase').textContent = phaseText();
-  $('ac-gold').innerHTML = `<b>${r.gold}</b> <span class="coin"></span>`;
-  $('ac-hp').innerHTML = `♥ <b>${r.base.hp}/${r.base.maxHp}</b>`;
-  $('ac-base-hp').style.width = Math.max(0, (r.base.hp / r.base.maxHp) * 100) + '%';
-  $('ac-start').classList.toggle('hidden', r.phase !== 'prep');
+  $('ac-round').textContent = `Round ${r.wave}`;
+  $('ac-foe-hp').textContent = String(r.foe.hp);
+  $('ac-hp').innerHTML = `♥ <b>${r.base.hp}</b>`;
+  $('ac-gold').innerHTML = `☀️ <b>${r.gold}</b>`;
+  $('ac-power').innerHTML = `⚔️ ${playerPower()}`;
+  // prep timer bar
+  const tf = $('ac-timer-fill');
+  const pct = r.phase === 'prep' ? Math.max(0, Math.min(100, (r.prepLeft / WaveRunner.PREP_SECONDS) * 100)) : 0;
+  tf.style.width = pct + '%';
+  // Ready button state
+  const btn = $('ac-start') as HTMLButtonElement;
+  if (r.phase === 'prep') { btn.textContent = 'Ready'; btn.disabled = false; btn.classList.remove('fighting'); }
+  else if (r.phase === 'combat') { btn.textContent = 'Fighting…'; btn.disabled = true; btn.classList.add('fighting'); }
+  // avatars: first player unit / first enemy
+  const fu = st.board.units.find((u) => u.x !== null);
+  lastPCap = setCap('ac-p-cap', fu ? fu.dex : null, lastPCap);
+  const fe = st.run.mobs.find((m) => m.alive) || null;
+  lastFoeCap = setCap('ac-foe-cap', fe ? fe.dex : null, lastFoeCap);
 }
 
 function unitAt(x: number, y: number): BoardUnit | null {
   return st.board.units.find((u) => u.x === x && u.y === y) || null;
 }
 
-// ---------------- stage: path ring + 3x3 rocks + mob walkers ----------------
-
-/** dir row facing east (right) — mobs walk left→right along the ring */
-const WALK_DIR = Sprites.dirFromAngle(0);
-
-interface Walker {
-  root: HTMLElement;
-  fill: HTMLElement;
-  shBox: HTMLElement;
-  shFill: HTMLElement;
-  ico: HTMLElement;
-  key: string;
-  /** stage canvas (hurt flash) + last hp seen (hit detection) */
-  cv: HTMLCanvasElement;
-  lastHp: number;
-}
-const walkers = new Map<MobBattle, Walker>();
+// ---------------- dual arenas: enemy grid (top) + player grid (bottom) ----------------
 
 /** placed unit cell → stage sprite canvas (Attack flourish target) */
 const unitCv = new Map<string, HTMLCanvasElement>();
 
-// ---------------- stage fx (dungeon combat resources: VFX projectiles + FX particles) ----------------
-/** art-px canvas over the stage (80×80 = 5×Tiles.T); null until renderStage */
-let fxCanvas: HTMLCanvasElement | null = null;
+// ---- combat fx canvas (dungeon VFX/FX) stretched over both arenas ----
 /** jsdom (tests) has no 2d context → skip pixel painting there */
 const CTX_OK = (() => { try { return !!document.createElement('canvas').getContext('2d'); } catch { return false; } })();
 interface AcProj {
@@ -164,196 +184,137 @@ interface AcImpact {
 }
 const acProjs: AcProj[] = [];
 const acImpacts: AcImpact[] = [];
-/** cell index → art px center (same domain as Tiles paint: tile = 16 art px) */
-const cellA = (v: number): number => (v + 1.5) * Tiles.T;
 /** move kinds that fly a dungeon VFX projectile (others: slash / beam / flourish) */
 const PROJ_KINDS = new Set(['projectile', 'chain', 'cone', 'boomerang', 'meteor', 'mine', 'orbit']);
+let fxCanvas: HTMLCanvasElement | null = null;
 
-function clearWalkers(): void {
-  for (const w of walkers.values()) w.root.remove();
-  walkers.clear();
+/** global cell (enemy y −1..−3, player y 0..2) → art px on the 3×7 fx canvas:
+ *  enemy rows 0..2, gap row 3, player rows 4..6. */
+function mfx(x: number, y: number): { x: number; y: number } {
+  const row = y < 0 ? -y - 1 : 4 + y;
+  return { x: (x + 0.5) * Tiles.T, y: (row + 0.5) * Tiles.T };
 }
 
-function statusKey(m: MobBattle): string {
-  let s = '';
-  const sts = m.statuses || [];
-  if (sts.some((x) => x.type === 'burn')) s += '🔥';
-  if (sts.some((x) => x.type === 'poison')) s += '☠️';
-  if (sts.some((x) => x.type === 'slow')) s += '❄️';
-  if (sts.some((x) => x.type === 'stun')) s += '⚡';
-  if (m.barrier > 0) s += '🛡';
-  if (m.restT > 0) s += '💤';
-  return s;
+/** star + attack pill above a unit head (both arenas) */
+function pill(star: number, atk: number): string {
+  return `<span class="ac-pill"><b>${'★'.repeat(Math.max(1, star))}</b><i>⚔️ ${Math.round(atk)}</i></span>`;
 }
 
-function createWalker(m: MobBattle): Walker {
-  const box = $('ac-mobs');
-  const root = document.createElement('div');
-  root.className = 'ac-walk' + (m.boss ? ' boss' : '');
-  const cv = UI.spriteCanvas(m.dex, 44, 44, { scale: 2, anim: 'Walk', dir: WALK_DIR, shadow: true });
-  root.appendChild(cv);
-  root.insertAdjacentHTML('beforeend',
-    `<span class="whp"><i></i></span><span class="wsh"><i></i></span><span class="wico"></span>`);
-  box.appendChild(root);
-  return {
-    root,
-    fill: root.querySelector('.whp i') as HTMLElement,
-    shBox: root.querySelector('.wsh') as HTMLElement,
-    shFill: root.querySelector('.wsh i') as HTMLElement,
-    ico: root.querySelector('.wico') as HTMLElement,
-    key: '',
-    cv,
-    lastHp: m.hp,
-  };
-}
-
-/** Sync walker sprites with run.mobs: spawn, position (progress → px), bars, cleanup. */
-function syncWalkers(): void {
-  const box = document.getElementById('ac-mobs');
-  if (!box) return;
-  const alive = new Set<MobBattle>();
-  if (st.run.phase === 'combat') {
-    const cellW = box.clientWidth / 5, cellH = box.clientHeight / 5;
-    for (const m of st.run.mobs) {
-      if (!m.alive) continue;
-      alive.add(m);
-      let w = walkers.get(m);
-      if (!w) { w = createWalker(m); walkers.set(m, w); }
-      const cells = Path.branchCells(typeof m.branch === 'number' ? m.branch : 0);
-      const maxI = cells.length - 1;
-      const i = Math.min(maxI - 1, Math.max(0, Math.floor(m.progress)));
-      const t = Math.min(1, Math.max(0, m.progress - i));
-      const a = cells[i], b = cells[Math.min(maxI, i + 1)];
-      const gx = a.x + (b.x - a.x) * t, gy = a.y + (b.y - a.y) * t;
-      const px = (gx + 1.5) * cellW, py = (gy + 1.5) * cellH;
-      w.root.style.transform = `translate3d(${px.toFixed(1)}px,${py.toFixed(1)}px,0)`;
-      w.fill.style.width = Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%';
-      const shPct = m.shield > 0 ? Math.min(100, (m.shield / Math.max(1, m.maxHp)) * 100) : 0;
-      w.shBox.classList.toggle('on', shPct > 0);
-      if (shPct > 0) w.shFill.style.width = shPct + '%';
-      const key = statusKey(m);
-      if (key !== w.key) { w.key = key; w.ico.textContent = key; }
-      // hurt flash when hp dropped since last sync (dungeon-style hit feedback)
-      if (m.hp < w.lastHp) {
-        w.cv.classList.remove('hurt');
-        void w.cv.offsetWidth; // reflow → restart animation
-        w.cv.classList.add('hurt');
-      }
-      w.lastHp = m.hp;
-    }
-  }
-  for (const [m, w] of walkers) {
-    if (!alive.has(m)) {
-      // death burst at last walker cell (dungeon FX)
-      if (st.run.phase === 'combat') {
-        const cells = Path.branchCells(typeof m.branch === 'number' ? m.branch : 0);
-        const maxI = cells.length - 1;
-        const i = Math.min(maxI - 1, Math.max(0, Math.floor(m.progress)));
-        const t = Math.min(1, Math.max(0, m.progress - i));
-        const a = cells[i], b = cells[Math.min(maxI, i + 1)];
-        const gx = a.x + (b.x - a.x) * t, gy = a.y + (b.y - a.y) * t;
-        FX.burst(cellA(gx), cellA(gy), (U as any).TYPE_COLOR[m.types?.[0]] || '#fff', 9, 130);
-      }
-      w.root.remove(); walkers.delete(m);
-    }
-  }
+/** 2 special buff tiles per round (deterministic from wave) */
+function buffCells(wave: number): Set<string> {
+  const a = Math.floor(U.hash(0, 0, wave * 97 + 1) * 9);
+  const b = (a + 4 + Math.floor(U.hash(1, 2, wave * 31 + 7) * 4)) % 9;
+  return new Set([`${a % 3},${Math.floor(a / 3)}`, `${b % 3},${Math.floor(b / 3)}`]);
 }
 
 function renderStage(): void {
-  clearWalkers();
   unitCv.clear();
   acProjs.length = 0;
   acImpacts.length = 0;
   FX.clear();
-  const box = $('ac-board');
-  box.innerHTML = '';
-  // dungeon-world terrain: autotiled floor ring + rock platform (Tiles.paintChunk)
-  const N = Path.W + 2; // 5×5 grid
-  const tc = document.createElement('canvas');
-  tc.className = 'ac-tiles';
-  tc.width = N * Tiles.T; tc.height = N * Tiles.T;
-  if (CTX_OK) {
-    const tg = tc.getContext('2d');
-    if (tg) {
-      tg.imageSmoothingEnabled = false;
-      const at = (tx: number, ty: number) =>
-        tx >= 1 && tx <= 3 && ty >= 1 && ty <= 3 ? 'wall' : 'floor';
-      tg.drawImage(Tiles.paintChunk(0, 0, N, at, () => 0.5, 0, 1337), 0, 0);
-    }
-  }
-  box.appendChild(tc);
-  // ring: 16 unique cells across both branches
-  const seen = new Set<string>();
-  for (const branch of [0, 1]) {
-    for (const c of Path.branchCells(branch)) {
-      const k = c.x + ',' + c.y;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      const n = document.createElement('div');
-      n.className = 'ac-path-node';
-      n.dataset.xy = k;
-      n.style.gridColumn = String(c.x + 2);
-      n.style.gridRow = String(c.y + 2);
-      if (c.x === Path.SPAWN.x && c.y === Path.SPAWN.y) { n.classList.add('spawn'); n.textContent = 'SPAWN'; }
-      else if (c.x === Path.BASE.x && c.y === Path.BASE.y) { n.classList.add('base'); n.textContent = 'BASE'; }
-      else if (CTX_OK && U.hash(c.x, c.y, 7) < 0.4) {
-        // dungeon grass tuft prop on the path (visual only)
-        const gr = Tiles.propSprite(0, 'grass', Math.floor(U.hash(c.x, c.y, 8) * 3));
-        gr.className = 'ac-prop';
-        n.appendChild(gr);
+  const meBox = $('ac-me-grid');
+  const foeBox = $('ac-foe-grid');
+  meBox.innerHTML = '';
+  foeBox.innerHTML = '';
+
+  // enemy arena: prep = ghost preview of next round, combat = live handled by syncEnemies
+  const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunner.MAX_FIELD);
+  preview.forEach((spec, i) => {
+    const slot = WaveRunner.FOE_SLOTS[i];
+    const cell = document.createElement('div');
+    cell.className = 'ac-cell ghost';
+    cell.dataset.xy = slot.x + ',' + slot.y;
+    cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+    cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
+    foeBox.appendChild(cell);
+  });
+  // fill empty foe cells (keep grid shape)
+  if (foeBox.children.length < 9) {
+    foeBox.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const slot = WaveRunner.FOE_SLOTS[i];
+      const cell = document.createElement('div');
+      cell.className = 'ac-cell';
+      cell.dataset.xy = slot.x + ',' + slot.y;
+      const spec = preview[i];
+      if (spec) {
+        cell.classList.add('ghost');
+        cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+        cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
       }
-      box.appendChild(n);
+      foeBox.appendChild(cell);
     }
   }
-  // rocks: 3x3 placement grid
-  const rocks = document.createElement('div');
-  rocks.className = 'ac-rocks';
-  for (let y = 0; y < Path.H; y++) {
-    for (let x = 0; x < Path.W; x++) {
+
+  // player arena 3×3
+  const buffs = buffCells(st.run.wave);
+  for (let y = 0; y < 3; y++) {
+    for (let x = 0; x < 3; x++) {
       const cell = document.createElement('div');
       cell.className = 'ac-cell';
       cell.dataset.xy = x + ',' + y;
+      if (buffs.has(x + ',' + y)) cell.classList.add('buff');
       const u = unitAt(x, y);
       if (u) {
         if (st.sel === u) cell.classList.add('sel');
         const cv = UI.spriteCanvas(u.dex, 44, 44, { scale: 2, lively: true });
         cell.appendChild(cv);
         unitCv.set(x + ',' + y, cv);
-        if (u.star > 1) cell.insertAdjacentHTML('beforeend', `<span class="st">${'★'.repeat(u.star)}</span>`);
-        cell.insertAdjacentHTML('beforeend', `<span class="hp"><i style="width:100%"></i></span>`);
+        const st2 = boardStats(u.dex, u.star);
+        cell.insertAdjacentHTML('beforeend', pill(u.star, st2 ? st2.atk : 0) + `<span class="hp"><i style="width:100%"></i></span>`);
       }
       cell.onclick = () => onCell(x, y);
-      rocks.appendChild(cell);
+      meBox.appendChild(cell);
     }
   }
-  box.appendChild(rocks);
-  // walker layer (mobs)
-  const mobLayer = document.createElement('div');
-  mobLayer.className = 'ac-mobs';
-  mobLayer.id = 'ac-mobs';
-  box.appendChild(mobLayer);
-  // fx overlay: dungeon projectiles/particles (art-px canvas, CSS-upscaled)
-  const fc = document.createElement('canvas');
-  fc.className = 'ac-fx';
-  fc.width = N * Tiles.T; fc.height = N * Tiles.T;
-  box.appendChild(fc);
+
+  // fx overlay: stretched art-px canvas (3 cols × 7 rows) over both arenas
+  const fc = $('ac-fx') as HTMLCanvasElement;
+  fc.width = 3 * Tiles.T;
+  fc.height = 7 * Tiles.T;
   fxCanvas = fc;
 }
 
-function renderBench(): void {
-  const box = $('ac-bench');
-  box.innerHTML = '';
-  for (let i = 0; i < Board.BENCH_SIZE; i++) {
-    const slot = document.createElement('div');
-    slot.className = 'ac-slot';
-    const u = st.board.units.find((x) => x.bench === i) || null;
-    if (u) {
-      if (st.sel === u) slot.classList.add('sel');
-      slot.appendChild(UI.spriteCanvas(u.dex, 40, 40, { scale: 2, lively: true }));
-      if (u.star > 1) slot.insertAdjacentHTML('beforeend', `<span class="st">${'★'.repeat(u.star)}</span>`);
-      slot.onclick = () => onBench(i);
+/** sync enemy sprites into foe-grid cells (spawn / hp / death) each combat frame */
+const foeLastHp = new Map<MobBattle, number>();
+function syncEnemies(): void {
+  const box = document.getElementById('ac-foe-grid');
+  if (!box) return;
+  const seen = new Set<MobBattle>();
+  if (st.run.phase === 'combat') {
+    for (const m of st.run.mobs) {
+      if (!m.alive) continue;
+      seen.add(m);
+      const cell = box.querySelector(`[data-xy="${m.cx},${m.cy}"]`) as HTMLElement | null;
+      if (!cell) continue;
+      cell.classList.remove('ghost');
+      if (!cell.querySelector('canvas')) {
+        cell.innerHTML = '';
+        cell.appendChild(UI.spriteCanvas(m.dex, 44, 44, { scale: 2, lively: true }));
+        cell.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
+        if (m.boss) cell.classList.add('boss');
+      }
+      const fill = cell.querySelector('.hp i') as HTMLElement | null;
+      if (fill) fill.style.width = Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%';
+      const prev = foeLastHp.get(m) ?? m.hp;
+      if (m.hp < prev) {
+        const cv = cell.querySelector('canvas');
+        if (cv) { cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt'); }
+      }
+      foeLastHp.set(m, m.hp);
     }
-    box.appendChild(slot);
+  }
+  // death: clear cells whose mob is gone (burst at cell)
+  for (const cell of box.querySelectorAll<HTMLElement>('.ac-cell')) {
+    if (!cell.querySelector('canvas')) continue;
+    const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
+    const m = st.run.mobs.find((mm) => mm.cx === x && mm.cy === y && seen.has(mm));
+    if (!m) {
+      const a = mfx(x, y);
+      FX.burst(a.x, a.y - LIFT, '#fff', 8, 120);
+      cell.innerHTML = '';
+      cell.classList.remove('boss', 'ghost');
+    }
   }
 }
 
@@ -362,27 +323,25 @@ function renderShop(): void {
   box.innerHTML = '';
   st.shop.slots.forEach((slot, i) => {
     const card = document.createElement('div');
-    if (!slot) { card.className = 'ac-card'; box.appendChild(card); return; }
+    if (!slot) { card.className = 'ac-card empty'; box.appendChild(card); return; }
     const cost = Shop.slotCost(slot);
     card.className = 'ac-card' + (st.run.gold < cost ? ' off' : '');
     card.dataset.sfx = 'none'; // buy/error played explicitly in onBuy
-    card.appendChild(UI.spriteCanvas(slot.dex, 40, 40, { scale: 2, lively: true }));
+    const bs = boardStats(slot.dex, slot.star);
     const e = ((G as any).DEX_BY || {})[slot.dex] || {};
-    card.insertAdjacentHTML(
-      'beforeend',
-      `<span class="cost">${cost} <span class="coin"></span></span><span>${esc(e.name || '?')}</span>` +
-      `<span class="st">${'★'.repeat(slot.star)}</span>`
-    );
+    card.innerHTML =
+      `<span class="ac-cost">${cost}</span>` +
+      `<span class="ac-cardname">${esc(e.name || '?')}</span>` +
+      `<span class="ac-strip">⚔️ ${bs ? bs.atk : '?'}</span>` +
+      (slot.star > 1 ? `<span class="st">${'★'.repeat(slot.star)}</span>` : '');
+    const spr = document.createElement('span');
+    spr.className = 'ac-sprite';
+    spr.appendChild(UI.spriteCanvas(slot.dex, 48, 48, { scale: 2, lively: true }));
+    card.insertBefore(spr, card.querySelector('.ac-strip'));
     card.onclick = () => { if (dragClick) { dragClick = false; return; } onBuy(i); };
     card.addEventListener('pointerdown', (ev) => startDrag(i, ev));
     box.appendChild(card);
   });
-  const rr = document.createElement('button');
-  rr.className = 'ac-card reroll';
-  rr.dataset.sfx = 'none'; // buy/error played explicitly in onReroll
-  rr.innerHTML = `↻<br>2 <span class="coin"></span>`;
-  rr.onclick = () => onReroll();
-  box.appendChild(rr);
 }
 
 // ---------------- drag & drop buy (pointer) ----------------
@@ -469,10 +428,9 @@ function renderSyn(): void {
 function renderAll(): void {
   renderHud();
   renderStage();
-  renderBench();
   renderShop();
   renderSyn();
-  $('ac-sell').classList.toggle('hidden', !st.sel);
+  $('ac-sell').classList.toggle('off', !st.sel);
 }
 
 // ---------------- interactions ----------------
@@ -496,25 +454,12 @@ function onCell(x: number, y: number): void {
   }
 }
 
-function onBench(i: number): void {
-  const u = st.board.units.find((x) => x.bench === i);
-  if (!u) return;
-  if (st.sel && st.sel !== u && st.sel.x !== null) {
-    // recall selected board unit → swap into bench
-    Board.toBench(st.board, st.sel);
-    st.sel = u;
-  } else {
-    st.sel = st.sel === u ? null : u;
-  }
-  afterBoardChange();
-}
-
 /** Buy champion i. Returns Shop.buy result (drag-drop drop handler checks ok/merged). */
 function onBuy(i: number) {
   const r = Shop.buy(st.shop, i, st.board, st.run.gold);
   if (!r.ok) {
     Audio.sfx('error', undefined);
-    UI.toast('Not enough gold or bench full');
+    UI.toast('Not enough gold or board full');
     return r;
   }
   st.run.gold = r.gold;
@@ -552,6 +497,12 @@ function afterBoardChange(): void {
 }
 
 function onStart(): void {
+  if (st.run.phase !== 'prep') return;
+  if (!st.board.units.some((u) => u.x !== null)) {
+    UI.toast('Place units first');
+    Audio.sfx('error', undefined);
+    return;
+  }
   WaveRunner.forceStart(st.run);
   enterCombat();
 }
@@ -668,7 +619,7 @@ function loop(ts: number): void {
         renderAll();
       }
     }
-    if (after === 'combat') { renderHud(); syncWalkers(); playSwings(); stepFx(dt); updateCombatBars(); }
+    if (after === 'combat') { syncEnemies(); renderHud(); playSwings(); stepFx(dt); updateCombatBars(); }
     else if (after === 'prep') renderHud();
   } else if (r.phase === 'won') {
     renderAll();
@@ -700,14 +651,32 @@ function offerBuff(): void {
   });
 }
 
-/** Fire pending unit move flourishes (flag set by unitAI on each attack = anim name). */
+/** Dungeon SFX alias table (player.cast SND): newer move kinds sound like their classic cousin. */
+const SHOT_SND: Record<string, string> = {
+  boomerang: 'projectile', chain: 'beam', mine: 'nova', meteor: 'nova',
+  turret: 'buff', dash: 'melee', trail: 'aura', cone: 'projectile',
+};
+
+/** Fire pending unit move flourishes (flag set by unitAI on each attack = anim name).
+ * Dungeon resources: Sprites.Animator one-shot (Attack/Shoot/Charge) + player.cast
+ * adaptive speed (animLen / atkCd) + shot sfx by move kind/type. */
 function playSwings(): void {
   for (const b of st.units) {
     const anim = b.swing;
     if (!anim) continue;
     b.swing = undefined;
     const cv = unitCv.get(b.x + ',' + b.y);
-    if (cv) UI.spriteHit(cv, anim, b.face);
+    const move = (b as any).move || '';
+    const M = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move] ?? null) : null;
+    const kind: string = M?.kind || 'melee';
+    if (cv) {
+      // dungeon player.cast(): pace anim to cooldown so fast atks chain, slow atks linger
+      const meta = Sprites.animMeta(String(b.dex), anim);
+      const len = meta ? meta.d.reduce((a: number, c: number) => a + c, 0) / 60 : 0.4;
+      const cd = Math.max(0.12, b.atkCd || 0.5);
+      UI.spriteHit(cv, anim, b.face, Math.max(1, len / (cd * 0.9)));
+    }
+    if (kind !== 'trail') Audio.sfx('shot', { kind: (SHOT_SND as any)[kind] || kind, type: M?.type || 'normal' });
     spawnMoveFx(b);
   }
 }
@@ -723,8 +692,9 @@ function spawnMoveFx(b: UnitBattle): void {
   const type: string = M?.type || 'normal';
   const v: any = M ? VFX.forMove(M) : VFX.forType(type);
   const col = ((U as any).TYPE_COLOR[type] || '#fff') as string;
-  const fx0 = cellA(b.x), fy0 = cellA(b.y) - LIFT;
-  const hx = cellA(hit.x), hy = cellA(hit.y) - LIFT * 0.5;
+  const f0 = mfx(b.x, b.y), h0 = mfx(hit.x, hit.y);
+  const fx0 = f0.x, fy0 = f0.y - LIFT;
+  const hx = h0.x, hy = h0.y - LIFT * 0.5;
   const dx = hx - fx0, dy = hy - fy0;
   const dist = Math.hypot(dx, dy) || 1;
   const ang = Math.atan2(dy, dx);
@@ -799,17 +769,21 @@ function stepFx(dt: number): void {
 }
 
 function updateCombatBars(): void {
-  // unit hp fills
-  const cells = $('ac-board').querySelectorAll('.ac-cell');
-  for (const cell of cells) {
-    const xy = (cell as HTMLElement).dataset.xy!;
-    const [x, y] = xy.split(',').map(Number);
-    const u = unitAt(x, y);
-    if (!u) continue;
-    const fill = cell.querySelector('.hp i') as HTMLElement;
+  // player unit hp fills
+  for (const cell of document.querySelectorAll<HTMLElement>('#ac-me-grid .ac-cell')) {
+    const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
+    const fill = cell.querySelector('.hp i') as HTMLElement | null;
     if (!fill) continue;
     const b = st.units.find((bu) => bu.x === x && bu.y === y && bu.alive);
     fill.style.width = b ? Math.max(0, (b.hpCur / b.hp) * 100) + '%' : '0%';
+  }
+  // enemy hp fills (sprites synced by syncEnemies)
+  for (const cell of document.querySelectorAll<HTMLElement>('#ac-foe-grid .ac-cell')) {
+    const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
+    const fill = cell.querySelector('.hp i') as HTMLElement | null;
+    if (!fill) continue;
+    const m = st.run.mobs.find((mm) => mm.cx === x && mm.cy === y && mm.alive);
+    fill.style.width = m ? Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%' : '0%';
   }
   renderHud();
 }
@@ -863,9 +837,10 @@ function close(): void {
 }
 
 const ACUI = {
-  open, close, reset, syncWalkers,
+  open, close, reset, syncEnemies,
   step: loop, // exported for tests: call manually (rAF stubbed)
   get run() { return st.run; }, get board() { return st.board; }, get shop() { return st.shop; },
+  get units() { return st.units; },
 };
 register('AutochessUI', ACUI);
 export { ACUI };

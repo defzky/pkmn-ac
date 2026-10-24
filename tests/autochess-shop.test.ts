@@ -76,7 +76,7 @@ describe('createShop', () => {
 });
 
 describe('buy / gold clamp', () => {
-  it('deducts champion cost, slot consumed, unit on bench', () => {
+  it('deducts champion cost, slot consumed, unit placed on board (no bench)', () => {
     const shop = Shop.createShop(1);
     const board = { units: [] };
     const idx = shop.slots.findIndex((s: any) => s);
@@ -87,7 +87,9 @@ describe('buy / gold clamp', () => {
     expect(r.gold).toBe(100 - cost);
     expect(shop.slots[idx]).toBeNull();
     expect(board.units.length).toBe(1);
-    expect(board.units[0].bench).not.toBeNull();
+    expect(board.units[0].bench).toBeNull();
+    expect(board.units[0].x).not.toBeNull();
+    expect(board.units[0].y).not.toBeNull();
   });
   it('insufficient gold → refuse, slot kept', () => {
     const shop = Shop.createShop(1);
@@ -100,10 +102,11 @@ describe('buy / gold clamp', () => {
     expect(r.gold).toBe(1);
     expect(shop.slots[0]).not.toBeNull();
   });
-  it('bench full → refuse, gold untouched', () => {
+  it('board full → refuse, gold untouched', () => {
     const shop = Shop.createShop(1);
     const board = { units: [] };
-    for (let i = 0; i < 2; i++) board.units.push({ dex: 999 + i, star: 1, x: null, y: null, bench: i });
+    // fill board to cap (level 8 → 5 on-board units)
+    for (let i = 0; i < 5; i++) board.units.push({ dex: 999 + i, star: 1, x: i % 3, y: Math.floor(i / 3), bench: null });
     const idx = shop.slots.findIndex((s: any) => s);
     const r = Shop.buy(shop, idx, board, 100);
     expect(r.ok).toBe(false);
@@ -112,7 +115,7 @@ describe('buy / gold clamp', () => {
 });
 
 describe('merge-2 stars', () => {
-  it('2 same dex (bench) → 2★ immediately', () => {
+  it('2 same dex (auto-placed on board) → 2★ immediately', () => {
     const board = { units: [] };
     Board.add(board, 25, 1);
     Board.add(board, 25, 1);
@@ -142,18 +145,18 @@ describe('merge-2 stars', () => {
 });
 
 describe('reroll', () => {
-  it('costs 2g', () => {
+  it('costs 1g', () => {
     const shop = Shop.createShop(1);
     const r = Shop.reroll(shop, 10, 1);
     expect(r.ok).toBe(true);
-    expect(r.gold).toBe(8);
+    expect(r.gold).toBe(9);
     expect(shop.slots.length).toBe(3);
   });
-  it('refuse below 2g', () => {
+  it('refuse below 1g', () => {
     const shop = Shop.createShop(1);
-    const r = Shop.reroll(shop, 1, 1);
+    const r = Shop.reroll(shop, 0, 1);
     expect(r.ok).toBe(false);
-    expect(r.gold).toBe(1);
+    expect(r.gold).toBe(0);
   });
 });
 

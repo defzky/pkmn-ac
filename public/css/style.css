@@ -882,22 +882,152 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     box-shadow: 0 -6px 10px rgba(5,10,25,.6); }
 }
 
-/* ============ autochess (scr-ac) ============ */
+/* ============ autochess (scr-ac) — portrait dual-board ============ */
 #scr-ac {
-  flex-direction: column; justify-content: flex-start; align-items: stretch;
-  gap: 6px; padding: 8px; text-shadow: none;
+  flex-direction: column; justify-content: flex-start; align-items: center;
+  gap: 0; padding: 0; text-shadow: none;
   background: radial-gradient(circle at 50% 30%, #12203f, #050914 75%);
   z-index: 60;
 }
-.ac-hud { display: flex; gap: 10px; align-items: center; font-size: 14px; flex-wrap: wrap; justify-content: center; }
-.ac-hud b { color: var(--gold); }
-.ac-hud .coin { width: 16px; height: 16px; vertical-align: -3px; }
-#ac-hp b { color: var(--red, #f66); }
-.ac-base { width: 140px; height: 12px; background: rgba(0,0,0,.45); border: 1px solid rgba(244,248,255,.25); border-radius: 6px; overflow: hidden; }
-.ac-base i { display: block; height: 100%; background: linear-gradient(var(--green), #2c8); transition: width .3s; }
 
-/* synergy bar (chips n/3 under top bar) */
-.ac-synbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+/* centered mobile portrait container */
+.ac-app {
+  width: 100%; max-width: 440px; height: 100vh; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; box-sizing: border-box;
+}
+
+/* top bar: pause / close */
+.ac-topbar { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.ac-topbar button {
+  background: rgba(0,0,0,.45); border: 1px solid rgba(244,248,255,.25); color: #e8ecf6;
+  border-radius: 8px; min-width: 40px; height: 30px; cursor: pointer; font-size: 14px;
+}
+.ac-topbar button:hover { border-color: var(--gold); }
+
+/* arenas stack (enemy top, player bottom) + fx overlay */
+.ac-arenas { position: relative; display: flex; flex-direction: column; gap: 10px; }
+
+/* walled stone arena (castle wall look) */
+.ac-arena {
+  position: relative; box-sizing: border-box;
+  padding: 10px;
+  background:
+    linear-gradient(180deg, rgba(58,52,48,.9), rgba(38,34,32,.9)),
+    repeating-linear-gradient(90deg, #4a4440 0 24px, #524c48 24px 26px);
+  border: 4px solid #5c554f;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 0 0 2px #2e2a28, inset 0 0 0 4px #6b645e,
+    0 6px 14px rgba(0,0,0,.55);
+}
+.ac-arena.me { border-color: #6b6350; }
+
+/* floating badges */
+.ac-round {
+  position: absolute; top: -10px; left: 10px; z-index: 6;
+  background: linear-gradient(180deg, #2a3145, #1a1f2e);
+  border: 1px solid rgba(244,248,255,.35); border-radius: 999px;
+  color: #e8ecf6; font-size: 12px; font-weight: bold; padding: 3px 10px;
+  box-shadow: 0 3px 8px rgba(0,0,0,.5);
+}
+.ac-goldsun {
+  position: absolute; bottom: 6px; left: 8px; z-index: 6;
+  background: rgba(10,14,22,.85); border: 1px solid var(--gold); border-radius: 999px;
+  color: #ffd465; font-size: 13px; font-weight: bold; padding: 3px 9px;
+  box-shadow: 0 3px 8px rgba(0,0,0,.5);
+}
+.ac-trash {
+  position: absolute; bottom: 6px; left: 88px; z-index: 6;
+  background: rgba(10,14,22,.85); border: 1px solid rgba(244,248,255,.3); border-radius: 8px;
+  color: #e8ecf6; font-size: 14px; width: 30px; height: 28px; cursor: pointer;
+}
+.ac-trash.off { opacity: .4; pointer-events: none; }
+
+/* overlapping right HUD card (heart + avatar) */
+.ac-foehud, .ac-me-hud {
+  position: absolute; top: -12px; right: 8px; z-index: 6;
+  display: flex; gap: 8px; align-items: center;
+  background: linear-gradient(180deg, #232a3c, #141928);
+  border: 1px solid rgba(244,248,255,.28); border-radius: 10px;
+  padding: 4px 8px; box-shadow: 0 4px 10px rgba(0,0,0,.55);
+}
+.ac-me-hud { top: auto; bottom: -12px; }
+.ac-heart { font-size: 18px; font-weight: bold; color: #e8ecf6; }
+.ac-heart.red { color: #ff5f6d; text-shadow: 0 0 8px rgba(255,95,109,.6); }
+.ac-heart.blue { color: #5fa8ff; text-shadow: 0 0 8px rgba(95,168,255,.6); }
+.ac-cap {
+  width: 34px; height: 34px; border-radius: 8px; overflow: hidden;
+  background: rgba(0,0,0,.35); border: 1px solid rgba(244,248,255,.2);
+  display: flex; align-items: center; justify-content: center;
+}
+.ac-cap canvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.ac-cap.empty { font-size: 15px; color: var(--muted); }
+
+/* center power divider badge */
+.ac-power {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6;
+  background: linear-gradient(180deg, #2a3145, #1a1f2e);
+  border: 2px solid var(--gold); border-radius: 999px;
+  color: var(--gold); font-size: 14px; font-weight: bold; padding: 4px 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.55); white-space: nowrap;
+}
+
+/* 3x3 grids */
+.ac-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 6px;
+  width: 100%; aspect-ratio: 1;
+}
+.ac-cell {
+  position: relative; border-radius: 8px; cursor: pointer;
+  background: linear-gradient(160deg, #5a5550, #3e3a36);
+  border: 1px solid rgba(0,0,0,.5);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35), 0 2px 4px rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center; transition: border-color .12s;
+}
+.ac-cell:hover { border-color: rgba(244,248,255,.5); }
+.ac-cell.sel { outline: 2px solid var(--gold); }
+/* special buff tiles — orange/gold glow */
+.ac-cell.buff {
+  background: linear-gradient(160deg, #8a5a22, #6a3f14);
+  box-shadow:
+    inset 0 1px 0 rgba(255,220,140,.35), inset 0 0 10px rgba(255,170,40,.45),
+    0 0 12px rgba(255,170,40,.55), 0 2px 4px rgba(0,0,0,.35);
+  border-color: rgba(255,190,70,.75);
+}
+.ac-cell canvas { max-width: 92%; max-height: 92%; image-rendering: pixelated; }
+/* ghost preview (enemy board during prep) */
+.ac-cell.ghost { opacity: .75; border-style: dashed; border-color: rgba(255,95,109,.55); }
+.ac-cell.ghost canvas { animation: ac-ghost 2.2s ease-in-out infinite; }
+@keyframes ac-ghost { 0%,100% { opacity: .65; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+.ac-cell canvas.hurt { animation: ac-hurt .18s; }
+@keyframes ac-hurt { 0% { filter: brightness(4) sepia(1) saturate(5) hue-rotate(-40deg); } 100% { filter: none; } }
+
+/* floating stat pill above unit head */
+.ac-pill {
+  position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 3;
+  display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+  background: rgba(8,10,16,.82); border: 1px solid rgba(244,248,255,.18); border-radius: 6px;
+  padding: 1px 4px; pointer-events: none; white-space: nowrap;
+}
+.ac-pill b { color: var(--gold); font-size: 10px; text-shadow: 0 1px 2px #000; }
+.ac-pill i { color: #dfe6f5; font-size: 9px; font-style: normal; }
+/* tiny hp bar under sprite */
+.ac-cell .hp {
+  position: absolute; left: 10%; right: 10%; bottom: 3px; height: 4px;
+  background: rgba(0,0,0,.6); border-radius: 2px; overflow: hidden;
+}
+.ac-cell .hp i { display: block; height: 100%; background: linear-gradient(#5f6, #2c8); transition: width .18s; }
+.ac-cell.boss { box-shadow: 0 0 10px rgba(255,95,109,.6); }
+.ac-cell.boss canvas { transform: scale(1.12); }
+
+/* dungeon fx overlay over both arenas */
+.ac-fx {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; z-index: 5; pointer-events: none;
+}
+
+/* synergy chips */
+.ac-synbar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; min-height: 18px; }
 .syn-chip {
   display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 7px;
   border: 1px solid rgba(244,248,255,.2); border-radius: 10px; background: rgba(0,0,0,.3);
@@ -907,104 +1037,82 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .syn-chip.t3 { color: var(--gold); border-color: rgba(255,210,63,.6); }
 .syn-chip.off { opacity: .55; }
 
-.ac-mid { flex: 1; display: flex; gap: 8px; min-height: 0; }
-.ac-left { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-
-/* stage 5x5: ring path (16 nodes) + rocks 3x3 + mob layer */
-.ac-stage {
-  position: relative; box-sizing: border-box;
-  display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); gap: 3px;
-  flex: 1; min-height: 0; aspect-ratio: 1; max-height: 100%; width: min(100%, 70vh); margin: 0 auto;
-  background: rgba(0,0,0,.35); border: 1px solid rgba(244,248,255,.15); border-radius: 8px; padding: 4px;
-}
-/* dungeon-world terrain backdrop (Tiles.paintChunk: floor ring + rock platform) */
-.ac-tiles {
-  position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
-  image-rendering: pixelated; z-index: 0; pointer-events: none;
-}
-/* dungeon fx overlay: projectiles, slashes, beams, damage numbers */
-.ac-fx {
-  position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
-  image-rendering: pixelated; z-index: 5; pointer-events: none;
-}
-.ac-path-node {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  background: rgba(255,210,63,.10); border: 1px dashed rgba(255,210,63,.35); border-radius: 5px;
-  font-size: 8px; color: rgba(255,210,63,.75); letter-spacing: .5px; pointer-events: none;
-}
-.ac-path-node .ac-prop {
-  position: absolute; left: 50%; bottom: 1px; transform: translateX(-50%);
-  width: 70%; height: auto; image-rendering: pixelated; opacity: .85;
-}
-.ac-path-node.spawn { background: rgba(120,220,140,.18); border-color: rgba(120,220,140,.5); color: #9fe8b0; }
-.ac-path-node.base { background: rgba(255,95,109,.18); border-color: rgba(255,95,109,.55); color: #ff9aa4; }
-.ac-rocks {
-  grid-area: 2 / 2 / 5 / 5; display: grid; position: relative; z-index: 2;
-  grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 3px;
-}
-.ac-cell {
-  position: relative; border-radius: 7px; cursor: pointer;
-  background: linear-gradient(155deg, rgba(96,106,124,.34), rgba(48,55,70,.4));
-  border: 1px solid rgba(0,0,0,.45); box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 2px 4px rgba(0,0,0,.35);
-  min-height: 40px; display: flex; align-items: center; justify-content: center; transition: border-color .12s;
-}
-.ac-cell:hover { border-color: rgba(244,248,255,.4); }
-.ac-cell.sel { outline: 2px solid var(--gold); }
-.ac-cell canvas { max-width: 92%; max-height: 92%; image-rendering: pixelated; }
-.ac-cell .st { position: absolute; top: 1px; right: 3px; font-size: 10px; color: var(--gold); text-shadow: 0 0 3px #000; }
-.ac-cell .hp { position: absolute; left: 8%; right: 8%; bottom: 2px; height: 3px; background: #411; border-radius: 2px; overflow: hidden; }
-.ac-cell .hp i { display: block; height: 100%; background: var(--green); }
-
-/* mob walkers (absolute sprites over the ring) */
-.ac-mobs { position: absolute; inset: 4px; pointer-events: none; overflow: visible; z-index: 3; }
-.ac-walk { position: absolute; left: 0; top: 0; width: 0; height: 0; }
-.ac-walk canvas { position: absolute; left: -22px; top: -40px; image-rendering: pixelated; }
-.ac-walk .whp {
-  position: absolute; left: -16px; top: -46px; width: 32px; height: 3px;
-  background: #411; border-radius: 2px; overflow: hidden;
-}
-.ac-walk .whp i { display: block; height: 100%; background: var(--green); }
-.ac-walk .wsh { display: none; }
-.ac-walk .wsh.on {
-  display: block; position: absolute; left: -16px; top: -51px; width: 32px; height: 3px;
-  background: #123; border-radius: 2px; overflow: hidden;
-}
-.ac-walk .wsh i { display: block; height: 100%; background: #7fd3ff; }
-.ac-walk .wico { position: absolute; left: -18px; top: -60px; font-size: 10px; white-space: nowrap; }
-.ac-walk.boss canvas { left: -26px; top: -50px; }
-.ac-walk.boss .whp { top: -58px; left: -20px; width: 40px; }
-.ac-walk.boss .wsh.on { top: -63px; left: -20px; width: 40px; }
-.ac-walk.boss .wico { top: -72px; }
-/* hurt flash on hit (dungeon-style feedback) */
-@keyframes ac-hurt { 0% { filter: brightness(4) sepia(1) saturate(5) hue-rotate(-40deg); } 100% { filter: none; } }
-.ac-walk canvas.hurt { animation: ac-hurt .18s; }
-
-/* synergy side column removed (bar lives under hud) */
-.ac-bench { display: grid; grid-template-columns: repeat(2, 72px); gap: 6px; justify-content: start; }
-.ac-slot {
-  position: relative; background: rgba(255,255,255,.04); border: 1px solid rgba(244,248,255,.12); border-radius: 6px;
-  height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: border-color .12s;
-}
-.ac-slot:hover { border-color: rgba(244,248,255,.4); }
-.ac-slot.sel { outline: 2px solid var(--gold); }
-.ac-slot canvas { max-width: 90%; max-height: 90%; image-rendering: pixelated; }
-.ac-slot .st { position: absolute; top: 0; right: 2px; font-size: 10px; color: var(--gold); }
-.ac-shop { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 4px; max-width: 420px; }
+/* shop row: 3 large cards */
+.ac-shoprow { display: flex; gap: 10px; justify-content: center; align-items: stretch; }
 .ac-card {
-  position: relative; background: rgba(0,0,0,.25); border: 1px solid rgba(244,248,255,.18); border-radius: 8px; padding: 3px;
-  display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; font-size: 11px; min-height: 74px;
-  transition: border-color .12s; touch-action: none;
+  position: relative; box-sizing: border-box; width: 110px; height: 130px;
+  background: linear-gradient(180deg, #4a4640 0 8px, #3a3f4c 8px calc(100% - 18px), #2b3040 calc(100% - 18px));
+  border: 3px solid #8f96a8; border-radius: 10px;
+  box-shadow: inset 0 0 0 2px #2b3040, 0 4px 10px rgba(0,0,0,.5);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  cursor: pointer; font-size: 12px; transition: border-color .12s, transform .12s; touch-action: none;
 }
-.ac-card:hover { border-color: rgba(244,248,255,.45); }
-.ac-card.off { opacity: .45; pointer-events: none; }
-.ac-card canvas { height: 36px; image-rendering: pixelated; }
-.ac-card .cost { color: var(--gold); font-weight: bold; display: flex; align-items: center; gap: 3px; }
-.ac-card .cost .coin { width: 14px; height: 14px; }
-.ac-card .st { position: absolute; top: 1px; right: 3px; color: var(--gold); font-size: 10px; }
-.ac-card.reroll { color: var(--muted); border-style: dashed; line-height: 1.2; }
+.ac-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.ac-card.off { opacity: .4; pointer-events: none; }
+.ac-card canvas { height: 56px; image-rendering: pixelated; }
+/* starburst gold cost badge (top-left) */
+.ac-cost {
+  position: absolute; top: -8px; left: -8px; z-index: 2;
+  min-width: 30px; height: 30px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center;
+  color: #1a1408; font-weight: bold; font-size: 13px;
+  background: radial-gradient(circle at 35% 35%, #ffe9a0, #ffb63a 60%, #d98a12);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,.6);
+  clip-path: polygon(50% 0%, 63% 10%, 78% 6%, 84% 20%, 98% 25%, 94% 40%, 100% 50%, 94% 60%, 98% 75%, 84% 80%, 78% 94%, 63% 90%, 50% 100%, 37% 90%, 22% 94%, 16% 80%, 2% 75%, 6% 60%, 0% 50%, 6% 40%, 2% 25%, 16% 20%, 22% 6%, 37% 10%);
+}
+.ac-cardname {
+  position: absolute; top: 2px; left: 0; right: 0; text-align: center;
+  font-size: 10px; color: #cfd6e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 24px;
+}
+.ac-card .st { position: absolute; top: 2px; right: 6px; color: var(--gold); font-size: 11px; }
+/* bottom strip: base atk */
+.ac-strip {
+  position: absolute; left: 4px; right: 4px; bottom: 4px;
+  background: rgba(0,0,0,.55); border-radius: 6px; text-align: center;
+  font-size: 11px; color: #e8ecf6; padding: 2px 0;
+}
+
+/* action bar: reroll circle 25% + ready 75% + timer under ready */
+.ac-footer { display: flex; gap: 10px; align-items: center; }
+.ac-reroll {
+  box-sizing: border-box; flex: 0 0 25%; max-width: 25%;
+  aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4aa8ff, #1f6fd0 65%, #164a92);
+  border: 2px solid #7fc4ff; color: #fff; font-weight: bold;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; line-height: 1.1; box-shadow: 0 4px 10px rgba(0,0,0,.5);
+}
+.ac-reroll i { font-style: normal; font-size: 20px; }
+.ac-reroll b { font-size: 13px; }
+.ac-reroll:hover { filter: brightness(1.1); }
+.ac-reroll.off { opacity: .45; pointer-events: none; }
+.ac-readywrap { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ac-ready {
+  height: 56px; border: none; border-radius: 10px;
+  background: linear-gradient(180deg, #ffb340, #ff7a1a 55%, #e05e00);
+  color: #fff; font-size: 18px; font-weight: bold; letter-spacing: .5px;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(255,122,26,.45), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.ac-ready:hover { filter: brightness(1.08); }
+.ac-ready:disabled { filter: grayscale(.55) brightness(.75); cursor: default; }
+/* thin yellow prep-timer bar + hourglass */
+.ac-timer {
+  position: relative; height: 8px; border-radius: 6px; overflow: hidden;
+  background: rgba(0,0,0,.5); border: 1px solid rgba(255,210,63,.35);
+  display: flex; align-items: center;
+}
+.ac-timer i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, #ffe9a0, var(--gold)); transition: width .2s linear; }
+.ac-timer i.blink { animation: ac-blink .5s steps(2) infinite; }
+@keyframes ac-blink { 50% { opacity: .35; } }
+.ac-timer em {
+  position: absolute; right: 3px; top: -1px; font-style: normal; font-size: 10px; line-height: 8px;
+}
+
 .ac-btns { display: flex; gap: 6px; justify-content: center; align-items: center; }
-.ac-kbd { margin-left: 4px; }
+.ac-kbd { margin-left: 4px; font-size: 11px; color: var(--muted); }
+
+/* overlays (win/lose/pause) */
 .ac-over {
   position: absolute; inset: 0; background: rgba(5,6,10,.88); z-index: 70; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 12px; font-size: 18px; padding: 20px;

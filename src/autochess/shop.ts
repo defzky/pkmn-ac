@@ -11,7 +11,7 @@ import { Board, type BoardState, type BoardUnit } from './board';
 import { costWeights, costOf, poolByCost } from './champions';
 
 export const SHOP_SIZE = 3;
-export const REROLL_COST = 2;
+export const REROLL_COST = 1;
 
 export interface ShopState {
   slots: Array<BoardUnit | null>;

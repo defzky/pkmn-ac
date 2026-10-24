@@ -38,7 +38,7 @@ describe('sim', () => {
     const center = units.find((u: any) => u.x === 1 && u.y === 1); // Bulbasaur @ (1,1)
     console.log('center mana', center.mana, 'swing', center.swing, 'atk', center.atk, 'range', center.range);
     expect(st.kills).toBeGreaterThan(0);         // things actually die now
-    expect(st.base.hp).toBe(100);                // wave 1 fully cleared, no leak
+    expect(st.base.hp).toBe(45);                 // wave 1 fully cleared, no wipe (player heart full)
     expect(center.mana).toBeGreaterThan(0);      // center unit always in range → attacked
   });
 });
