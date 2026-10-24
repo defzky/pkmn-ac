@@ -15,7 +15,12 @@ vi.mock('../src/ui/ui', () => ({
     chrome: vi.fn(),
     toast: vi.fn(),
     tick: vi.fn(),
-    spriteCanvas: () => document.createElement('canvas'),
+    spriteCanvas: (_dex: string, w?: number, h?: number) => {
+      const cv = document.createElement('canvas');
+      if (w != null) cv.width = w;
+      if (h != null) cv.height = h;
+      return cv;
+    },
     sprite: () => ({ a: { play: vi.fn(), loop: vi.fn(), dir: 0, busy: () => false, progress: () => 1 } }),
     spriteHit: vi.fn(),
     spriteFaint: vi.fn(),
@@ -234,6 +239,7 @@ describe('enemy sync (dual-board walkers → grid cells)', () => {
     ACUI.syncEnemies();
     const cell = $('#ac-foe-grid [data-xy="0,-1"]') as HTMLElement;
     expect(cell.querySelector('canvas')).toBeTruthy();
+    expect((cell.querySelector('canvas') as HTMLCanvasElement).width).toBe(96); // internal res ×2, CSS display unchanged
     expect(cell.querySelector('.ac-pill')).toBeTruthy();
     expect(cell.querySelector('.hp i')).toBeTruthy();
     // mob dies → cleanup on next sync
@@ -335,6 +341,7 @@ describe('TD mode: mob walk animation (dungeon-style)', () => {
       const mob = document.querySelector('.ac-td-mob') as HTMLElement;
       expect(mob).toBeTruthy();
       expect(mob.querySelector('canvas')).toBeTruthy(); // own canvas, not cell sprite
+      expect((mob.querySelector('canvas') as HTMLCanvasElement).width).toBe(80); // res ×2 (display 40 via CSS)
       expect(mob.dataset.anim).toBe('Walk'); // progress advanced → Walk loop
       // combat step again: tick moves mobs → still Walk (no random Attack flourish)
       WaveRunnerTd.tick(ACUI.run, ACUI.units, 0.16);

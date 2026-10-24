@@ -170,6 +170,36 @@ const Sprites = (() => {
     ctx.fill();
   }
 
+  /** Animaciones de postura para fitDraw (sin Attack: estocazos pueden desbordar). */
+  const STANCE = ['Idle', 'Walk', 'Charge', 'Hurt', 'Shoot', 'Faint'];
+
+  /**
+   * Encaje de sprite en un canvas (autochess: celdas/tienda/TD). Devuelve
+   * { k, fx, fy } con los pies centrados: k = min(prefer, encaje por ancho,
+   * encaje por alto) sobre el máximo de las posturas; piso entero cuando queda
+   * pegado (≤0.15, píxeles nítidos sin regalar tamaño); fy = holgura/2 + up·k
+   * (centro vertical, sin recortes).
+   */
+  function fitDraw(dex: string, cvW: number, cvH: number, prefer = 2) {
+    const m0 = animMeta(dex, 'Idle');
+    let wmax = m0 ? m0.w : 32, up = m0 ? m0.ay : 24, down = m0 ? m0.h - m0.ay : 24;
+    for (const a of STANCE) {
+      const m = animMeta(dex, a);
+      if (!m) continue;
+      wmax = Math.max(wmax, m.w);
+      up = Math.max(up, m.ay);
+      down = Math.max(down, m.h - m.ay);
+    }
+    let k = Math.min(prefer, (cvW * 0.94) / Math.max(1, wmax), (cvH * 0.92) / Math.max(1, up + down));
+    if (k >= 1) {
+      const fl = Math.floor(k);
+      if (k - fl < 0.15) k = fl;
+    }
+    k = Math.max(0.25, k);
+    const fy = (cvH - (up + down) * k) / 2 + up * k;
+    return { k, fx: cvW / 2, fy };
+  }
+
   // ---------------- Animator ----------------
 
   /**
@@ -295,7 +325,7 @@ const Sprites = (() => {
   }
 
   return { PX, meta, hasShiny, hovers, white, animMeta, sheet, preload, dirFromAngle, bodyRadius, bodyHeight, playerScale, playerRadius,
-           drawShadow, Animator, ANIMS, get sheetCount() { return sheets.size; } };
+           drawShadow, fitDraw, Animator, ANIMS, get sheetCount() { return sheets.size; } };
 })();
 register('Sprites', Sprites);
 export { Sprites };

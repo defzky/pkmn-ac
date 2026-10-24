@@ -144,7 +144,7 @@ function setCap(id: string, dex: number | null, last: number): number {
   const box = $(id);
   if (dex === last) return last;
   box.innerHTML = '';
-  if (dex != null && dex > 0) box.appendChild(UI.spriteCanvas(dex, 32, 32, { scale: 2 }));
+  if (dex != null && dex > 0) box.appendChild(UI.spriteCanvas(dex, 64, 64, { scale: 4 })); // res interna ×2, fitDraw evita recorte
   return dex ?? -1;
 }
 
@@ -366,7 +366,7 @@ function renderStage(): void {
       const cell = document.createElement('div');
       cell.className = 'ac-cell ghost';
       cell.dataset.xy = slot.x + ',' + slot.y;
-      cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+      cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
       cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
       foeBox.appendChild(cell);
     });
@@ -381,7 +381,7 @@ function renderStage(): void {
         const spec = preview[i];
         if (spec) {
           cell.classList.add('ghost');
-          cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+          cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
           cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
         }
         foeBox.appendChild(cell);
@@ -396,7 +396,7 @@ function renderStage(): void {
     preview.forEach((spec) => {
       const g = document.createElement('span');
       g.className = 'ac-td-ghost';
-      g.appendChild(UI.spriteCanvas(spec.dex, 36, 36, { scale: 1.5 }));
+      g.appendChild(UI.spriteCanvas(spec.dex, 72, 72, { scale: 3 })); // res ×2, fitDraw
       waveBox.appendChild(g);
     });
     if (!preview.length) waveBox.insertAdjacentHTML('beforeend', '<span class="sub" style="font-size:11px">next wave…</span>');
@@ -415,7 +415,7 @@ function renderStage(): void {
       const u = unitAt(x, y);
       if (u) {
         if (st.sel === u) cell.classList.add('sel');
-        const cv = UI.spriteCanvas(evoDex(u.dex, u.star), 44, 44, { scale: 2, lively: true });
+        const cv = UI.spriteCanvas(evoDex(u.dex, u.star), 96, 96, { scale: 4.4, lively: true }); // cell res ×2
         cell.appendChild(cv);
         unitCv.set(x + ',' + y, cv);
         const st2 = boardStats(u.dex, u.star);
@@ -517,9 +517,9 @@ function syncEnemies(dt = 0): void {
           const el = document.createElement('div');
           el.className = 'ac-td-mob' + (m.boss ? ' boss' : '');
           const cv = document.createElement('canvas');
-          cv.width = 40; cv.height = 44;
-          // same sizing as UI.spriteCanvas(dex,40,40,{scale:2}): a.scale = k/PX
-          const anim = new Sprites.Animator(String(m.dex), 2 / Sprites.PX);
+          cv.width = 80; cv.height = 88; // res ×2; display capped by CSS (40×44)
+          // per-frame scale via Sprites.fitDraw in the draw block (prefer 4 = 2×80/40)
+          const anim = new Sprites.Animator(String(m.dex), 4 / Sprites.PX);
           el.appendChild(cv);
           el.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
           const fill = el.querySelector('.hp i') as HTMLElement | null;
@@ -542,14 +542,11 @@ function syncEnemies(dt = 0): void {
           ctx.setTransform(1, 0, 0, 1, 0, 0);
           ctx.clearRect(0, 0, entry.cv.width, entry.cv.height);
           ctx.imageSmoothingEnabled = false;
-          // feet position + shadow — mirror of UI.sprite draw (ui.ts tick)
-          const meta = Sprites.animMeta(String(m.dex), 'Idle');
-          const ay = meta ? meta.ay : 24;
-          const k = 2;
-          const big = ay * k > entry.cv.height * 0.8;
-          const fx = entry.cv.width / 2, fy = big ? entry.cv.height / 2 + ay * k * 0.45 : entry.cv.height * 0.88;
-          Sprites.drawShadow(ctx, String(m.dex), fx, fy, 0.9); // PMD ShadowSize (sprites.drawShadow)
-          entry.anim.draw(ctx, fx, fy);
+          // encaje sin recortes (Sprites.fitDraw) — misma fórmula que UI.sprite tick
+          const fit = Sprites.fitDraw(String(m.dex), entry.cv.width, entry.cv.height, 4);
+          entry.anim.scale = fit.k / Sprites.PX;
+          Sprites.drawShadow(ctx, String(m.dex), fit.fx, fit.fy, 0.45 * fit.k); // PMD ShadowSize
+          entry.anim.draw(ctx, fit.fx, fit.fy);
         }
         entry.el.dataset.anim = entry.anim.cur;
         const prev = foeLastHp.get(m) ?? m.hp;
@@ -586,12 +583,10 @@ function syncEnemies(dt = 0): void {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.clearRect(0, 0, entry.cv.width, entry.cv.height);
             ctx.globalAlpha = Math.max(0, 1 - entry.deathT / 0.9);
-            const meta = Sprites.animMeta(String(m.dex), 'Idle');
-            const ay = meta ? meta.ay : 24;
-            const big = ay * 2 > entry.cv.height * 0.8;
-            const fx = entry.cv.width / 2, fy = big ? entry.cv.height / 2 + ay * 2 * 0.45 : entry.cv.height * 0.88;
-            Sprites.drawShadow(ctx, String(m.dex), fx, fy, 0.8);
-            entry.anim.draw(ctx, fx, fy);
+            const fit = Sprites.fitDraw(String(m.dex), entry.cv.width, entry.cv.height, 4);
+            entry.anim.scale = fit.k / Sprites.PX;
+            Sprites.drawShadow(ctx, String(m.dex), fit.fx, fit.fy, 0.45 * fit.k);
+            entry.anim.draw(ctx, fit.fx, fit.fy);
             ctx.globalAlpha = 1;
           }
           continue;
@@ -612,7 +607,7 @@ function syncEnemies(dt = 0): void {
       cell.classList.remove('ghost');
       if (!cell.querySelector('canvas')) {
         cell.innerHTML = '';
-        cell.appendChild(UI.spriteCanvas(m.dex, 44, 44, { scale: 2, lively: true }));
+        cell.appendChild(UI.spriteCanvas(m.dex, 96, 96, { scale: 4.4, lively: true })); // cell res ×2
         cell.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
         if (m.boss) cell.classList.add('boss');
       }
@@ -681,7 +676,7 @@ function renderShop(): void {
       (slot.star > 1 ? `<span class="st">${'★'.repeat(slot.star)}</span>` : '');
     const spr = document.createElement('span');
     spr.className = 'ac-sprite';
-    spr.appendChild(UI.spriteCanvas(slot.dex, 48, 48, { scale: 2, lively: true }));
+    spr.appendChild(UI.spriteCanvas(slot.dex, 96, 96, { scale: 4, lively: true })); // shop card res ×2
     card.insertBefore(spr, card.querySelector('.ac-strip'));
     card.onclick = () => { if (dragClick) { dragClick = false; return; } onBuy(i); };
     card.addEventListener('pointerdown', (ev) => startDrag(i, ev));

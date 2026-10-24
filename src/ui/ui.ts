@@ -262,10 +262,11 @@ const UI = (() => {
       const ay = m ? m.ay : 24;
       let k = s.opts.scale || 2;
       if (s.opts.hero) k = Math.max(1, Math.min(k, Math.floor(cv.height * 0.8 / ay)));
+      // Encaje sin recortes (posturas): k + centro de pies según meta del dex.
+      const fit = Sprites.fitDraw(s.dex, cv.width, cv.height, k);
+      k = fit.k;
       s.a.scale = k / Sprites.PX;
-      // Si no cabe de pie, se centra el cuerpo en el recuadro.
-      const big = ay * k > cv.height * 0.8;
-      const fx = cv.width / 2, fy = big ? cv.height / 2 + ay * k * 0.45 : cv.height * 0.88;
+      const fx = fit.fx, fy = fit.fy;
 
       if (s.opts.shadow !== false && !s.opts.silhouette) {
         Sprites.drawShadow(ctx, s.dex, fx, fy, 0.45 * k); // PMD ShadowSize (was fixed ellipse)
