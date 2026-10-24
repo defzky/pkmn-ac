@@ -921,7 +921,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 @keyframes ac-portal-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 .ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; }
 /* display size follows cell pitch (JS sets --ac-pitch on #ac-arenas) — res interna 80×88 */
-.ac-td-mob canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 80px) * 0.68); max-height: calc(var(--ac-pitch, 80px) * 0.72); }
+.ac-td-mob canvas { image-rendering: pixelated; max-width: max(44px, calc(var(--ac-pitch, 80px) * 0.68)); max-height: max(44px, calc(var(--ac-pitch, 80px) * 0.72)); filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .8)); }
 .ac-td-mob canvas.hurt { animation: ac-hurt .18s; }
 .ac-td-mob .hp { display: block; width: calc(var(--ac-pitch, 80px) * 0.45); height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
 .ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
@@ -955,9 +955,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #scr-ac.td-land { background: #061009; }
   #scr-ac.td-land .ac-app {
     max-width: none; width: 100%; height: 100vh; box-sizing: border-box;
-    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    display: grid; grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: "top top" "arena syn" "dock dock";
+    grid-template-areas: "top" "arena" "dock";
     gap: 6px 12px; padding: 8px 12px; align-items: stretch;
   }
   #scr-ac.td-land .ac-topbar {
@@ -971,8 +971,13 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     grid-area: arena; min-height: 0; min-width: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
+  /* board + synergy rail side by side, 32px apart, centered as one unit */
+  #scr-ac.td-land .ac-arow {
+    display: flex; flex-direction: row; align-items: center; justify-content: center;
+    gap: 32px; flex: 1 1 auto; min-height: 0; width: 100%;
+  }
   #scr-ac.td-land .ac-arenas.td-mode .ac-arena.me {
-    flex: 1 1 auto; min-height: 0;
+    flex: 0 1 auto; min-height: 0;
     display: flex; align-items: center; justify-content: center;
     background: rgba(8, 14, 10, .35); border-color: rgba(90, 120, 70, .55);
     box-shadow: none;
@@ -981,33 +986,38 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #scr-ac.td-land .ac-arenas.td-mode .ac-me-grid {
     width: auto; height: 100%; max-width: 100%; aspect-ratio: 1; margin: 0;
   }
-  /* synergy sidebar hugging the board's right edge — glass panel, stacked chips */
+  /* synergy sidebar next to the board — glass panel, stacked chips */
   #scr-ac.td-land .ac-synbar {
-    grid-area: syn; align-self: center; max-width: 210px;
+    align-self: center; max-width: 210px;
     flex-direction: column; flex-wrap: nowrap; justify-content: center; gap: 8px;
     background: rgba(10, 14, 22, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     border: 1px solid rgba(244, 248, 255, .1); border-radius: 14px; padding: 10px 12px; z-index: 6;
   }
-  #scr-ac.td-land .syn-chip { font-size: 15px; padding: 4px 10px; border-radius: 12px; justify-content: flex-start; }
-  /* unified bottom dock: gold · reroll+ready+timer · shop cards — one glass panel */
+  #scr-ac.td-land .syn-chip { font-size: 16px; padding: 4px 10px; border-radius: 12px; justify-content: flex-start; }
+  /* bottom dock: fit-content panel centered — gold · reroll+ready+timer · | · shop */
   #scr-ac.td-land .ac-dock {
-    grid-area: dock; display: flex; flex-direction: row; align-items: center; gap: 14px;
-    justify-content: center;
+    grid-area: dock; display: flex; flex-direction: row; align-items: center; gap: 24px;
+    justify-content: flex-start; width: fit-content; max-width: 90vw; margin: 0 auto; justify-self: center;
     background: rgba(10, 14, 22, .55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(244, 248, 255, .1); border-radius: 14px; padding: 6px 16px;
+    border: 1px solid rgba(244, 248, 255, .1); border-radius: 16px; padding: 12px 24px;
   }
-  #scr-ac.td-land .ac-goldsun { margin: 0; }
+  #scr-ac.td-land .ac-goldsun { margin: 0; align-self: center; font-size: 18px; padding: 4px 14px; }
   #scr-ac.td-land .ac-footer { flex-direction: row; gap: 8px; align-items: center; }
-  #scr-ac.td-land .ac-shoprow { margin-left: auto; }
+  /* thin vertical divider before the shop strip */
+  #scr-ac.td-land .ac-shoprow::before {
+    content: ''; width: 1px; height: 36px; background: rgba(255, 255, 255, .15);
+    flex: 0 0 1px; margin-right: -8px;
+  }
   #scr-ac.td-land .ac-kbd { display: none; }
-  /* compact dock: shop strip right of gold+footer, smaller cards/controls */
+  /* compact dock: shop strip right of gold+footer, bigger sprites/controls */
   #scr-ac.td-land .ac-card { width: 96px; height: 112px; }
-  #scr-ac.td-land .ac-card canvas { height: 70%; }
+  #scr-ac.td-land .ac-card canvas { height: 72px; width: 72px; min-width: 64px; }
   #scr-ac.td-land .ac-reroll { flex: 0 0 44px; max-width: 44px; }
   #scr-ac.td-land .ac-reroll i { font-size: 15px; }
-  #scr-ac.td-land .ac-readywrap { flex-direction: row; align-items: center; gap: 6px; width: 170px; }
+  #scr-ac.td-land .ac-readywrap { flex-direction: row; align-items: center; gap: 6px; width: auto; }
   #scr-ac.td-land .ac-ready { height: 44px; flex: 1; font-size: 16px; }
-  #scr-ac.td-land .ac-timer { width: 60px; flex: 0 0 60px; }
+  #scr-ac.td-land .ac-timer { width: 72px; flex: 0 0 72px; height: 12px; }
+  #scr-ac.td-land .ac-timer span { font-size: 11px; line-height: 1; padding-left: 3px; }
 }
 
 /* full-viewport bg canvas sits behind the app shell (moved to #scr-ac in restructure) */
@@ -1015,6 +1025,18 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 #scr-ac .ac-app { position: relative; z-index: 1; }
 /* portrait/dual: dock children participate in the old flex column directly */
 .ac-dock { display: contents; }
+/* board+syn wrapper: transparent in portrait (children inline in old flow) */
+.ac-arow { display: contents; }
+/* castle HP pill under the ring (Fase Q) */
+.ac-td-hptext {
+  display: inline-flex; align-items: center; gap: 2px; line-height: 1.4;
+  background: rgba(8, 12, 20, .85); border: 1px solid rgba(95, 168, 255, .5);
+  border-radius: 999px; padding: 1px 8px;
+  color: #5fa8ff; font-size: 13px; font-weight: bold;
+  text-shadow: 0 0 8px rgba(95, 168, 255, .45);
+}
+/* TD: castle HP lives under the ring — old heart badge would collide */
+.ac-arenas.td-mode .ac-heart { display: none; }
 /* castle HP slim bar under the ring (Fase L+, restructure) */
 .ac-td-hp {
   display: block; width: calc(var(--ac-pitch, 80px) * .5); height: 6px;
@@ -1154,12 +1176,12 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-cell canvas.hurt { animation: ac-hurt .18s; }
 @keyframes ac-hurt { 0% { filter: brightness(4) sepia(1) saturate(5) hue-rotate(-40deg); } 100% { filter: none; } }
 
-/* floating stat pill above unit head */
+/* floating stat pill — thin chip top-right, never covers the sprite */
 .ac-pill {
-  position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 3;
-  display: flex; flex-direction: column; align-items: center; line-height: 1.1;
+  position: absolute; top: 2px; right: 2px; left: auto; transform: none; z-index: 3;
+  display: flex; flex-direction: row; align-items: center; gap: 3px; line-height: 1.1;
   background: rgba(8,10,16,.82); border: 1px solid rgba(244,248,255,.18); border-radius: 6px;
-  padding: 1px 4px; pointer-events: none; white-space: nowrap;
+  padding: 1px 3px; pointer-events: none; white-space: nowrap;
 }
 .ac-pill b { color: var(--gold); font-size: 10px; text-shadow: 0 1px 2px #000; }
 .ac-pill i { color: #dfe6f5; font-size: 9px; font-style: normal; }
@@ -1227,11 +1249,11 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .syn-chip {
   display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 2px 7px;
   border: 1px solid rgba(244,248,255,.2); border-radius: 10px; background: rgba(0,0,0,.3);
-  color: var(--muted);
+  color: rgba(255, 255, 255, .75);
 }
 .syn-chip.t2 { color: #7fd3ff; border-color: rgba(127,211,255,.5); }
 .syn-chip.t3 { color: var(--gold); border-color: rgba(255,210,63,.6); }
-.syn-chip.off { opacity: .55; }
+.syn-chip.off { opacity: .8; }
 
 /* shop row: 3 large cards */
 .ac-shoprow { display: flex; gap: 10px; justify-content: center; align-items: stretch; }
@@ -1249,9 +1271,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* starburst gold cost badge (top-left) */
 .ac-cost {
   position: absolute; top: -8px; left: -8px; z-index: 2;
-  min-width: 30px; height: 30px; padding: 0 4px;
+  min-width: 26px; height: 26px; padding: 0 4px;
   display: flex; align-items: center; justify-content: center;
-  color: #1a1408; font-weight: bold; font-size: 13px;
+  color: #1a1408; font-weight: bold; font-size: 12px;
   background: radial-gradient(circle at 35% 35%, #ffe9a0, #ffb63a 60%, #d98a12);
   border-radius: 50%;
   box-shadow: 0 2px 6px rgba(0,0,0,.6);
@@ -1259,7 +1281,7 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-cardname {
   position: absolute; top: 2px; left: 0; right: 0; text-align: center;
-  font-size: 10px; color: #cfd6e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 24px;
+  font-size: 11px; color: #cfd6e6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 18px;
 }
 .ac-card .st { position: absolute; top: 2px; right: 6px; color: var(--gold); font-size: 11px; }
 /* bottom strip: base atk */

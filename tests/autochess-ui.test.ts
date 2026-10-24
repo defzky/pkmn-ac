@@ -692,3 +692,23 @@ describe('Fase P — HUD polish hooks', () => {
     expect(st!.textContent).toContain('★★');
   });
 });
+
+describe('Fase Q — proportion polish', () => {
+  beforeEach(() => { vi.mocked(UI.toast).mockClear(); ACUI.reset(); });
+  it('castle HP pill (#ac-td-hptext) sits inside base + renderHud writes hp', () => {
+    ACUI.open('td');
+    const base = document.getElementById('ac-td-base')!;
+    const pill = document.getElementById('ac-td-hptext')!;
+    expect(pill).toBeTruthy();
+    expect(base.contains(pill)).toBe(true);
+    ACUI.run.base.hp = 7;
+    ACUI.step(performance.now() + 50);
+    expect(pill.innerHTML).toContain('7');
+  });
+  it('synergy bar lives inside #ac-arenas via .ac-arow wrapper', () => {
+    ACUI.open('td');
+    const syn = document.getElementById('ac-syn')!;
+    expect(syn.closest('#ac-arenas')).toBeTruthy();
+    expect(syn.closest('.ac-arow')).toBeTruthy();
+  });
+});

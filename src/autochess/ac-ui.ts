@@ -86,20 +86,22 @@ function ensureDom(): HTMLElement {
           </div>
           <div class="ac-grid" id="ac-foe-grid"></div>
         </div>
-        <div class="ac-arena me" id="ac-arena-me">
-          <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
-          <div class="ac-me-hud">
-            <span class="ac-heart blue">♥ <b id="ac-hp">45</b></span>
-            <span class="ac-cap" id="ac-p-cap"></span>
+        <div class="ac-arow">
+          <div class="ac-arena me" id="ac-arena-me">
+            <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
+            <div class="ac-me-hud">
+              <span class="ac-heart blue">♥ <b id="ac-hp">45</b></span>
+              <span class="ac-cap" id="ac-p-cap"></span>
+            </div>
+            <div class="ac-grid" id="ac-me-grid"></div>
           </div>
-          <div class="ac-grid" id="ac-me-grid"></div>
+          <div class="ac-synbar" id="ac-syn"></div>
         </div>
-        <span class="ac-td-base" id="ac-td-base" hidden><span class="ac-base-ring" id="ac-base-ring"><b>🏰</b></span><span class="ac-td-hp"><i id="ac-td-hp-fill"></i></span></span>
+        <span class="ac-td-base" id="ac-td-base" hidden><span class="ac-base-ring" id="ac-base-ring"><b>🏰</b></span><span class="ac-td-hptext" id="ac-td-hptext">♥ <b>100</b></span><span class="ac-td-hp"><i id="ac-td-hp-fill"></i></span></span>
         <div class="ac-td-lanes" id="ac-td-lanes" hidden></div>
         <canvas class="ac-fx" id="ac-fx"></canvas>
         <div class="ac-banner" id="ac-banner" hidden></div>
       </div>
-      <div class="ac-synbar" id="ac-syn"></div>
       <div class="ac-dock">
         <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
         <div class="ac-footer">
@@ -213,6 +215,9 @@ function renderHud(): void {
     const hp = r.base.hp;
     if (lastBaseHp != null && hp < lastBaseHp) leakFx(hp - lastBaseHp);
     lastBaseHp = hp;
+    // castle HP pill under the ring (Fase Q)
+    const hpText = $('ac-td-hptext');
+    if (hpText) hpText.innerHTML = `♥ <b>${hp}</b>`;
     // castle HP ring: conic-gradient arc % + color by hp band (Fase L)
     const ring = document.getElementById('ac-base-ring');
     if (ring) {
