@@ -612,9 +612,28 @@ function startDrag(i: number, e: any): void {
   document.body.appendChild(ghost);
   drag = { idx: i, x0: e.clientX ?? 0, y0: e.clientY ?? 0, ghost };
   dragMoved = false;
+  markMergeTargets(i);
   window.addEventListener('pointermove', onDragMove);
   window.addEventListener('pointerup', onDragUp);
   window.addEventListener('pointercancel', onDragCancel);
+}
+
+/** outline cells where dropping this shop card would star-up (same dex + star, prep only) */
+function markMergeTargets(idx: number): void {
+  const slot = st.shop.slots[idx];
+  if (!slot || st.run.phase === 'combat') return;
+  document.querySelectorAll('#ac-me-grid .ac-cell').forEach((el) => {
+    const xy = (el as HTMLElement).dataset?.xy || '';
+    const [x, y] = xy.split(',').map(Number);
+    const t = unitAt(x, y);
+    if (t && t.dex === slot.dex && t.star === slot.star && t.star < Board.MAX_STAR) {
+      el.classList.add('merge-ok');
+    }
+  });
+}
+
+function clearMergeTargets(): void {
+  document.querySelectorAll('.ac-cell.merge-ok').forEach((el) => el.classList.remove('merge-ok'));
 }
 
 function onDragMove(e: any): void {
@@ -630,6 +649,7 @@ function stopDrag(): void {
   window.removeEventListener('pointercancel', onDragCancel);
   drag?.ghost.remove();
   drag = null;
+  clearMergeTargets();
 }
 
 function onDragCancel(): void { stopDrag(); }
@@ -650,18 +670,25 @@ function onDragUp(e: any): void {
   const [x, y] = xy.split(',').map(Number);
   const target = unitAt(x, y);
   if (target) {
-    // occupied: only merge target = same champ ★1 (drop card onto it → buy + merge to ★2)
+    // occupied: merge target = same champ + same star (drop card onto it → buy + merge, prep only)
     const slot = st.shop.slots[d.idx];
-    if (!slot || target.dex !== slot.dex || target.star !== 1 || st.run.phase === 'combat') {
+    if (!slot || target.dex !== slot.dex || target.star !== slot.star
+      || target.star >= Board.MAX_STAR || st.run.phase === 'combat') {
       Audio.sfx('error', undefined);
       UI.toast('Cell occupied');
       return;
     }
-    const before = new Set(st.board.units);
-    const r = onBuy(d.idx);
-    if (!r || !r.ok) return;
-    const u = st.board.units.find((v) => !before.has(v));
-    if (u && Board.tryMergeAt(st.board, u, x, y)) {
+    const r = Shop.buyMerge(st.shop, d.idx, st.run.gold);
+    if (!r.ok || !r.slot) {
+      Audio.sfx('error', undefined);
+      UI.toast('Not enough gold');
+      return;
+    }
+    st.run.gold = r.gold;
+    // temp unit (never placed) merges onto the target cell — applyMerge result lands there
+    const temp: BoardUnit = { dex: r.slot.dex, star: r.slot.star, x: null, y: null, bench: null, items: [] };
+    if (Board.tryMergeAt(st.board, temp, x, y)) {
+      Audio.sfx('buy', undefined);
       UI.toast('★ merge');
       afterBoardChange();
     }
@@ -1140,6 +1167,8 @@ function updateCombatBars(): void {
 
 function reset(): void {
   buffPending = false;
+  dragClick = false;
+  stopDrag();
   clearTdMobs();
   foeLastHp.clear();
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
@@ -1191,6 +1220,7 @@ function close(): void {
 const ACUI = {
   open, close, reset, syncEnemies,
   step: loop, // exported for tests: call manually (rAF stubbed)
+  render: renderAll, // exported for tests: re-render after direct state injection
   get run() { return st.run; }, get board() { return st.board; }, get shop() { return st.shop; },
   get units() { return st.units; },
   get mode() { return currentMode; },

@@ -326,3 +326,69 @@ describe('TD mode: mob walk animation (dungeon-style)', () => {
     }
   });
 });
+
+describe('drag shop → merge onto occupied cell', () => {
+  const pt = (type: string, x: number, y: number) =>
+    new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
+  const cards = () => document.querySelectorAll('.ac-card');
+  const injectSlot = (i: number, dex: number) => {
+    ACUI.shop.slots[i] = { dex, star: 1, x: null, y: null, bench: null };
+    ACUI.render();
+  };
+
+  it('drag card onto same champ ★1 → ★2 + merge-ok hint, no separate placement', () => {
+    injectSlot(0, 1); // Bulbasaur
+    (cards()[0] as HTMLElement).click(); // buy → auto-place (0,0)
+    expect(ACUI.board.units.length).toBe(1);
+    injectSlot(1, 1); // second Bulbasaur in slot 1
+    const g0 = ACUI.run.gold;
+    (cards()[1] as HTMLElement).dispatchEvent(pt('pointerdown', 10, 10));
+    window.dispatchEvent(pt('pointermove', 10, 90));
+    const cell = document.querySelector('#ac-me-grid [data-xy="0,0"]') as HTMLElement;
+    expect(cell.classList.contains('merge-ok')).toBe(true); // hint while dragging
+    cell.dispatchEvent(pt('pointerup', 5, 5));
+    expect(document.querySelector('.ac-cell.merge-ok')).toBeNull(); // cleared after drop
+    expect(ACUI.board.units.length).toBe(1);
+    expect(ACUI.board.units[0].star).toBe(2);
+    expect(ACUI.shop.slots[1]).toBeNull();
+    expect(ACUI.run.gold).toBeLessThan(g0);
+  });
+
+  it('board full (9 cells) → drag merge still works, no 10th unit', () => {
+    ACUI.run.gold = 100;
+    let guard = 0;
+    while (ACUI.board.units.length < 9 && guard++ < 15) {
+      injectSlot(1, 1);
+      (cards()[1] as HTMLElement).click();
+    }
+    expect(ACUI.board.units.length).toBe(9);
+    injectSlot(1, 1);
+    const g0 = ACUI.run.gold;
+    (cards()[1] as HTMLElement).dispatchEvent(pt('pointerdown', 10, 10));
+    window.dispatchEvent(pt('pointermove', 10, 90));
+    const cell = document.querySelector('#ac-me-grid [data-xy="0,0"]') as HTMLElement;
+    expect(cell.classList.contains('merge-ok')).toBe(true);
+    cell.dispatchEvent(pt('pointerup', 5, 5));
+    expect(ACUI.shop.slots[1]).toBeNull(); // consumed
+    expect(ACUI.run.gold).toBeLessThan(g0);
+    // card never occupied a cell → merge replaces target: still 9 cells filled, no 10th unit
+    expect(ACUI.board.units.length).toBe(9);
+    expect(ACUI.board.units.filter((u: any) => u.star === 2).length).toBe(1);
+    expect(ACUI.board.units.filter((u: any) => u.star === 1).length).toBe(8);
+    expect(ACUI.board.units.every((u: any) => u.x < 3 && u.y < 3)).toBe(true);
+  });
+
+  it('star mismatch → no hint, cell occupied error', () => {
+    injectSlot(0, 1);
+    (cards()[0] as HTMLElement).click(); // ★1 Bulbasaur on board
+    injectSlot(1, 4); // different champ (Charmeleon line)
+    (cards()[1] as HTMLElement).dispatchEvent(pt('pointerdown', 10, 10));
+    window.dispatchEvent(pt('pointermove', 10, 90));
+    const cell = document.querySelector('#ac-me-grid [data-xy="0,0"]') as HTMLElement;
+    expect(cell.classList.contains('merge-ok')).toBe(false);
+    cell.dispatchEvent(pt('pointerup', 5, 5));
+    expect(ACUI.board.units.length).toBe(1); // no merge, no buy
+    expect(ACUI.board.units[0].star).toBe(1);
+    expect(ACUI.shop.slots[1]).not.toBeNull(); // slot kept
+  });
+});

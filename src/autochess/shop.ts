@@ -101,6 +101,21 @@ export function buy(
   return { ok: true, gold: gold - cost };
 }
 
+/** Consume slot + deduct gold WITHOUT placing a unit — merge-drop onto an occupied
+ * cell (works even when all 9 cells are full). Returns the consumed slot. */
+export function buyMerge(
+  shop: ShopState,
+  idx: number,
+  gold: number
+): { ok: boolean; gold: number; slot: BoardUnit | null } {
+  const slot = shop.slots[idx];
+  if (!slot) return { ok: false, gold, slot: null };
+  const cost = slotCost(slot);
+  if (gold < cost) return { ok: false, gold, slot: null };
+  shop.slots[idx] = null;
+  return { ok: true, gold: gold - cost, slot };
+}
+
 /** sell board/bench unit at star-based refund */
 export function sell(board: BoardState, unit: BoardUnit, gold: number): number {
   const g = gold + sellPrice(unit.dex, unit.star);
@@ -116,6 +131,7 @@ const Shop = {
   rollSlot,
   reroll,
   buy,
+  buyMerge,
   sell,
   slotCost,
   sellPrice,

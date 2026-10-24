@@ -1020,6 +1020,8 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 }
 .ac-cell:hover { border-color: rgba(244,248,255,.5); }
 .ac-cell.sel { outline: 2px solid var(--gold); }
+/* drag hint: dropping the held shop card here stars up this unit */
+.ac-cell.merge-ok { outline: 2px solid #57e08a; box-shadow: 0 0 10px rgba(87,224,138,.55), inset 0 1px 0 rgba(255,255,255,.12); }
 /* special buff tiles — orange/gold glow */
 .ac-cell.buff {
   background: linear-gradient(160deg, #8a5a22, #6a3f14);

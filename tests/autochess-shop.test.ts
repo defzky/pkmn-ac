@@ -114,6 +114,32 @@ describe('buy / gold clamp', () => {
   });
 });
 
+describe('buyMerge — consume slot without placing (merge-drop)', () => {
+  it('deducts gold + consumes slot, NO unit added (works with full board)', () => {
+    const shop = Shop.createShop(1);
+    const board = { units: [] };
+    for (let i = 0; i < 9; i++) board.units.push({ dex: 999 + i, star: 1, x: i % 3, y: Math.floor(i / 3), bench: null });
+    const idx = shop.slots.findIndex((s: any) => s);
+    const cost = Shop.slotCost(shop.slots[idx]);
+    const r = Shop.buyMerge(shop, idx, 100);
+    expect(r.ok).toBe(true);
+    expect(r.gold).toBe(100 - cost);
+    expect(shop.slots[idx]).toBeNull();
+    expect(r.slot).toBeTruthy();
+    expect(r.slot!.dex).toBeTruthy();
+    expect(board.units.length).toBe(9); // untouched — merge caller supplies the temp unit
+  });
+  it('insufficient gold → refuse, slot kept, gold untouched', () => {
+    const shop = Shop.createShop(1);
+    shop.slots[0] = { dex: 147, star: 1, x: null, y: null, bench: null }; // 4-cost
+    const r = Shop.buyMerge(shop, 0, 1);
+    expect(r.ok).toBe(false);
+    expect(r.gold).toBe(1);
+    expect(r.slot).toBeNull();
+    expect(shop.slots[0]).not.toBeNull();
+  });
+});
+
 describe('merge-2 stars (same-cell drop only)', () => {
   it('buying 2 same champs → 2 units in different cells (NO auto-merge)', () => {
     const board = { units: [] };
