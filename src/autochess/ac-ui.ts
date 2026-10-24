@@ -22,12 +22,14 @@ import { boardStats } from './unit-stats';
 import { Shop, type ShopState } from './shop';
 import { Synergy, type SynergyMods } from './synergy';
 import { Team } from './team';
-import { WaveRunner, type RunState } from './wave-runner';
+import { WaveRunner } from './wave-runner';
+import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { Buffs, type BuffDef } from './buffs';
 import { planMoveFx } from './move-fx';
 import type { UnitBattle } from './unit';
 import type { MobBattle } from './unitAI';
+import { Path } from './path';
 
 const LEVEL = 8; // boardCap = min(8, 1+floor(l/2)) = 5
 
@@ -35,7 +37,7 @@ const LEVEL = 8; // boardCap = min(8, 1+floor(l/2)) = 5
 let currentMode: 'auto' | 'td' = 'auto';
 
 interface ACInternal {
-  run: RunState;
+  run: any; // RunState (auto) | TdRunState (td)
   shop: ShopState;
   board: BoardState;
   sel: BoardUnit | null;
@@ -145,15 +147,24 @@ function setCap(id: string, dex: number | null, last: number): number {
 }
 
 function renderHud(): void {
-  const r = st.run;
+  const r: any = st.run;
+  const td = currentMode === 'td';
   $('ac-round').textContent = `Round ${r.wave}`;
-  $('ac-foe-hp').textContent = String(r.foe.hp);
-  $('ac-hp').innerHTML = `♥ <b>${r.base.hp}</b>`;
+  if (td) {
+    // TD: single base heart (no foe heart); show base HP in both slots for layout compat
+    ($('ac-foe-hp') as HTMLElement).parentElement!.style.display = 'none';
+    $('ac-hp').innerHTML = `♥ <b>${r.base.hp}</b>`;
+  } else {
+    ($('ac-foe-hp') as HTMLElement).parentElement!.style.display = '';
+    $('ac-foe-hp').textContent = String(r.foe.hp);
+    $('ac-hp').innerHTML = `♥ <b>${r.base.hp}</b>`;
+  }
   $('ac-gold').innerHTML = `☀️ <b>${r.gold}</b>`;
   $('ac-power').innerHTML = `⚔️ ${playerPower()}`;
   // prep timer bar
   const tf = $('ac-timer-fill');
-  const pct = r.phase === 'prep' ? Math.max(0, Math.min(100, (r.prepLeft / WaveRunner.PREP_SECONDS) * 100)) : 0;
+  const prepSec = td ? WaveRunnerTd.PREP_SECONDS : WaveRunner.PREP_SECONDS;
+  const pct = r.phase === 'prep' ? Math.max(0, Math.min(100, (r.prepLeft / prepSec) * 100)) : 0;
   tf.style.width = pct + '%';
   // Ready button state
   const btn = $('ac-start') as HTMLButtonElement;
@@ -162,7 +173,7 @@ function renderHud(): void {
   // avatars: first player unit / first enemy
   const fu = st.board.units.find((u) => u.x !== null);
   lastPCap = setCap('ac-p-cap', fu ? fu.dex : null, lastPCap);
-  const fe = st.run.mobs.find((m) => m.alive) || null;
+  const fe = st.run.mobs.find((m: any) => m.alive) || null;
   lastFoeCap = setCap('ac-foe-cap', fe ? fe.dex : null, lastFoeCap);
 }
 
@@ -254,43 +265,75 @@ function renderStage(): void {
   meBox.innerHTML = '';
   foeBox.innerHTML = '';
 
-  // enemy arena: prep = ghost preview of next round, combat = live handled by syncEnemies
-  const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunner.MAX_FIELD);
-  preview.forEach((spec, i) => {
-    const slot = WaveRunner.FOE_SLOTS[i];
-    const cell = document.createElement('div');
-    cell.className = 'ac-cell ghost';
-    cell.dataset.xy = slot.x + ',' + slot.y;
-    cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
-    cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
-    foeBox.appendChild(cell);
-  });
-  // fill empty foe cells (keep grid shape)
-  if (foeBox.children.length < 9) {
-    foeBox.innerHTML = '';
-    for (let i = 0; i < 9; i++) {
+  const td = currentMode === 'td';
+  const arenas = $('ac-arenas');
+  if (td) {
+    // TD: hide enemy arena; path overlay drawn on player grid
+    arenas.classList.add('td-mode');
+  } else {
+    arenas.classList.remove('td-mode');
+  }
+
+  // enemy arena: prep = ghost preview of next round, combat = live handled by syncEnemies (auto mode only)
+  if (!td) {
+    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunner.MAX_FIELD);
+    preview.forEach((spec, i) => {
       const slot = WaveRunner.FOE_SLOTS[i];
       const cell = document.createElement('div');
-      cell.className = 'ac-cell';
+      cell.className = 'ac-cell ghost';
       cell.dataset.xy = slot.x + ',' + slot.y;
-      const spec = preview[i];
-      if (spec) {
-        cell.classList.add('ghost');
-        cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
-        cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
+      cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+      cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
+      foeBox.appendChild(cell);
+    });
+    // fill empty foe cells (keep grid shape)
+    if (foeBox.children.length < 9) {
+      foeBox.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const slot = WaveRunner.FOE_SLOTS[i];
+        const cell = document.createElement('div');
+        cell.className = 'ac-cell';
+        cell.dataset.xy = slot.x + ',' + slot.y;
+        const spec = preview[i];
+        if (spec) {
+          cell.classList.add('ghost');
+          cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+          cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
+        }
+        foeBox.appendChild(cell);
       }
+    }
+  } else {
+    // TD: path cells marker (spawn/base/board path) as ghost preview
+    const tdPath = Path.pathThroughBoard();
+    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunnerTd.MAX_MOBS);
+    preview.forEach((spec, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'ac-cell ghost';
+      cell.dataset.xy = tdPath[0].x + ',' + tdPath[0].y; // spawn marker
+      cell.appendChild(UI.spriteCanvas(spec.dex, 40, 40, { scale: 2 }));
+      cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
+      foeBox.appendChild(cell);
+    });
+    if (!foeBox.children.length) {
+      const cell = document.createElement('div');
+      cell.className = 'ac-cell ghost';
+      cell.dataset.xy = tdPath[0].x + ',' + tdPath[0].y;
+      cell.innerHTML = '<span class="ac-td-spawn">⬇</span>';
       foeBox.appendChild(cell);
     }
   }
 
   // player arena 3×3
   const buffs = buffCells(st.run.wave);
+  const tdPathSet = td ? new Set(Path.pathThroughBoard().map((c) => c.x + ',' + c.y)) : null;
   for (let y = 0; y < 3; y++) {
     for (let x = 0; x < 3; x++) {
       const cell = document.createElement('div');
       cell.className = 'ac-cell';
       cell.dataset.xy = x + ',' + y;
-      if (buffs.has(x + ',' + y)) cell.classList.add('buff');
+      if (tdPathSet && tdPathSet.has(x + ',' + y)) cell.classList.add('td-path');
+      if (!td && buffs.has(x + ',' + y)) cell.classList.add('buff');
       const u = unitAt(x, y);
       if (u) {
         if (st.sel === u) cell.classList.add('sel');
@@ -306,8 +349,6 @@ function renderStage(): void {
   }
 
   // fx overlay: world-px canvas (3 cols × 7 rows) over both arenas.
-  // FX/VFX draw in world units (Sprites.PX per art px) — sizing the canvas in
-  // art px made every effect 2× too large relative to the cells.
   const fc = $('ac-fx') as HTMLCanvasElement;
   fc.width = 3 * Tiles.T * Sprites.PX;
   fc.height = 7 * Tiles.T * Sprites.PX;
@@ -318,13 +359,52 @@ function renderStage(): void {
   }
 }
 
-/** sync enemy sprites into foe-grid cells (spawn / hp / death) each combat frame */
+/** sync enemy sprites each combat frame: dual-board = grid cells; TD = path walk overlay */
 const foeLastHp = new Map<MobBattle, number>();
 function syncEnemies(): void {
   const box = document.getElementById('ac-foe-grid');
   if (!box) return;
   const seen = new Set<MobBattle>();
   if (st.run.phase === 'combat') {
+    if (currentMode === 'td') {
+      // TD: render walking mobs as absolute-positioned sprites over the arenas container
+      const host = document.getElementById('ac-arenas');
+      if (!host) return;
+      // clear old TD sprites
+      host.querySelectorAll('.ac-td-mob').forEach((el) => el.remove());
+      const tdPath = Path.pathThroughBoard();
+      for (const m of st.run.mobs) {
+        if (!m.alive) continue;
+        seen.add(m);
+        // progress → fractional cell index → interpolate x,y
+        const idx = Math.min(tdPath.length - 1, Math.max(0, m.progress));
+        const i0 = Math.floor(idx), i1 = Math.min(tdPath.length - 1, i0 + 1);
+        const t = idx - i0;
+        const c0 = tdPath[i0], c1 = tdPath[i1];
+        const fx = c0.x + (c1.x - c0.x) * t;
+        const fy = c0.y + (c1.y - c0.y) * t;
+        // convert board coords to % position inside arenas (player grid y0..2, spawn y-1)
+        // arenas layout: foe grid on top (hidden in TD), me grid below — use me-grid rects
+        const meGrid = document.getElementById('ac-me-grid');
+        if (!meGrid) continue;
+        const gr = meGrid.getBoundingClientRect();
+        const hostR = host.getBoundingClientRect();
+        const cellW = gr.width / 3, cellH = gr.height / 3;
+        const px = gr.left - hostR.left + (fx + 0.5) * cellW;
+        const py = gr.top - hostR.top + (fy + 0.5) * cellH;
+        const el = document.createElement('div');
+        el.className = 'ac-td-mob' + (m.boss ? ' boss' : '');
+        el.style.left = px + 'px';
+        el.style.top = py + 'px';
+        el.appendChild(UI.spriteCanvas(m.dex, 40, 40, { scale: 2, lively: true }));
+        el.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
+        const fill = el.querySelector('.hp i') as HTMLElement | null;
+        if (fill) fill.style.width = Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%';
+        host.appendChild(el);
+      }
+      return;
+    }
+    // dual-board mode (existing)
     for (const m of st.run.mobs) {
       if (!m.alive) continue;
       seen.add(m);
@@ -347,16 +427,18 @@ function syncEnemies(): void {
       foeLastHp.set(m, m.hp);
     }
   }
-  // death: clear cells whose mob is gone (burst at cell)
-  for (const cell of box.querySelectorAll<HTMLElement>('.ac-cell')) {
-    if (!cell.querySelector('canvas')) continue;
-    const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
-    const m = st.run.mobs.find((mm) => mm.cx === x && mm.cy === y && seen.has(mm));
-    if (!m) {
-      const a = cellCenter(x, y);
-      FX.burst(a.x, a.y - LIFT * 0.5, '#fff', 8, 120);
-      cell.innerHTML = '';
-      cell.classList.remove('boss', 'ghost');
+  // death: clear cells whose mob is gone (burst at cell) — dual-board only
+  if (currentMode !== 'td') {
+    for (const cell of box.querySelectorAll<HTMLElement>('.ac-cell')) {
+      if (!cell.querySelector('canvas')) continue;
+      const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
+      const m = st.run.mobs.find((mm: MobBattle) => mm.cx === x && mm.cy === y && seen.has(mm));
+      if (!m) {
+        const a = cellCenter(x, y);
+        FX.burst(a.x, a.y - LIFT * 0.5, '#fff', 8, 120);
+        cell.innerHTML = '';
+        cell.classList.remove('boss', 'ghost');
+      }
     }
   }
 }
@@ -546,12 +628,14 @@ function onStart(): void {
     Audio.sfx('error', undefined);
     return;
   }
-  WaveRunner.forceStart(st.run);
+  const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
+  Runner.forceStart(st.run);
   enterCombat();
 }
 
 function onBuffPick(buff: BuffDef): void {
-  WaveRunner.pickBuff(st.run, buff);
+  const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
+  Runner.pickBuff(st.run, buff);
   UI.toast(`${buff.name}: ${buff.desc}`);
   Audio.sfx('confirm', undefined);
   hideOver();
@@ -642,10 +726,12 @@ function loop(ts: number): void {
   if (st.paused) { st.last = ts; requestAnimationFrame(loop); return; }
   const dt = Math.min(0.1, (ts - st.last) / 1000 || 0);
   st.last = ts;
-  const r = st.run;
+  const r: any = st.run;
+  const td = currentMode === 'td';
+  const Runner: any = td ? WaveRunnerTd : WaveRunner;
   if (r.phase === 'combat' || r.phase === 'prep') {
     const prev = r.phase;
-    const changed = WaveRunner.tick(r, st.units, dt, battleMods());
+    const changed = Runner.tick(r, st.units, dt, battleMods());
     const after: string = r.phase;
     if (changed) {
       if (prev === 'prep' && after === 'combat') enterCombat();
@@ -653,11 +739,11 @@ function loop(ts: number): void {
         st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
         renderAll(); offerBuff(); return;
       }
-      else if (after === 'lost') { renderAll(); showOver('ban', `Wave ${r.wave} — the base fell`); return; }
+      else if (after === 'lost') { renderAll(); showOver('ban', td ? `Wave ${r.wave} — the base fell` : `Wave ${r.wave} — your heart broke`); return; }
       else {
         if (prev === 'combat' && after === 'prep') {
           st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
-          UI.toast(`+${WaveRunner.WAVE_BONUS} gold`);
+          UI.toast(`+${Runner.WAVE_BONUS} gold`);
         }
         renderAll();
       }
@@ -894,7 +980,7 @@ function updateCombatBars(): void {
     const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
     const fill = cell.querySelector('.hp i') as HTMLElement | null;
     if (!fill) continue;
-    const m = st.run.mobs.find((mm) => mm.cx === x && mm.cy === y && mm.alive);
+    const m = st.run.mobs.find((mm: MobBattle) => mm.cx === x && mm.cy === y && mm.alive);
     fill.style.width = m ? Math.max(0, (m.hp / Math.max(1, m.maxHp)) * 100) + '%' : '0%';
   }
   renderHud();
@@ -904,7 +990,8 @@ function updateCombatBars(): void {
 
 function reset(): void {
   buffPending = false;
-  st.run = WaveRunner.createRun();
+  const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
+  st.run = Runner.createRun();
   st.shop = Shop.createShop(1);
   st.board = { units: [] };
   st.sel = null;

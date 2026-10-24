@@ -890,6 +890,14 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-mode-card:hover, .ac-mode-card:focus-visible { border-color: var(--gold); background: rgba(255,255,255,.08); outline: none; }
 .ac-mode-card small { display: block; font-size: 13px; font-weight: 400; color: var(--muted); margin-top: 4px; }
 
+/* TD mode: path overlay on player grid + walking mob sprites */
+.ac-arenas.td-mode #ac-arena-foe { display: none; }
+.ac-cell.td-path { box-shadow: inset 0 0 0 1px rgba(255, 210, 80, .55); background: rgba(255, 210, 80, .08); }
+.ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
+.ac-td-mob .hp { display: block; width: 36px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
+.ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
+.ac-td-spawn { font-size: 18px; color: var(--gold); }
+
 /* ============ autochess (scr-ac) — portrait dual-board ============ */
 #scr-ac {
   flex-direction: column; justify-content: flex-start; align-items: center;
