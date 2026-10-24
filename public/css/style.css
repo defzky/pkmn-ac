@@ -911,6 +911,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-mob canvas.hurt { animation: ac-hurt .18s; }
 .ac-td-mob .hp { display: block; width: 36px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
 .ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
+/* death fade (dungeon enemy.die: Faint hold + fade ~0.9s before removal) */
+.ac-td-mob, .ac-cell { transition: opacity .85s ease; }
+.ac-td-mob.ac-dying, .ac-cell.ac-dying { opacity: 0; pointer-events: none; }
 /* wave-preview strip + spawn/base gates (visible only in TD) */
 .ac-td-wave { display: none; align-items: center; gap: 4px; min-height: 32px; flex-wrap: wrap; justify-content: center; }
 .ac-arenas.td-mode .ac-td-wave { display: flex; }

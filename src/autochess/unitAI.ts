@@ -259,6 +259,7 @@ export function tick(
       m.roarCd -= dt;
       if (m.roarCd <= 0) {
         m.roarCd = 10;
+        (m as any).roarPulse = true; // UI: ring + sfx at mob pos (ac-ui stepFx)
         const c = mobPos(m, cells);
         for (const u of units) {
           if (!u.alive) continue;
@@ -318,7 +319,8 @@ export function tick(
 
     // fire
     const moveType = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.type ?? '') : '';
-    let dmg = totalAtk(u) * typeMult(moveType, best.types);
+    const tm = typeMult(moveType, best.types);
+    let dmg = totalAtk(u) * tm;
     dmg *= (mods as any).typeBoostMul ?? 1;
     // armor (geodude): flat reduce of direct attack damage
     if (best.armor > 0) dmg *= 1 - best.armor;
@@ -327,7 +329,8 @@ export function tick(
     applyDamage(best, dmg);
     u.cd = effCd(u, mods);
     // UI: impact point + damage for projectile/slash vfx + damage number
-    u.hit = { x: ftc.x, y: ftc.y, dmg };
+    // eff = type effectiveness → dungeon-style dmgText color (super yellow / weak gray)
+    u.hit = { x: ftc.x, y: ftc.y, dmg, eff: tm > 1.15 ? 'super' : tm < 0.9 ? 'weak' : null };
 
     // synergy on-hit effects
     const burnOnHit = (mods as any).burnOnHit || 0;

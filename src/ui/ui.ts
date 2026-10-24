@@ -268,8 +268,7 @@ const UI = (() => {
       const fx = cv.width / 2, fy = big ? cv.height / 2 + ay * k * 0.45 : cv.height * 0.88;
 
       if (s.opts.shadow !== false && !s.opts.silhouette) {
-        ctx.fillStyle = 'rgba(0,0,0,.35)';
-        ctx.beginPath(); ctx.ellipse(fx, fy, 9 * k, 3.4 * k, 0, 0, 6.2832); ctx.fill();
+        Sprites.drawShadow(ctx, s.dex, fx, fy, 0.45 * k); // PMD ShadowSize (was fixed ellipse)
       }
       if (s.opts.silhouette) {
         ctx.save();
@@ -320,8 +319,15 @@ const UI = (() => {
     s.a.play(anim, { speed });
   }
 
+  /** One-shot held on last frame — dungeon death (enemy.die Faint hold:true). */
+  function spriteFaint(cv: any, speed = 1.4): void {
+    const s = byCanvas.get(cv);
+    if (!s || !s.cv.isConnected || s.a.busy()) return;
+    s.a.play('Faint', { speed, hold: true });
+  }
+
   return { $, show, hide, hideAll, isOpen, chrome, refreshCoins, toast, typeChips, stars, confirmDelete,
-           sprite, spriteCanvas, spriteHit, tick, initChrome, soundControls };
+           sprite, spriteCanvas, spriteHit, spriteFaint, tick, initChrome, soundControls };
 })();
 register('UI', UI);
 export { UI };

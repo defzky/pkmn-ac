@@ -201,13 +201,22 @@ interface AcProj {
   showText: boolean;
   /** boomerang already hit at the turn point */
   hit: boolean;
+  /** type effectiveness vs target (dungeon dmgText color: super yellow / weak gray) */
+  eff?: 'super' | 'weak' | null;
 }
 interface AcImpact {
   t: number; x: number; y: number; dmg: number; col: string;
   pal: string; melee?: string | null; angle: number;
+  /** total delay (telegraph growth denominator) */
+  total?: number;
+  /** ground telegraph radius (Hazards-style warning ring while t > 0) */
+  tele?: number;
+  eff?: 'super' | 'weak' | null;
 }
 const acProjs: AcProj[] = [];
 const acImpacts: AcImpact[] = [];
+/** time accumulator for pulsing ground status FX (stepFx) */
+let fxT = 0;
 let fxCanvas: HTMLCanvasElement | null = null;
 const cellPx = new Map<string, { x: number; y: number }>();
 let fxRo: ResizeObserver | null = null;
@@ -466,13 +475,19 @@ interface TdEntry {
   ctx: CanvasRenderingContext2D | null;
   anim: InstanceType<typeof Sprites.Animator>;
   lastP: number;
+  /** death fade timer (Faint hold + .ac-dying opacity, removed at 0.9s) */
+  deathT: number;
+  dying: boolean;
 }
 const tdMobEls = new Map<MobBattle, TdEntry>();
 const tdLastPos = new Map<MobBattle, { x: number; y: number }>();
+/** dual-board death fades: dying cell → elapsed time (cleared at 0.9s) */
+const dyingCells = new Map<HTMLElement, number>();
 function clearTdMobs(): void {
   for (const { el } of tdMobEls.values()) el.remove();
   tdMobEls.clear();
   tdLastPos.clear();
+  dyingCells.clear();
 }
 function syncEnemies(dt = 0): void {
   const box = document.getElementById('ac-foe-grid');
@@ -509,7 +524,7 @@ function syncEnemies(dt = 0): void {
           el.insertAdjacentHTML('beforeend', pill(m.star, m.atk) + '<span class="hp"><i></i></span>');
           const fill = el.querySelector('.hp i') as HTMLElement | null;
           host.appendChild(el);
-          entry = { el, fill, cv, ctx: cv.getContext('2d'), anim, lastP: -1 };
+          entry = { el, fill, cv, ctx: cv.getContext('2d'), anim, lastP: -1, deathT: 0, dying: false };
           tdMobEls.set(m, entry);
         }
         entry.el.style.left = px + 'px';
@@ -533,8 +548,7 @@ function syncEnemies(dt = 0): void {
           const k = 2;
           const big = ay * k > entry.cv.height * 0.8;
           const fx = entry.cv.width / 2, fy = big ? entry.cv.height / 2 + ay * k * 0.45 : entry.cv.height * 0.88;
-          ctx.fillStyle = 'rgba(0,0,0,.35)';
-          ctx.beginPath(); ctx.ellipse(fx, fy, 9 * k, 3.4 * k, 0, 0, 6.2832); ctx.fill();
+          Sprites.drawShadow(ctx, String(m.dex), fx, fy, 0.9); // PMD ShadowSize (sprites.drawShadow)
           entry.anim.draw(ctx, fx, fy);
         }
         entry.el.dataset.anim = entry.anim.cur;
@@ -542,19 +556,45 @@ function syncEnemies(dt = 0): void {
         if (m.hp < prev) {
           const cv = entry.cv;
           cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt');
+          if (!entry.anim.busy()) entry.anim.play('Hurt', { speed: 1.6 }); // dungeon enemy.showHurt
+          Audio.sfx('hit', undefined);
         }
         foeLastHp.set(m, m.hp);
       }
-      // death: burst at last known pos + remove cached element
+      // death: Faint hold + .ac-dying fade (~0.9s) + burst, then remove cached element
       for (const [m, entry] of tdMobEls) {
         if (seen.has(m)) continue;
+        if (!entry.dying) {
+          entry.dying = true;
+          entry.anim.play('Faint', { speed: 1.4, hold: true }); // dungeon enemy.die
+          entry.el.classList.add('ac-dying');
+          Audio.sfx(m.boss ? 'bossDown' : 'faint', undefined);
+        }
         const p = tdLastPos.get(m);
         if (p) {
           const hostR = host.getBoundingClientRect();
           const w = fxCanvas?.width || hostR.width, ht = fxCanvas?.height || hostR.height;
           const sx = hostR.width > 0 ? (p.x / hostR.width) * w : p.x;
           const sy = hostR.height > 0 ? (p.y / hostR.height) * ht : p.y;
-          FX.burst(sx, sy - LIFT * 0.5, '#fff', 8, 120);
+          if (entry.deathT === 0) FX.burst(sx, sy - LIFT * 0.5, '#fff', 8, 120);
+        }
+        entry.deathT += dt > 0 ? dt : 1; // dt 0 (tests) → finalize immediately
+        if (entry.deathT < 0.9) {
+          // keep drawing the Faint frame while fading
+          if (entry.ctx && dt > 0) {
+            const ctx = entry.ctx;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, entry.cv.width, entry.cv.height);
+            ctx.globalAlpha = Math.max(0, 1 - entry.deathT / 0.9);
+            const meta = Sprites.animMeta(String(m.dex), 'Idle');
+            const ay = meta ? meta.ay : 24;
+            const big = ay * 2 > entry.cv.height * 0.8;
+            const fx = entry.cv.width / 2, fy = big ? entry.cv.height / 2 + ay * 2 * 0.45 : entry.cv.height * 0.88;
+            Sprites.drawShadow(ctx, String(m.dex), fx, fy, 0.8);
+            entry.anim.draw(ctx, fx, fy);
+            ctx.globalAlpha = 1;
+          }
+          continue;
         }
         entry.el.remove();
         tdMobEls.delete(m);
@@ -581,22 +621,43 @@ function syncEnemies(dt = 0): void {
       const prev = foeLastHp.get(m) ?? m.hp;
       if (m.hp < prev) {
         const cv = cell.querySelector('canvas');
-        if (cv) { cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt'); }
+        if (cv) {
+          cv.classList.remove('hurt'); void cv.offsetWidth; cv.classList.add('hurt');
+          UI.spriteHit(cv, 'Hurt', undefined, 1.6); // dungeon enemy.showHurt
+          Audio.sfx('hit', undefined);
+        }
       }
       foeLastHp.set(m, m.hp);
     }
   }
-  // death: clear cells whose mob is gone (burst at cell) — dual-board only
+  // death: Faint hold + .ac-dying fade (~0.9s), then clear cell — dual-board only
   if (currentMode !== 'td') {
     for (const cell of box.querySelectorAll<HTMLElement>('.ac-cell')) {
       if (!cell.querySelector('canvas')) continue;
       const [x, y] = (cell.dataset.xy || '').split(',').map(Number);
       const m = st.run.mobs.find((mm: MobBattle) => mm.cx === x && mm.cy === y && seen.has(mm));
       if (!m) {
-        const a = cellCenter(x, y);
-        FX.burst(a.x, a.y - LIFT * 0.5, '#fff', 8, 120);
+        if (!cell.classList.contains('ac-dying')) {
+          cell.classList.add('ac-dying');
+          const cv = cell.querySelector('canvas');
+          if (cv) UI.spriteFaint(cv);
+          const dm = st.run.mobs.find((mm: MobBattle) => mm.cx === x && mm.cy === y && !mm.alive);
+          Audio.sfx(dm?.boss ? 'bossDown' : 'faint', undefined);
+          const a = cellCenter(x, y);
+          FX.burst(a.x, a.y - LIFT * 0.5, '#fff', 8, 120);
+          dyingCells.set(cell, 0);
+          cell.classList.remove('boss', 'ghost');
+        }
+      }
+    }
+    for (const [cell, t] of dyingCells) {
+      const nt = t + (dt > 0 ? dt : 1); // dt 0 (tests) → finalize immediately
+      if (nt >= 0.9) {
         cell.innerHTML = '';
-        cell.classList.remove('boss', 'ghost');
+        cell.classList.remove('ac-dying');
+        dyingCells.delete(cell);
+      } else {
+        dyingCells.set(cell, nt);
       }
     }
   }
@@ -1050,8 +1111,8 @@ function spawnMoveFx(b: UnitBattle): void {
   const dx = hx - fx0, dy = hy - fy0;
   const dist = Math.hypot(dx, dy) || 1;
   const ang = Math.atan2(dy, dx);
-  const impact = (t: number, melee?: string | null) =>
-    acImpacts.push({ t, x: hx, y: hy, dmg: hit.dmg, col, pal: v.pal || type, melee, angle: ang });
+  const impact = (t: number, melee?: string | null, tele?: number) =>
+    acImpacts.push({ t, total: t, x: hx, y: hy, dmg: hit.dmg, col, pal: v.pal || type, melee, angle: ang, eff: hit.eff, tele });
   const projVis = { proj: v.proj || VFX.forType(type).proj, pal: v.pal || type, trail: v.trail };
   const fan = (i: number) => plan.count <= 1 ? 0 : (i - (plan.count - 1) / 2) * plan.spread;
 
@@ -1069,7 +1130,7 @@ function spawnMoveFx(b: UnitBattle): void {
         mode, x: fx0, y: fy0, ox: fx0, oy: fy0, hx: ex, hy: ey,
         vx: Math.cos(a) * plan.speed, vy: Math.sin(a) * plan.speed,
         t: 0, out, life: mode === 'boomerang' ? out * 2 : out,
-        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false,
+        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false, eff: hit.eff,
       });
     }
   } else if (plan.mode === 'meteor' || plan.mode === 'mine') {
@@ -1081,7 +1142,7 @@ function spawnMoveFx(b: UnitBattle): void {
       acProjs.push({
         mode: 'meteor', x: tx, y: ty - fall, ox: tx, oy: ty - fall, hx: tx, hy: ty,
         vx: 0, vy: 0, t: 0, out: life, life,
-        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false,
+        vis: projVis, dmg: hit.dmg, col, showText: i === 0, hit: false, eff: hit.eff,
       });
     }
   } else if (plan.mode === 'slash') {
@@ -1092,12 +1153,12 @@ function spawnMoveFx(b: UnitBattle): void {
   } else if (plan.mode === 'radial') {
     FX.ring(fx0, fy0, 3, 22, col, 0.28, 2);
     FX.burst(fx0, fy0, col, 8, 90);
-    impact(0.1);
+    impact(0.1, undefined, 22); // telegraph: dashed warning ring grows until impact
   } else if (plan.mode === 'aura') {
     FX.ring(fx0, fy0, 4, 20, col, 0.3, 2);
     if (v.aura) FX.sp(v.aura, v.pal || type, fx0, fy0, { life: 0.42, scale: 1.3 });
     else FX.burst(fx0, fy0, col, 6, 80);
-    impact(0.12);
+    impact(0.12, undefined, 20);
   } else if (plan.mode === 'charge') {
     FX.ring(fx0, fy0, 3, 16, col, 0.3, 2);
     FX.sp(v.buff || 'arrow', v.pal || type, fx0, fy0, { vy: -45, life: 0.5, scale: 1.2 });
@@ -1122,25 +1183,48 @@ function spawnMoveFx(b: UnitBattle): void {
   }
 }
 
+/** Hazards-style warning: dashed ground circle grows (k 0→1) until impact. */
+function drawTelegraph(g: CanvasRenderingContext2D, x: number, y: number, rMax: number, k: number, col: string): void {
+  const r = rMax * (0.3 + 0.7 * Math.min(1, Math.max(0, k)));
+  g.save();
+  g.fillStyle = col;
+  g.globalAlpha = 0.10 * k;
+  g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill();
+  g.strokeStyle = col;
+  g.globalAlpha = 0.45 + 0.35 * Math.sin(k * 24);
+  g.lineWidth = 2;
+  g.setLineDash([5, 4]);
+  g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.stroke();
+  g.restore();
+}
+
+/** dungeon dmgText palette: super = yellow + big, weak = gray (enemy.ts showHurt). */
+function effCol(eff?: 'super' | 'weak' | null): string {
+  return eff === 'super' ? '#ffe14d' : eff === 'weak' ? '#a3abb8' : '#ffffff';
+}
+
 /** Advance + draw stage fx (call each combat frame; ctx null in tests). */
 function stepFx(dt: number): void {
   if (!fxCanvas) return;
   const g = fxCanvas.getContext('2d');
   if (!g) return;
-  // pending impacts: slash/burst + damage number
+  // pending impacts: slash/burst + damage number (+ telegraph while waiting)
   for (let i = acImpacts.length - 1; i >= 0; i--) {
     const p = acImpacts[i];
     p.t -= dt;
-    if (p.t > 0) continue;
+    if (p.t > 0) {
+      if (p.tele && p.total) drawTelegraph(g, p.x, p.y, p.tele, 1 - p.t / p.total, p.col);
+      continue;
+    }
     acImpacts.splice(i, 1);
     if (p.melee) FX.slash(p.x, p.y, p.angle, 11, 1.7, p.col, { pal: p.pal, melee: p.melee });
     else FX.burst(p.x, p.y, p.col, 7, 100);
-    FX.dmgText(p.x, p.y - 6, Math.round(p.dmg), '#ffffff');
+    FX.dmgText(p.x, p.y - 6, Math.round(p.dmg), effCol(p.eff), p.eff === 'super');
   }
   // projectiles: fly / turn back / fall, trail, impact
   const hitProj = (p: AcProj) => {
     FX.burst(p.hx, p.hy, p.col, 7, 110);
-    if (p.showText) FX.dmgText(p.hx, p.hy - 6, Math.round(p.dmg), '#ffffff');
+    if (p.showText) FX.dmgText(p.hx, p.hy - 6, Math.round(p.dmg), effCol(p.eff), p.eff === 'super');
   };
   for (let i = acProjs.length - 1; i >= 0; i--) {
     const p = acProjs[i];
@@ -1164,6 +1248,37 @@ function stepFx(dt: number): void {
   }
   // draw projectiles (dungeon Projectiles.draw: shadow, then VFX shape)
   g.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+  // ground status FX (dungeon enemy.ts): burn/poison ellipse + shield bubble + roar ring
+  fxT += dt > 0 ? dt : 0.016;
+  for (const m of st.run.mobs) {
+    if (!m.alive) continue;
+    let px: number | undefined, py: number | undefined;
+    if (currentMode === 'td') {
+      const p = tdLastPos.get(m);
+      if (p) { px = p.x; py = p.y; }
+    } else if (m.cx != null && m.cy != null) {
+      const c = cellCenter(m.cx, m.cy);
+      px = c.x; py = c.y;
+    }
+    if (px == null || py == null) continue;
+    const sts = m.statuses || [];
+    const hasSt = (t: string) => sts.some((s: { type: string }) => s.type === t);
+    if (hasSt('burn') || hasSt('poison')) {
+      g.fillStyle = hasSt('burn') ? 'rgba(255,130,40,.3)' : 'rgba(170,80,220,.3)';
+      g.beginPath(); g.ellipse(px, py - 2, 15, 5.5, 0, 0, 6.2832); g.fill();
+    }
+    if (m.shield > 0) {
+      g.strokeStyle = 'rgba(130,190,255,.75)';
+      g.lineWidth = 2;
+      g.beginPath(); g.arc(px, py - LIFT - 6, 13 + Math.sin(fxT * 5) * 1.5, 0, 6.2832); g.stroke();
+    }
+    if ((m as any).roarPulse) {
+      (m as any).roarPulse = false;
+      FX.ring(px, py - LIFT * 0.5, 6, 30, '#ff5f6d', 0.5, 3);
+      FX.burst(px, py - LIFT * 0.5, '#ff5f6d', 10, 140);
+      Audio.sfx('boss', undefined);
+    }
+  }
   g.fillStyle = 'rgba(0,0,0,.25)';
   for (const p of acProjs) {
     g.beginPath(); g.ellipse(p.x, p.hy, 5, 2.2, 0, 0, 6.2832); g.fill();
@@ -1173,6 +1288,7 @@ function stepFx(dt: number): void {
     if (p.mode === 'meteor') angle = Math.PI / 2;
     else if (VFX.isDir(p.vis.proj)) angle = Math.atan2(p.vy, p.vx);
     else if (VFX.spins(p.vis.proj)) angle = p.t * 9;
+    if (p.mode === 'meteor') drawTelegraph(g, p.x, p.hy, 14, p.t / p.life, p.col); // landing warning
     VFX.draw(g, p.vis.proj, p.vis.pal, p.x, p.y, {
       angle, alpha: Math.min(1, Math.max(0, (p.life - p.t) * 6)), scale: 1, frame: Math.floor(p.t * 12),
     });

@@ -18,6 +18,7 @@ vi.mock('../src/ui/ui', () => ({
     spriteCanvas: () => document.createElement('canvas'),
     sprite: () => ({ a: { play: vi.fn(), loop: vi.fn(), dir: 0, busy: () => false, progress: () => 1 } }),
     spriteHit: vi.fn(),
+    spriteFaint: vi.fn(),
     soundControls: vi.fn(),
   },
 }));
@@ -240,12 +241,32 @@ describe('enemy sync (dual-board walkers → grid cells)', () => {
     ACUI.syncEnemies();
     expect(cell.querySelector('canvas')).toBeNull();
   });
+  it('death fades: canvas kept with .ac-dying until 0.9s, then cleared', () => {
+    $('.ac-card').click();
+    $('#ac-start').click();
+    WaveRunner.tick(ACUI.run, ACUI.units, 0.1);
+    const m = ACUI.run.mobs[0];
+    m.hp = m.maxHp = 999; m.alive = true;
+    ACUI.syncEnemies(0.16);
+    const cell = $(`#ac-foe-grid [data-xy="${m.cx},${m.cy}"]`) as HTMLElement;
+    expect(cell.querySelector('canvas')).toBeTruthy();
+    for (const mm of ACUI.run.mobs) mm.alive = false;
+    ACUI.syncEnemies(0.16); // first dead frame → Faint hold + fade timer
+    expect(cell.querySelector('canvas')).toBeTruthy();
+    expect(cell.classList.contains('ac-dying')).toBe(true);
+    ACUI.syncEnemies(0.7); // t = 0.86 → still fading
+    expect(cell.querySelector('canvas')).toBeTruthy();
+    expect(cell.classList.contains('ac-dying')).toBe(true);
+    ACUI.syncEnemies(0.1); // t = 0.96 → cleared
+    expect(cell.querySelector('canvas')).toBeNull();
+    expect(cell.classList.contains('ac-dying')).toBe(false);
+  });
   it('hp bar tracks mob hp', () => {
     $('.ac-card').click();
     $('#ac-start').click();
     WaveRunner.tick(ACUI.run, ACUI.units, 0.1);
     const m = ACUI.run.mobs[0];
-    m.hp = m.maxHp; // unit may have chipped it during the tick
+    m.hp = m.maxHp; m.alive = true; // unit may have chipped/kill-shot it during the random tick
     ACUI.syncEnemies();
     const cell = $(`#ac-foe-grid [data-xy="${m.cx},${m.cy}"]`);
     const fill = cell.querySelector('.hp i') as HTMLElement;
@@ -323,6 +344,36 @@ describe('TD mode: mob walk animation (dungeon-style)', () => {
       ACUI.syncEnemies(0.16);
       expect(mob.dataset.anim).toBe('Idle');
       expect(m.alive).toBe(true);
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+
+  it('td mob death → Faint hold + .ac-dying fade, element removed at 0.9s', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      return { width: 134, height: 134, left: 0, top: 0, right: 134, bottom: 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('td');
+      $('.ac-card').click();
+      $('#ac-start').click();
+      WaveRunnerTd.tick(ACUI.run, ACUI.units, 0.1);
+      const m = ACUI.run.mobs[0];
+      m.hp = m.maxHp = 9999; m.alive = true;
+      ACUI.syncEnemies(0.16);
+      const mob = document.querySelector('.ac-td-mob') as HTMLElement;
+      expect(mob).toBeTruthy();
+      m.alive = false;
+      ACUI.syncEnemies(0.16); // first dead frame → dying
+      expect(mob.isConnected).toBe(true);
+      expect(mob.classList.contains('ac-dying')).toBe(true);
+      ACUI.syncEnemies(0.7); // t = 0.86 → still fading
+      expect(mob.isConnected).toBe(true);
+      ACUI.syncEnemies(0.1); // t = 0.96 → removed
+      expect(mob.isConnected).toBe(false);
+      expect(document.querySelector('.ac-td-mob')).toBeNull();
     } finally {
       HTMLElement.prototype.getBoundingClientRect = orig;
       ACUI.open('auto');

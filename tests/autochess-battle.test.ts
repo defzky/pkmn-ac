@@ -136,7 +136,7 @@ describe('unitAI.tick', () => {
     UnitAI.tick([u], [m], 0.01, undefined, Path.laneCells());
     expect(typeof u.swing).toBe('string');
     expect(['Attack', 'Shoot', 'Charge', 'Walk']).toContain(u.swing);
-    expect(u.hit).toEqual({ x: 0, y: -1, dmg: expect.any(Number) }); // impact cell (1,-1)→(0,-1)
+    expect(u.hit).toEqual({ x: 0, y: -1, dmg: expect.any(Number), eff: null }); // impact cell (1,-1)→(0,-1)
   });
 
   it('Bulbasaur attack uses Razor Leaf projectile flags', () => {
@@ -147,7 +147,22 @@ describe('unitAI.tick', () => {
     u.atk = 999; u.atkCd = 0.5;
     UnitAI.tick([u], [m], 0.01, undefined, Path.laneCells());
     expect(u.swing).toBe('Shoot');
-    expect(u.hit).toEqual({ x: -1, y: 1, dmg: expect.any(Number) });
+    expect(u.hit).toEqual({ x: -1, y: 1, dmg: expect.any(Number), eff: 'weak' }); // razor leaf (grass) vs flying → 0.5
+  });
+
+  it('hit.eff = type effectiveness (super / weak → dmgText color)', () => {
+    const u = unitAt(6, 0, 1); // charmander, fire move, range 3 → mob cell (1,-1)
+    expect((globalThis as any).G.Moves.BY_ID[u.move]?.type).toBe('fire');
+    u.atk = 5; u.atkCd = 0.5;
+    const grassMob = mob({ progress: 0, hp: 9999, types: ['grass'] });
+    UnitAI.tick([u], [grassMob], 0.01, undefined, Path.laneCells());
+    expect(u.hit?.eff).toBe('super'); // fire > grass → #ffe14d
+
+    const u2 = unitAt(6, 0, 1);
+    u2.atk = 5; u2.atkCd = 0.5;
+    const fireMob = mob({ progress: 0, hp: 9999, types: ['fire'] });
+    UnitAI.tick([u2], [fireMob], 0.01, undefined, Path.laneCells());
+    expect(u2.hit?.eff).toBe('weak'); // fire vs fire → #a3abb8
   });
 
   it('attack sets facing angle toward mob cell (west → π)', () => {
@@ -246,7 +261,7 @@ describe('dual-board mobs (cx/cy — P18)', () => {
     const m = mob({ hp: 1, cx: 1, cy: -1 });
     const r = UnitAI.tick([u], [m], 0.05, undefined, []);
     expect(r.kills).toBe(1);
-    expect(u.hit).toEqual({ x: 1, y: -1, dmg: expect.any(Number) });
+    expect(u.hit).toEqual({ x: 1, y: -1, dmg: expect.any(Number), eff: null });
   });
 
   it('targeting prefers front row (cy −1) over back row (cy −3)', () => {

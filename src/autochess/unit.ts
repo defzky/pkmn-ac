@@ -35,7 +35,7 @@ export interface UnitBattle extends BoardStats {
   /** UI: set with swing → facing angle toward target cell (atan2 dy,dx, y down); Sprites.dirFromAngle */
   face?: number;
   /** UI: set with swing → impact point + damage (projectile/slash vfx + dmg number) */
-  hit?: { x: number; y: number; dmg: number };
+  hit?: { x: number; y: number; dmg: number; eff?: 'super' | 'weak' | null };
   /** UI: skill fired this tick → charge flourish in addition to attack fx */
   skillFx?: boolean;
 }
