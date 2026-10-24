@@ -25,6 +25,7 @@ import { Team } from './team';
 import { WaveRunner } from './wave-runner';
 import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
+import { runScore } from './base';
 import { Buffs, type BuffDef } from './buffs';
 import { isFlank } from './unit';
 import { planMoveFx } from './move-fx';
@@ -200,9 +201,9 @@ function renderHud(): void {
   ($('ac-hp') as HTMLElement).innerHTML = `♥ <b>${r.base.hp}</b>`;
   $('ac-gold').innerHTML = `☀️ <b>${r.gold}</b>`;
   $('ac-power').innerHTML = `⚔️ ${playerPower()}`;
-  // prep timer bar
+  // prep timer bar (D2c: wave-scaled 25/15/12s)
   const tf = $('ac-timer-fill');
-  const prepSec = td ? WaveRunnerTd.PREP_SECONDS : WaveRunner.PREP_SECONDS;
+  const prepSec = WaveDef.prepSeconds(r.wave);
   const pct = r.phase === 'prep' ? Math.max(0, Math.min(100, (r.prepLeft / prepSec) * 100)) : 0;
   tf.style.width = pct + '%';
   // timer urgency: last 3s of prep → blink the fill (Fase J)
@@ -1149,7 +1150,7 @@ function onExit(): void {
   close();
 }
 
-function showOver(icon: string, sub: string): void {
+function showOver(icon: string, sub: string, opts?: { endless?: boolean; onEndless?: () => void }): void {
   const ov = $('ac-over');
   ov.classList.remove('hidden');
   ov.innerHTML = `
@@ -1157,10 +1158,12 @@ function showOver(icon: string, sub: string): void {
       <div class="ac-over-ico">${Icons.html(icon, 34)}</div>
       <p class="sub">${esc(sub)}</p>
       <div class="ac-btns">
+        ${opts?.endless ? '<button class="btn gold small" id="ac-endless">Endless</button>' : ''}
         <button class="btn gold small" id="ac-again">Play again</button>
         <button class="btn small" id="ac-menu">Menu</button>
       </div>
     </div>`;
+  if (opts?.endless && opts.onEndless) $('ac-endless').onclick = () => { hideOver(); opts.onEndless!(); };
   $('ac-again').onclick = () => { hideOver(); reset(); if (st.open) requestAnimationFrame(loop); };
   $('ac-menu').onclick = () => close();
 }
@@ -1248,7 +1251,12 @@ function loop(ts: number): void {
         st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
         renderAll(); offerBuff(); return;
       }
-      else if (after === 'lost') { renderAll(); showOver('ban', td ? `Wave ${r.wave} — the base fell` : `Wave ${r.wave} — your heart broke`); return; }
+      else if (after === 'lost') {
+        renderAll();
+        const sc = runScore(r.wave, r.base.hp, r.gold); // D2c: score on game over too
+        showOver('ban', td ? `Wave ${r.wave} — the base fell · Score ${sc}` : `Wave ${r.wave} — your heart broke · Score ${sc}`);
+        return;
+      }
       else {
         if (prev === 'combat' && after === 'prep') {
           st.shop = Shop.createShop(r.wave); // wave cleared → free shop refresh
@@ -1267,7 +1275,17 @@ function loop(ts: number): void {
     else if (after === 'prep') renderHud();
   } else if (r.phase === 'won') {
     renderAll();
-    showOver('trophy', `${WaveDef.MAX_WAVE} waves cleared! Gold: ${r.gold}`);
+    // D2c: RUN COMPLETE screen with score + opt-in Endless
+    const sc = runScore(r.wave, r.base.hp, r.gold);
+    showOver('trophy', `RUN COMPLETE — Wave ${WaveDef.MAX_WAVE} · Score ${sc} · Gold ${r.gold}`, {
+      endless: !r.endless,
+      onEndless: () => {
+        Runner.resumeEndless(r);
+        st.shop = Shop.createShop(r.wave);
+        renderAll();
+        if (st.open) requestAnimationFrame(loop);
+      },
+    });
     return;
   }
   requestAnimationFrame(loop);

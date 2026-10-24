@@ -9,7 +9,7 @@
  * Leak penalty via base.ts (normal 5, boss 20).
  */
 import { register } from '../core/registry';
-import { WaveDef, type MobSpec } from './wave';
+import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec } from './wave';
 import { create as createBase, leak as baseLeak, type BaseState } from './base';
 import { tick as aiTick, respawnUnits } from './unitAI';
 import type { MobBattle } from './unitAI';
@@ -39,17 +39,23 @@ export interface TdRunState {
   kills: number;
   /** permanent buffs picked at buff phases (merged into combat mods) */
   buffs: RunBuffs;
+  /** consecutive leak-free wave clears (streak bonus 3+) */
+  streak: number;
+  /** any leak this combat wave (resets streak on clear) */
+  leaked: boolean;
+  /** opt-in endless past MAX_WAVE (RUN COMPLETE screen) */
+  endless: boolean;
 }
 
-/** base HP for TD run (base.ts START_HP) */
-export const TD_BASE_HP = 100;
-/** buy/placement window before wave auto-starts */
-export const PREP_SECONDS = 30;
+/** base HP for TD run (D2c 5-min sprint: 60) */
+export const TD_BASE_HP = 60;
+/** default buy/placement window (wave 1; later waves use prepSeconds(wave)) */
+export const PREP_SECONDS = 25;
 export const SPAWN_GAP = 0.4;
 export const START_GOLD = 5;
-/** gold granted on every wave clear — scales with wave: 3 + floor(w/2) */
+/** gold granted on every wave clear — D2c: 2 + floor(w/2) */
 export function waveBonus(wave: number): number {
-  return 3 + Math.floor(wave / 2);
+  return 2 + Math.floor(wave / 2);
 }
 /** grant a buff pick every N waves */
 export const BUFF_EVERY = 3;
@@ -114,6 +120,9 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): TdRunState {
     base: createBase(TD_BASE_HP),
     kills: 0,
     buffs: initBuffs(),
+    streak: 0,
+    leaked: false,
+    endless: false,
   };
 }
 
@@ -124,13 +133,22 @@ export function startCombat(st: TdRunState): void {
   st.spawnQ = comp.mobs.slice(0, MAX_MOBS).map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];
+  st.leaked = false; // fresh wave — streak survives unless a leak happens
   st.phase = 'combat';
 }
 
 function advanceWave(st: TdRunState): void {
   st.wave++;
   st.phase = 'prep';
-  st.prepLeft = PREP_SECONDS;
+  st.prepLeft = prepSeconds(st.wave); // D2c: 25 / 15 / 12s curve
+}
+
+/** RUN COMPLETE → Endless: keep going past MAX_WAVE (score keeps accumulating). */
+export function resumeEndless(st: TdRunState): void {
+  st.endless = true;
+  st.wave += 1;
+  st.phase = 'prep';
+  st.prepLeft = prepSeconds(st.wave);
 }
 
 /**
@@ -171,8 +189,9 @@ export function tick(
   st.kills += r.kills;
   if (r.gold) st.gold += r.gold;
 
-  // leaks → base damage (normal 5, boss 20); base dead → lost
+  // leaks → base damage (D2c: normal 6, boss 15); any leak kills the streak
   for (const m of r.leaks) {
+    st.leaked = true;
     const destroyed = baseLeak(st.base, m.boss);
     if (destroyed) {
       st.phase = 'lost';
@@ -187,10 +206,11 @@ export function tick(
     // dead/leaked. Only lose if base hits 0. So do nothing here for TD.
   }
 
-  // all enemies spawned and cleared → round won: wave bonus; win game at wave 20
+  // all enemies spawned and cleared → economy (interest → streak → wave bonus) + win at wave 10
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
-    st.gold += waveBonus(st.wave);
-    if (WaveDef.isFinal(st.wave)) {
+    st.streak = st.leaked ? 0 : st.streak + 1; // leak-free clear = streak up
+    st.gold += interest(st.gold) + streakBonus(st.streak) + waveBonus(st.wave);
+    if (WaveDef.isFinal(st.wave) && !st.endless) {
       st.phase = 'won';
       return true;
     }
@@ -225,11 +245,13 @@ const WaveRunnerTd = {
   tick,
   pickBuff,
   forceStart,
+  resumeEndless,
   TD_BASE_HP,
   PREP_SECONDS,
   SPAWN_GAP,
   START_GOLD,
   waveBonus,
+  prepSeconds,
   BUFF_EVERY,
   MAX_MOBS,
 };

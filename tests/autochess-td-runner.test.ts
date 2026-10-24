@@ -2,7 +2,7 @@
  * TD runner tests — ring-lane walk + leak + win/lose:
  * prep → combat; base 100; mobs walk branchCells (ring around board, alternating);
  * leak = base damage (5/20); round win = all dead + wave bonus;
- * game won = wave 20; game lost = base 0.
+ * game won = wave 10 (D2c, endless opt-in); game lost = base 0.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 
@@ -69,14 +69,14 @@ describe('ring lanes (TD) — minions never step on board cells', () => {
 });
 
 describe('createRun / economy', () => {
-  it('base 100, no foe heart, start gold 5, prep 30', () => {
+  it('base 60, no foe heart, start gold 5, prep 25 (D2c)', () => {
     const st = WRTD.createRun();
-    expect(WRTD.TD_BASE_HP).toBe(100);
-    expect(st.base.hp).toBe(100);
-    expect(st.base.maxHp).toBe(100);
+    expect(WRTD.TD_BASE_HP).toBe(60);
+    expect(st.base.hp).toBe(60);
+    expect(st.base.maxHp).toBe(60);
     expect((st as any).foe).toBeUndefined(); // no foe heart in TD
     expect(st.gold).toBe(5);
-    expect(st.prepLeft).toBe(30);
+    expect(st.prepLeft).toBe(25);
     expect(st.wave).toBe(1);
     expect(st.phase).toBe('prep');
     expect(st.kills).toBe(0);
@@ -195,15 +195,25 @@ describe('round win / game win', () => {
     expect(st.phase).toBe('buff');
   });
 
-  it('wave 20 clear → won', () => {
+  it('final wave (10) clear → won; endless keeps playing (D2c)', () => {
     const st = WRTD.createRun();
-    st.wave = 20;
+    st.wave = 10;
     WRTD.startCombat(st);
     st.spawnQ = [];
     for (const m of st.mobs) m.alive = false;
     const god = godUnit();
     WRTD.tick(st, [god], 0.01);
     expect(st.phase).toBe('won');
+
+    const st2 = WRTD.createRun();
+    st2.wave = 10;
+    st2.endless = true;
+    WRTD.startCombat(st2);
+    st2.spawnQ = [];
+    for (const m of st2.mobs) m.alive = false;
+    WRTD.tick(st2, [god], 0.01);
+    expect(st2.phase).toBe('prep');
+    expect(st2.wave).toBe(11);
   });
 
   it('pickBuff: applies and advances', () => {

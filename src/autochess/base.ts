@@ -7,8 +7,9 @@ export interface BaseState {
 }
 
 export const START_HP = 100;
-export const LEAK_NORMAL = 5;
-export const LEAK_BOSS = 20;
+/** D2c 5-min sprint: leak 6 / boss 15 (GDD td §4) */
+export const LEAK_NORMAL = 6;
+export const LEAK_BOSS = 15;
 
 export function create(maxHp: number = START_HP): BaseState {
   return { hp: maxHp, maxHp };
@@ -24,7 +25,12 @@ export function repair(b: BaseState, n: number): void {
   b.hp = Math.min(b.maxHp, b.hp + n);
 }
 
-const Base = { create, leak, repair, START_HP, LEAK_NORMAL, LEAK_BOSS };
+/** Run score (GDD common §6): wave ×100 + remaining HP ×5 + banked gold. */
+export function runScore(wave: number, hp: number, gold: number): number {
+  return wave * 100 + Math.max(0, hp) * 5 + gold;
+}
+
+const Base = { create, leak, repair, runScore, START_HP, LEAK_NORMAL, LEAK_BOSS };
 register('BaseAC', Base);
 export { Base };
 export default Base;

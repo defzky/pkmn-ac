@@ -6,7 +6,7 @@
  * damage the enemy heart; round lost = player team wiped → damage the player heart.
  */
 import { register } from '../core/registry';
-import { WaveDef, type MobSpec } from './wave';
+import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec } from './wave';
 import { create as createBase, type BaseState } from './base';
 import { tick as aiTick, respawnUnits } from './unitAI';
 import type { MobBattle } from './unitAI';
@@ -37,6 +37,12 @@ export interface RunState {
   kills: number;
   /** permanent buffs picked at buff phases (merged into combat mods) */
   buffs: RunBuffs;
+  /** consecutive round wins (streak bonus 3+) */
+  streak: number;
+  /** consecutive team-wipe rounds (consolation gold 2+) */
+  lossStreak: number;
+  /** opt-in endless past MAX_WAVE (RUN COMPLETE screen) */
+  endless: boolean;
 }
 
 /** enemy grid slots, front row first (y −1 = front … y −3 = back) */
@@ -52,13 +58,13 @@ export const FOE_HP = 20;
 /** heart damage when the player team is wiped */
 export const LOSS_DMG = 3;
 
-/** buy/placement window before wave auto-starts (Start button skips; user asked longer) */
-export const PREP_SECONDS = 30;
+/** buy/placement window before wave auto-starts (wave 1; later waves use prepSeconds(wave)) */
+export const PREP_SECONDS = 25;
 export const SPAWN_GAP = 0.4;
 export const START_GOLD = 5;
-/** flat gold granted on every wave clear — scales with wave: 3 + floor(w/2) */
+/** gold granted on every wave clear — D2c: 2 + floor(w/2) */
 export function waveBonus(wave: number): number {
-  return 3 + Math.floor(wave / 2);
+  return 2 + Math.floor(wave / 2);
 }
 /** grant a buff pick every N waves */
 export const BUFF_EVERY = 3;
@@ -124,6 +130,9 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): RunState {
     foe: createBase(FOE_HP),
     kills: 0,
     buffs: initBuffs(),
+    streak: 0,
+    lossStreak: 0,
+    endless: false,
   };
 }
 
@@ -140,7 +149,15 @@ export function startCombat(st: RunState): void {
 function advanceWave(st: RunState): void {
   st.wave++;
   st.phase = 'prep';
-  st.prepLeft = PREP_SECONDS;
+  st.prepLeft = prepSeconds(st.wave); // D2c: 25 / 15 / 12s curve
+}
+
+/** RUN COMPLETE → Endless: keep going past MAX_WAVE (score keeps accumulating). */
+export function resumeEndless(st: RunState): void {
+  st.endless = true;
+  st.wave += 1;
+  st.phase = 'prep';
+  st.prepLeft = prepSeconds(st.wave);
 }
 
 /**
@@ -178,8 +195,11 @@ export function tick(
   st.kills += r.kills;
   if (r.gold) st.gold += r.gold;
 
-  // player team wiped (or never fielded) → damage player heart
+  // player team wiped (or never fielded) → damage player heart + consolation streak
   if (!units.some((u) => u.alive)) {
+    st.streak = 0;
+    st.lossStreak++;
+    if (st.lossStreak >= 2) st.gold += Math.min(2, st.lossStreak - 1); // GDD common §4
     st.base.hp = Math.max(0, st.base.hp - (LOSS_DMG + Math.floor(st.wave / 4)));
     if (st.base.hp <= 0) {
       st.phase = 'lost';
@@ -189,12 +209,14 @@ export function tick(
     return true;
   }
 
-  // all enemies spawned and cleared → round won: damage enemy heart + wave bonus
+  // all enemies spawned and cleared → economy + damage enemy heart + win at wave 10
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
-    st.gold += waveBonus(st.wave);
+    st.streak++;
+    st.lossStreak = 0;
+    st.gold += interest(st.gold) + streakBonus(st.streak) + waveBonus(st.wave);
     const survivors = units.filter((u) => u.alive).length;
     st.foe.hp = Math.max(0, st.foe.hp - (1 + survivors));
-    if (st.foe.hp <= 0 || WaveDef.isFinal(st.wave)) {
+    if (st.foe.hp <= 0 || (WaveDef.isFinal(st.wave) && !st.endless)) {
       st.phase = 'won';
       return true;
     }
@@ -229,6 +251,7 @@ const WaveRunner = {
   tick,
   pickBuff,
   forceStart,
+  resumeEndless,
   FOE_SLOTS,
   MAX_FIELD,
   PLAYER_HP,
@@ -238,6 +261,7 @@ const WaveRunner = {
   SPAWN_GAP,
   START_GOLD,
   waveBonus,
+  prepSeconds,
   BUFF_EVERY,
 };
 register('WaveRunner', WaveRunner);

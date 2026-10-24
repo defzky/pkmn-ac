@@ -61,12 +61,12 @@ describe('unit.makeUnit', () => {
 });
 
 describe('base', () => {
-  it('leak normal −5, boss −20', () => {
+  it('leak normal −6, boss −15 (D2c)', () => {
     const b = Base.create(100);
     expect(Base.leak(b, false)).toBe(false);
-    expect(b.hp).toBe(95);
+    expect(b.hp).toBe(94);
     expect(Base.leak(b, true)).toBe(false);
-    expect(b.hp).toBe(75);
+    expect(b.hp).toBe(79);
   });
 
   it('destroyed at 0 returns true', () => {

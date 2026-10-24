@@ -35,18 +35,17 @@ function godUnit(x = 1, y = 1) {
   };
 }
 
-describe('economy (GDD Bagian 5)', () => {
-  it('start gold 5, wave bonus scales 3 + floor(w/2) (no interest)', () => {
+describe('economy (D2c — interest/streak/wave bonus)', () => {
+  it('start gold 5, wave bonus scales 2 + floor(w/2)', () => {
     expect(WR.START_GOLD).toBe(5);
-    expect(WR.waveBonus(1)).toBe(3);
-    expect(WR.waveBonus(2)).toBe(4);
-    expect(WR.waveBonus(10)).toBe(8);
-    expect(WR.waveBonus(20)).toBe(13);
-    expect(WR.income).toBeUndefined(); // interest removed
+    expect(WR.waveBonus(1)).toBe(2);
+    expect(WR.waveBonus(2)).toBe(3);
+    expect(WR.waveBonus(10)).toBe(7);
+    expect(WR.waveBonus(20)).toBe(12);
   });
-  it('createRun: wave 1, prep 30s (buy window), gold 5, player 45, enemy 20', () => {
+  it('createRun: wave 1, prep 25s (buy window), gold 5, player 45, enemy 20', () => {
     const st = WR.createRun();
-    expect(WR.PREP_SECONDS).toBe(30);
+    expect(WR.PREP_SECONDS).toBe(25);
     expect(st.wave).toBe(1);
     expect(st.phase).toBe('prep');
     expect(st.prepLeft).toBe(WR.PREP_SECONDS);
@@ -103,7 +102,7 @@ describe('tick', () => {
     expect(st.mobs[0].cy).toBe(-1);
     expect(st.spawnQ.length).toBe(2);
   });
-  it('wave 1 cleared → +3 bonus, foe heart −(1+survivors), wave 2 prep', () => {
+  it('wave 1 cleared → +2 bonus, foe heart −(1+survivors), wave 2 prep (15s)', () => {
     const st = WR.createRun();
     WR.startCombat(st);
     const u = godUnit();
@@ -113,8 +112,8 @@ describe('tick', () => {
     while (st.phase === 'combat' && guard++ < 600) WR.tick(st, [u], 0.1);
     expect(st.phase).toBe('prep');
     expect(st.wave).toBe(2);
-    expect(st.prepLeft).toBe(WR.PREP_SECONDS);
-    expect(st.gold).toBeGreaterThanOrEqual(g0 + 3); // +3 bonus + random coin drops
+    expect(st.prepLeft).toBe(15); // D2c: wave 2+ = 15s
+    expect(st.gold).toBeGreaterThanOrEqual(g0 + 2); // +2 bonus + random coin drops
     expect(st.kills).toBe(3);
     expect(st.foe.hp).toBe(foe0 - (1 + 1)); // 1 survivor
   });
@@ -200,16 +199,27 @@ describe('pickBuff', () => {
     WR.pickBuff(st, Buffs.POOL.find((b: any) => b.id === 'atk'));
     expect(st.buffs.atkMul).toBeCloseTo(1.1);
   });
-  it('final wave cleared → won (no buff)', () => {
+  it('final wave (10) cleared → won (D2c)', () => {
     const st = WR.createRun();
-    st.wave = 20;
+    st.wave = 10;
     st.phase = 'combat';
     st.spawnQ = [];
     st.mobs = [];
     WR.tick(st, [godUnit()], 0.1); // clear with nothing alive
     expect(st.phase).toBe('won');
-    expect(st.wave).toBe(20);
-    expect(st.gold).toBe(5 + WR.waveBonus(20)); // start + wave-20 bonus (13)
+    expect(st.wave).toBe(10);
+    expect(st.gold).toBe(5 + WR.waveBonus(10)); // interest 0 + streak 1 → no bonus yet
+  });
+  it('endless: final wave cleared past MAX_WAVE keeps playing', () => {
+    const st = WR.createRun();
+    st.wave = 10;
+    st.endless = true;
+    st.phase = 'combat';
+    st.spawnQ = [];
+    st.mobs = [];
+    WR.tick(st, [godUnit()], 0.1);
+    expect(st.phase).toBe('prep');
+    expect(st.wave).toBe(11);
   });
   it('foe heart at 0 on win → phase won', () => {
     const st = WR.createRun();

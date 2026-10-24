@@ -151,7 +151,7 @@ describe('wave', () => {
   it('count formula 3+floor(w/2) cap 16 (non-boss waves)', () => {
     expect(WaveDef.compose(2).mobs.length).toBe(4);
     expect(WaveDef.compose(9).mobs.length).toBe(7);
-    expect(WaveDef.compose(19).mobs.length).toBe(12); // 3+9
+    expect(WaveDef.compose(19).mobs.length).toBe(12); // 3+9 — endless past MAX_WAVE still composes
   });
 
   it('fixed boss every 5th wave (5/10/15/20): boss + 2 escorts', () => {
@@ -195,9 +195,9 @@ describe('wave', () => {
     }
   });
 
-  it('hp/atk scale with wave (GDD: hp = 1+wave*0.25)', () => {
-    expect(WaveDef.waveMul(1).hp).toBeCloseTo(1.25);
-    expect(WaveDef.waveMul(4).hp).toBeCloseTo(2);
+  it('hp/atk scale with wave (D2c: hp = 1+wave*0.42, atk = 0.4+wave*0.16)', () => {
+    expect(WaveDef.waveMul(1).hp).toBeCloseTo(1.42);
+    expect(WaveDef.waveMul(4).atk).toBeCloseTo(1.04);
     expect(WaveDef.waveMul(11).hp).toBeGreaterThan(WaveDef.waveMul(1).hp);
     expect(WaveDef.waveMul(11).atk).toBeGreaterThan(WaveDef.waveMul(1).atk);
     const w1 = WaveDef.compose(1).mobs[0];
@@ -212,15 +212,28 @@ describe('wave', () => {
     expect(WaveDef.compose(5).mobs[0].elite).toBe(false); // boss not elite
   });
 
-  it('isFinal only at 20', () => {
-    expect(WaveDef.isFinal(19)).toBe(false);
-    expect(WaveDef.isFinal(20)).toBe(true);
+  it('isFinal at 10 (D2c 5-min sprint; endless past it)', () => {
+    expect(WaveDef.isFinal(9)).toBe(false);
+    expect(WaveDef.isFinal(10)).toBe(true);
+    expect(WaveDef.isFinal(11)).toBe(true); // endless keeps isFinal true — runners gate on !endless
   });
 
-  it('clamps wave input to 20', () => {
+  it('clamps wave floor to 1, no cap (endless)', () => {
     expect(WaveDef.compose(0).wave).toBe(1);
-    expect(WaveDef.compose(99).wave).toBe(20);
+    expect(WaveDef.compose(99).wave).toBe(99);
     expect(WaveDef.compose(3.7).wave).toBe(3);
+  });
+
+  it('D2c helpers: prep 25/15/12, interest cap 5, streak bonus', () => {
+    expect(WaveDef.prepSeconds(1)).toBe(25);
+    expect(WaveDef.prepSeconds(4)).toBe(15);
+    expect(WaveDef.prepSeconds(8)).toBe(12);
+    expect(WaveDef.interest(0)).toBe(0);
+    expect(WaveDef.interest(25)).toBe(2);
+    expect(WaveDef.interest(99)).toBe(5);
+    expect(WaveDef.streakBonus(2)).toBe(0);
+    expect(WaveDef.streakBonus(3)).toBe(2);
+    expect(WaveDef.streakBonus(5)).toBe(4);
   });
 });
 

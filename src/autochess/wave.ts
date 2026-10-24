@@ -37,12 +37,27 @@ export interface WaveComp {
   boss: boolean;
 }
 
-export const MAX_WAVE = 20;
+export const MAX_WAVE = 10; // D2c: 5-min sprint (endless opt-in past this)
 export const BOSS_EVERY = 5;
 
-/** hp scale: 1 + wave*0.25 (GDD Bagian 5) ; atk scale: 0.4 + wave*0.08 */
+/** hp scale: 1 + wave*0.42 (10-wave sprint ≈ old wave-20 power); atk scale: 0.4 + wave*0.16 */
 function waveMul(wave: number): { hp: number; atk: number } {
-  return { hp: 1 + wave * 0.25, atk: 0.4 + wave * 0.08 };
+  return { hp: 1 + wave * 0.42, atk: 0.4 + wave * 0.16 };
+}
+
+/** Prep window per wave (GDD common §4): 25s first, 15s mid, 12s late. */
+export function prepSeconds(wave: number): number {
+  return wave <= 1 ? 25 : wave <= 7 ? 15 : 12;
+}
+
+/** Banked-gold interest at wave clear (cap +5). */
+export function interest(gold: number): number {
+  return Math.min(5, Math.floor(gold / 10));
+}
+
+/** Win-streak bonus (3+ streak → +2/+3/+4). */
+export function streakBonus(streak: number): number {
+  return streak >= 5 ? 4 : streak >= 4 ? 3 : streak >= 3 ? 2 : 0;
 }
 
 /** Early-wave role table (GDD musuh biasa). */
@@ -124,9 +139,10 @@ function baseSpec(e: any): Omit<MobSpec, 'hp' | 'atk' | 'spd'> {
   };
 }
 
-/** Compose wave. Deterministic given seed (U.rnd default = Math.random). */
+/** Compose wave. Deterministic given seed (U.rnd default = Math.random).
+ * No upper clamp — endless mode composes waves past MAX_WAVE (scaling keeps rising). */
 export function compose(wave: number, rnd: () => number = Math.random): WaveComp {
-  wave = Math.max(1, Math.min(MAX_WAVE, Math.floor(wave)));
+  wave = Math.max(1, Math.floor(wave));
   const mul = waveMul(wave);
 
   // boss wave → single named boss + one escort per lane (both lanes press)
@@ -203,7 +219,7 @@ export function isFinal(wave: number): boolean {
   return wave >= MAX_WAVE;
 }
 
-const WaveDef = { compose, waveMul, MAX_WAVE, BOSS_EVERY, isFinal, BOSSES, EARLY, MID };
+const WaveDef = { compose, waveMul, MAX_WAVE, BOSS_EVERY, isFinal, prepSeconds, interest, streakBonus, BOSSES, EARLY, MID };
 register('WaveDef', WaveDef);
 export { WaveDef };
 export default WaveDef;
