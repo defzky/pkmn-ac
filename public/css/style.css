@@ -892,11 +892,23 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 
 /* TD mode: path overlay on player grid + walking mob sprites */
 .ac-arenas.td-mode #ac-arena-foe { display: none; }
+/* reserve top/bottom lanes so spawn (y −1) + base-exit (y 3) stay inside host */
+.ac-arenas.td-mode { padding-top: 56px; padding-bottom: 56px; }
+/* power badge: not center (would sit on cell 1,1) — top-right of host lane */
+.ac-arenas.td-mode .ac-power { top: 8px; right: 8px; left: auto; transform: none; }
+/* me-hud: bottom-right would clip base-exit mobs (path ends x 2) — bottom-left lane */
+.ac-arenas.td-mode .ac-me-hud { bottom: 8px; top: auto; right: auto; left: 8px; }
 .ac-cell.td-path { box-shadow: inset 0 0 0 1px rgba(255, 210, 80, .55); background: rgba(255, 210, 80, .08); }
-.ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
+.ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; }
 .ac-td-mob .hp { display: block; width: 36px; height: 4px; background: rgba(0,0,0,.5); border-radius: 2px; margin-top: 2px; }
 .ac-td-mob .hp i { display: block; height: 100%; background: #e33; border-radius: 2px; }
-.ac-td-spawn { font-size: 18px; color: var(--gold); }
+/* wave-preview strip + spawn/base gates (visible only in TD) */
+.ac-td-wave { display: none; align-items: center; gap: 4px; min-height: 32px; flex-wrap: wrap; justify-content: center; }
+.ac-arenas.td-mode .ac-td-wave { display: flex; }
+.ac-td-ghost { opacity: .75; display: inline-flex; }
+.ac-td-ghost canvas { image-rendering: pixelated; max-width: 36px; max-height: 36px; }
+.ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.ac-td-base { position: absolute; transform: translate(-50%, -50%); z-index: 6; font-size: 18px; pointer-events: none; filter: drop-shadow(0 2px 4px #000); }
 
 /* ============ autochess (scr-ac) — portrait dual-board ============ */
 #scr-ac {
@@ -912,13 +924,17 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; box-sizing: border-box;
 }
 
-/* top bar: pause / close */
+/* top bar: round badge (shared) / pause / close */
 .ac-topbar { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
 .ac-topbar button {
   background: rgba(0,0,0,.45); border: 1px solid rgba(244,248,255,.25); color: #e8ecf6;
   border-radius: 8px; min-width: 40px; height: 30px; cursor: pointer; font-size: 14px;
 }
 .ac-topbar button:hover { border-color: var(--gold); }
+/* round badge lives in topbar (visible in both modes; was inside foe arena → hidden in TD) */
+.ac-topbar .ac-round {
+  position: static; top: auto; left: auto; margin-right: auto;
+}
 
 /* arenas stack (enemy top, player bottom) + fx overlay */
 .ac-arenas { position: relative; display: flex; flex-direction: column; gap: 10px; }
