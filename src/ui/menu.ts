@@ -38,10 +38,15 @@ const MenuUI = (() => {
         else if (go === 'friends') (G as any).FriendsUI.open();
         else if (go === 'rank') (G as any).RankingUI.open();
         else if (go === 'settings') (G as any).SettingsUI.open();
-        else if (go === 'ac') (G as any).AutochessUI.open();
+        else if (go === 'ac') openAcMode();
       };
     });
     document.querySelectorAll('[data-back]').forEach((b: any) => { b.onclick = open; });
+    // mode select: TD / Full Autochess
+    document.querySelectorAll('#scr-ac-mode [data-mode]').forEach((b: any) => {
+      b.dataset.sfx = 'confirm';
+      b.onclick = () => (G as any).AutochessUI.open(b.dataset.mode);
+    });
     (G as any).Social.on(() => { if (UI.isOpen('scr-menu')) socialLine(); });
     $('btn-logout').onclick = () => {
       if (DB.guest && !confirm('Eres invitado: se perderá todo el progreso. ¿Salir?')) return;
@@ -51,6 +56,13 @@ const MenuUI = (() => {
   }
 
   // ---------------- menú principal ----------------
+
+  /** mode select: TD / Full Autochess */
+  function openAcMode() {
+    UI.chrome(true);
+    UI.show('scr-ac-mode');
+    Audio.sfx('click', undefined);
+  }
 
   function open() {
     const s: any = DB.save;

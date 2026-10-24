@@ -1,10 +1,11 @@
 /**
- * ac-ui.ts — autochess TD screen: 3x3 rock board + ring lane, bench, shop, HUD, phase loop.
+ * ac-ui.ts — autochess screen: mode select (TD / Full Autochess) → arena render + shop + HUD + phase loop.
  *
- * P17 → 3x3 compact rework (docs/ui-chessboard-3x3.md): stage 5x5 (16 path nodes
- * + 9 rock cells), mobs walk the ring as animated sprites (per-frame transform).
- * Loop: prep countdown → combat rAF tick(WaveRunner) → buff pick (every 3rd) → … .
- * Placement = drag shop card onto cell/bench, or tap unit → tap cell (mobile-friendly).
+ * Modes:
+ *  - 'auto': dual-board 3x3 (enemy top, player bottom), foe heart 20 / player 45.
+ *  - 'td': single 3x3 player board + serpentine path, mobs walk to base, leak = base HP damage.
+ * Loop: prep countdown → combat rAF tick(runner) → buff pick (every 3rd) → … .
+ * Placement = drag shop card onto cell, or tap unit → tap cell (mobile-friendly).
  * Styles live in public/css/style.css (`/* autochess *\/` section).
  */
 import { register } from '../core/registry';
@@ -29,6 +30,9 @@ import type { UnitBattle } from './unit';
 import type { MobBattle } from './unitAI';
 
 const LEVEL = 8; // boardCap = min(8, 1+floor(l/2)) = 5
+
+/** active mode: 'auto' = dual-board, 'td' = tower defence (path walk + leak) */
+let currentMode: 'auto' | 'td' = 'auto';
 
 interface ACInternal {
   run: RunState;
@@ -919,8 +923,9 @@ function wire(): void {
   document.addEventListener('keydown', onKey);
 }
 
-function open(): void {
+function open(mode: 'auto' | 'td' = 'auto'): void {
   ensureDom();
+  currentMode = mode;
   reset();
   st.open = true;
   st.paused = false;
@@ -949,6 +954,7 @@ const ACUI = {
   step: loop, // exported for tests: call manually (rAF stubbed)
   get run() { return st.run; }, get board() { return st.board; }, get shop() { return st.shop; },
   get units() { return st.units; },
+  get mode() { return currentMode; },
   get projs() { return acProjs.length; },
   get impacts() { return acImpacts.length; },
 };
