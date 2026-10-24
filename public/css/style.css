@@ -904,9 +904,23 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-arenas.td-mode .ac-me-grid { width: 56%; margin: 0 auto; }
 .ac-td-lanes { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .ac-td-lane {
-  position: absolute; transform: translate(-50%, -50%); border-radius: 8px;
-  background: rgba(255, 210, 80, .08); box-shadow: inset 0 0 0 1px rgba(255, 210, 80, .45);
+  position: absolute; transform: translate(-50%, -50%); border-radius: 6px;
+  /* forest dirt path (Fase L): warm soil, olive rim — forest bg shows through */
+  background: rgba(92, 72, 44, .55); box-shadow: inset 0 0 0 1px rgba(140, 155, 80, .5);
 }
+/* spawn portal: rotating double dashed ring at ring entry (1,-1) */
+.ac-td-portal {
+  position: absolute; transform: translate(-50%, -50%); z-index: 5; pointer-events: none;
+  width: calc(var(--ac-pitch, 80px) * 0.7); height: calc(var(--ac-pitch, 80px) * 0.7);
+  border: 3px dashed rgba(255, 210, 80, .75); border-radius: 50%;
+  box-shadow: inset 0 0 14px rgba(255, 170, 60, .5), 0 0 12px rgba(255, 170, 60, .35);
+  animation: ac-portal-spin 4s linear infinite;
+}
+.ac-td-portal::after {
+  content: ''; position: absolute; inset: 5px; border-radius: 50%;
+  border: 2px dashed rgba(255, 140, 60, .6); animation: ac-portal-spin 2.6s linear infinite reverse;
+}
+@keyframes ac-portal-spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 .ac-td-mob { position: absolute; transform: translate(-50%, -50%); z-index: 7; pointer-events: none; }
 /* display size follows cell pitch (JS sets --ac-pitch on #ac-arenas) — res interna 80×88 */
 .ac-td-mob canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 80px) * 0.55); max-height: calc(var(--ac-pitch, 80px) * 0.6); }
@@ -922,7 +936,16 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-ghost { opacity: .75; display: inline-flex; }
 .ac-td-ghost canvas { image-rendering: pixelated; max-width: calc(var(--ac-pitch, 72px) * 0.5); max-height: calc(var(--ac-pitch, 72px) * 0.5); }
 .ac-td-gate { font-size: 12px; font-weight: bold; color: var(--gold); background: rgba(10,14,22,.75); border: 1px solid rgba(255,210,80,.45); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+/* castle base: big 🏰 + conic HP ring (--hp %, --hp-col band set by renderHud) */
 .ac-td-base { position: absolute; transform: translate(-50%, -50%); z-index: 6; font-size: 18px; pointer-events: none; filter: drop-shadow(0 2px 4px #000); }
+.ac-base-ring {
+  position: relative; display: grid; place-items: center;
+  width: calc(var(--ac-pitch, 80px) * 0.66); height: calc(var(--ac-pitch, 80px) * 0.66);
+  border-radius: 50%;
+  background: conic-gradient(var(--hp-col, #7dff9b) calc(var(--hp, 100) * 1%), rgba(255, 255, 255, .14) 0);
+}
+.ac-base-ring::after { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: rgba(6, 12, 10, .92); }
+.ac-base-ring b { position: relative; z-index: 1; font-size: calc(var(--ac-pitch, 80px) * 0.4); line-height: 1; }
 /* dungeon-style procedural forest floor (Tiles.paintChunk biome Bosque, baked by ac-ui paintAcBg) */
 .ac-bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; image-rendering: pixelated; pointer-events: none; }
 .ac-arenas.td-mode .ac-td-wave { position: relative; z-index: 4; }
@@ -1024,6 +1047,9 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   color: #e8ecf6; font-size: 12px; font-weight: bold; padding: 3px 10px;
   box-shadow: 0 3px 8px rgba(0,0,0,.5);
 }
+/* wave++ → pill pulse (Fase L) */
+@keyframes ac-round-pulse { 0% { transform: scale(1); } 40% { transform: scale(1.18); box-shadow: 0 0 14px rgba(255,210,80,.75); } 100% { transform: scale(1); } }
+.ac-round.pulse { animation: ac-round-pulse .6s ease; }
 .ac-goldsun {
   display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
   margin: 5px 0 4px; z-index: 6;
@@ -1077,9 +1103,10 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   background: linear-gradient(160deg, #5a5550, #3e3a36);
   border: 1px solid rgba(0,0,0,.5);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35), 0 2px 4px rgba(0,0,0,.35);
-  display: flex; align-items: center; justify-content: center; transition: border-color .12s;
+  display: flex; align-items: center; justify-content: center; transition: border-color .12s, transform .12s, box-shadow .12s;
 }
-.ac-cell:hover { border-color: rgba(244,248,255,.5); }
+/* hover lift + gold glow (Fase L) */
+.ac-cell:hover { border-color: rgba(255, 210, 80, .55); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 4px rgba(0,0,0,.35), 0 4px 12px rgba(0,0,0,.4), 0 0 10px rgba(255,210,80,.28); }
 .ac-cell.sel { outline: 2px solid var(--gold); }
 /* drag hint: dropping the held shop card here stars up this unit */
 .ac-cell.merge-ok { outline: 2px solid #57e08a; box-shadow: 0 0 10px rgba(87,224,138,.55), inset 0 1px 0 rgba(255,255,255,.12); }

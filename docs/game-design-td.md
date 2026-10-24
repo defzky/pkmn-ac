@@ -32,6 +32,27 @@
 * **Backdrop dungeon:** canvas `#ac-bg` (z0, child pertama `.ac-arenas`) → `Tiles.paintChunk` biome **0 (Bosque)** floor-only + blob dirt sinus + radial vignette — pixel ground **identik** dengan `World.chunkImage` dungeon (32px/tile = T × Sprites.PX). Bake ulang saat resize (debounce by size key). `#scr-ac` bg solid `#061009`; arena `.me` transparent di landscape supaya forest floor tembus.
 * **Skala elemen = pitch:** mob display `pitch×0.55` (maks), HP bar mob `pitch×0.45`, ghost preview `pitch×0.5` — semua via var `--ac-pitch` (fallback px untuk jsdom).
 
+### 1b. Juice / Feedback (Fase J+K+L — "kaku & kurang menarik" rework)
+
+Combat:
+* **Wave banner** `#ac-banner`: wave-start (`Wave N` / `BOSS — Wave`), wave-cleared (`+N ☀ gold`), leak (`Base hit! −N`). Anim pop-in/out; varian `.boss .warn .leak`.
+* **Leak feedback:** base sprite flash (`.ac-td-base.flash`) + heart pulse (`.ac-heart.blue.pulse`) + red banner + `hurt` sfx. Base tak lagi diam.
+* **Dungeon hit polish:** `u.hit.eff` (type effectiveness) → `dmgText` warna: super `#ffe14d` besar, weak `#a3abb8`, else putih. Hit → `Hurt` anim + `hit` sfx; death → `Faint hold` + `.ac-dying` opacity fade ~0.9s + burst + `faint`/`bossDown`. Shadow pakai `Sprites.drawShadow` (PMD `ShadowSize`).
+* **Telegraph:** radial/aura/meteor/mine → `drawTelegraph` dashed ring tumbuh (grow + pulse) sebelum impact. Status ground FX: burn ellipse oranye / poison ungu di bawah mob; shield = bubble biru berdenyut. Roar boss → ring merah + burst + `boss` sfx.
+* **Prep timer:** blink di 3 detik terakhir.
+
+Interaksi (prep):
+* **Buy/place:** `placeFx('land')` — blue ring + burst + `land` sfx + squash-pop sprite (`ac-pop`).
+* **Merge:** `placeFx('merge')` — gold ring + burst + `★N` text + `levelup` sfx + cell gold flash (`mergeflash`).
+* **Sell:** `placeFx('sell')` — coin burst + `coin` sfx.
+* **Drag ghost:** ikut pointer + mini live-sprite canvas (40px).
+
+Lanskap:
+* **Lane = dirt path** (`.ac-td-lane` tanah coklat + rim olive, forest tembus) + `FX.trail('dirt')` sporadis dari mob berjalan.
+* **Spawn portal** `#ac-td-portal` di `(1,−1)`: double dashed ring berputar + glow.
+* **Base HP ring:** 🏰 besar dibungkus `.ac-base-ring` conic-gradient (`--hp` %, `--hp-col` band green/amber/red by hp). Leak = ring ikut flash.
+* **Cell hover:** `translateY(-1px)` + gold glow. **Round pill pulse** saat wave naik.
+
 ## 2. Pertempuran (Targeting & Leak)
 
 * **Targeting:** unit menyerang musuh dalam jangkauan dengan **progress terbesar** (paling dekat ke base).

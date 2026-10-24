@@ -103,6 +103,11 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > Bosque** — `#scr-ac.td-land` grid (arena tengah, dock bawah, syn rail kanan),
 > `paintAcBg()` = `Tiles.paintChunk` biome 0 identik dungeon, pitch-scaled
 > mob/ghost/lane via `--ac-pitch`/`--ac-lane-pad`; 256 test hijau.
+> **Juice ✅ (2026-10-24): TD feel rework Fase J+K+L** — combat juice (wave/leak
+> banners, base flash, eff-colored dmgText, dungeon hurt/death Faint+fade, ground
+> telegraph/status FX, timer blink) + interaction juice (land/merge/sell FX,
+> drag ghost sprite) + landscape juice (dirt lanes, spawn portal, base HP ring,
+> cell hover, round pulse); 266 test hijau (GDD §1b).
 > Sisa: save v4, augment/items (P19), co-op (P20).
 
 | # | Isi | Test |

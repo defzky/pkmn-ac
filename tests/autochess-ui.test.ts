@@ -613,3 +613,56 @@ describe('Fase K — interaction juice (land/merge/sell pop, drag ghost sprite)'
     expect(document.querySelector('.ac-drag')).toBeNull();
   });
 });
+
+describe('Fase L — dirt lanes, spawn portal, base HP ring, round pulse', () => {
+  it('lane tiles are dirt-path styled + portal marker at spawn (1,-1) + base HP ring', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const el = this as HTMLElement;
+      const xy = (typeof el.closest === 'function' ? el.closest('[data-xy]') : null) as HTMLElement | null;
+      if (xy && xy.dataset?.xy) {
+        const [x, y] = xy.dataset.xy.split(',').map(Number);
+        return { width: 134, height: 134, left: 200 + x * 134, top: 50 + y * 134,
+                 right: 334 + x * 134, bottom: 184 + y * 134, x: 0, y: 0, toJSON: () => ({}) } as any;
+      }
+      return { width: 800, height: 700, left: 0, top: 0, right: 800, bottom: 700, x: 0, y: 0, toJSON: () => ({}) } as any;
+    };
+    try {
+      ACUI.open('td');
+      const lane = document.querySelector('.ac-td-lane') as HTMLElement;
+      expect(lane).toBeTruthy();
+      const portal = document.getElementById('ac-td-portal') as HTMLElement;
+      expect(portal).toBeTruthy();
+      expect(portal.className).toContain('ac-td-portal');
+      expect(portal.style.left).toBe('401px'); // x=1 same column as base
+      expect(portal.style.top).toBe('-17px');  // y=−1: 50 + 67 − 134
+      // base now wraps 🏰 in a conic HP ring; renderHud seeds --hp
+      const ring = document.getElementById('ac-base-ring') as HTMLElement;
+      expect(ring).toBeTruthy();
+      expect(ring.querySelector('b')!.textContent).toBe('🏰');
+      expect(ring.style.getPropertyValue('--hp')).toBe('100');
+      expect(ring.style.getPropertyValue('--hp-col')).toBe('#7dff9b');
+      // leak → ring drops + band color flips (≤25% → red)
+      ACUI.run.phase = 'combat';
+      ACUI.run.base.hp = Math.min(ACUI.run.base.hp, 10);
+      ACUI.step(performance.now() + 50);
+      expect(ring.style.getPropertyValue('--hp')).toBe(String(Math.round(ACUI.run.base.hp / ACUI.run.base.maxHp * 100)));
+      expect(ring.style.getPropertyValue('--hp-col')).toBe('#ff6b6b');
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+
+  it('wave++ pulses the Round pill', () => {
+    ACUI.open('td');
+    const rnd = document.getElementById('ac-round')!;
+    rnd.classList.remove('pulse');
+    ACUI.run.phase = 'combat';
+    ACUI.run.spawnQ = []; ACUI.run.mobs = []; // clear → advanceWave bumps wave in tick
+    ACUI.run.wave = ACUI.run.wave + 1; // direct bump — renderHud (step) sees the change
+    ACUI.step(performance.now() + 50);
+    expect(rnd.classList.contains('pulse')).toBe(true);
+    expect(rnd.textContent).toMatch(/Round/);
+  });
+});

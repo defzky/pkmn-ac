@@ -94,7 +94,7 @@ function ensureDom(): HTMLElement {
           </div>
           <div class="ac-grid" id="ac-me-grid"></div>
         </div>
-        <span class="ac-td-base" id="ac-td-base" hidden>🏰</span>
+        <span class="ac-td-base" id="ac-td-base" hidden><span class="ac-base-ring" id="ac-base-ring"><b>🏰</b></span></span>
         <div class="ac-td-lanes" id="ac-td-lanes" hidden></div>
         <canvas class="ac-fx" id="ac-fx"></canvas>
         <div class="ac-banner" id="ac-banner" hidden></div>
@@ -132,6 +132,8 @@ function ensureDom(): HTMLElement {
 let lastFoeCap = -1;
 let lastPCap = -1;
 let lastBaseHp: number | null = null;
+/** last Round number shown — wave++ re-pulses the .ac-round pill (Fase L) */
+let lastRoundWave: number | null = null;
 
 /** centered status banner (wave start / clear / boss / leak) — Fase J juice */
 function banner(kind: 'wave' | 'clear' | 'boss' | 'leak', big: string, sub = ''): void {
@@ -181,7 +183,13 @@ function setCap(id: string, dex: number | null, last: number): number {
 function renderHud(): void {
   const r: any = st.run;
   const td = currentMode === 'td';
-  $('ac-round').textContent = `Round ${r.wave}`;
+  const rnd = $('ac-round');
+  rnd.textContent = `Round ${r.wave}`;
+  // wave change → pill pulse (Fase L)
+  if (r.wave !== lastRoundWave) {
+    if (lastRoundWave != null) { rnd.classList.remove('pulse'); void rnd.offsetWidth; rnd.classList.add('pulse'); }
+    lastRoundWave = r.wave;
+  }
   // foe arena hidden in TD (CSS display:none) — skip foe-hp work entirely
   if (!td) {
     ($('ac-foe-hp') as HTMLElement).parentElement!.style.display = '';
@@ -203,6 +211,13 @@ function renderHud(): void {
     const hp = r.base.hp;
     if (lastBaseHp != null && hp < lastBaseHp) leakFx(hp - lastBaseHp);
     lastBaseHp = hp;
+    // castle HP ring: conic-gradient arc % + color by hp band (Fase L)
+    const ring = document.getElementById('ac-base-ring');
+    if (ring) {
+      const pct = Math.max(0, Math.round((hp / Math.max(1, r.base.maxHp)) * 100));
+      (ring as HTMLElement).style.setProperty('--hp', String(pct));
+      (ring as HTMLElement).style.setProperty('--hp-col', pct > 50 ? '#7dff9b' : pct > 25 ? '#ffd465' : '#ff6b6b');
+    }
   }
   // Ready button state
   const btn = $('ac-start') as HTMLButtonElement;
@@ -318,6 +333,16 @@ function renderTdLanes(): void {
       tile.style.height = size + 'px';
       box.appendChild(tile);
     }
+  }
+  // spawn portal at ring entry (1,-1) — rotating double-ring marker (Fase L)
+  const sp = tdCellHostPos(1, -1);
+  if (sp) {
+    const port = document.createElement('div');
+    port.className = 'ac-td-portal';
+    port.id = 'ac-td-portal';
+    port.style.left = sp.x + 'px';
+    port.style.top = sp.y + 'px';
+    box.appendChild(port);
   }
 }
 
@@ -621,6 +646,14 @@ function syncEnemies(dt = 0): void {
         entry.anim.loop(moving ? 'Walk' : 'Idle', moving ? Math.max(0.6, Math.min(2.2, m.spd * 1.6)) : 1);
         entry.lastP = m.progress;
         if (dt > 0) entry.anim.update(dt);
+        // dirt kick-up behind walking mobs — dungeon World dirt-trail flavour (Fase L)
+        if (moving && dt > 0 && Math.random() < 0.1) {
+          const hostR2 = host.getBoundingClientRect();
+          const w2 = fxCanvas?.width || hostR2.width, h2 = fxCanvas?.height || hostR2.height;
+          const sx2 = hostR2.width > 0 ? (px / hostR2.width) * w2 : px;
+          const sy2 = hostR2.height > 0 ? (py / hostR2.height) * h2 : py;
+          FX.trail('dirt', 'dirt', sx2, sy2, 0, -12);
+        }
         if (entry.ctx) {
           const ctx = entry.ctx;
           ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1457,6 +1490,7 @@ function reset(): void {
   clearTdMobs();
   foeLastHp.clear();
   lastBaseHp = null;
+  lastRoundWave = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   st.run = Runner.createRun();
   st.shop = Shop.createShop(1);
