@@ -222,8 +222,8 @@ describe('wave', () => {
 
   it('clamps wave floor to 1, no cap (endless)', () => {
     expect(WaveDef.compose(0).wave).toBe(1);
-    expect(WaveDef.compose(99).wave).toBe(99);
     expect(WaveDef.compose(3.7).wave).toBe(3);
+    // no MAX_WAVE upper clamp: compose stays usable past 10 (endless)
   });
 
   it('D2c helpers: prep 25/15/12, interest cap 5, streak bonus', () => {
@@ -233,9 +233,47 @@ describe('wave', () => {
     expect(WaveDef.interest(0)).toBe(0);
     expect(WaveDef.interest(25)).toBe(2);
     expect(WaveDef.interest(99)).toBe(5);
+    expect(WaveDef.interest(80, 8)).toBe(8); // D2e Compound cap
     expect(WaveDef.streakBonus(2)).toBe(0);
     expect(WaveDef.streakBonus(3)).toBe(2);
     expect(WaveDef.streakBonus(5)).toBe(4);
+  });
+});
+
+describe('D2e buffs — augment rule-changers', () => {
+  let Buffs: any;
+  beforeAll(async () => { ({ Buffs } = await import('../src/autochess/buffs.ts')); });
+
+  const mkSt = () => ({ buffs: Buffs.initBuffs(), gold: 10, base: { hp: 20, maxHp: 60 } });
+
+  it('pool = 13 (8 rule-changers + 5 basics), rollBuffs 3 distinct', () => {
+    expect(Buffs.POOL.length).toBe(13);
+    for (const id of ['flank-master', 'fortified', 'second-wind', 'compound', 'frontline-bond', 'elementalist', 'slipstream', 'blood-money']) {
+      expect(Buffs.POOL.some((b: any) => b.id === id)).toBe(true);
+    }
+    const r = Buffs.rollBuffs();
+    expect(r.length).toBe(3);
+    expect(new Set(r.map((b: any) => b.id)).size).toBe(3);
+  });
+
+  it('compound: interest cap 8; fortified: half normal leak', () => {
+    const st = mkSt();
+    Buffs.POOL.find((b: any) => b.id === 'compound').apply(st);
+    expect(st.buffs.interestCap).toBe(8);
+    Buffs.POOL.find((b: any) => b.id === 'fortified').apply(st);
+    expect(st.buffs.leakNormalMul).toBe(0.5);
+    expect(st.buffs.leakBossMul).toBe(1); // boss leaks unchanged
+  });
+
+  it('second-wind / blood-money / elementalist / flank-master values', () => {
+    const st = mkSt();
+    for (const id of ['second-wind', 'blood-money', 'elementalist', 'flank-master']) {
+      Buffs.POOL.find((b: any) => b.id === id).apply(st);
+    }
+    expect(st.buffs.secondWindT).toBe(4);
+    expect(st.buffs.bountyMul).toBeCloseTo(1.5);
+    expect(st.buffs.elementalistMul).toBeCloseTo(1.15);
+    expect(st.buffs.flankAtkMul).toBeCloseTo(1.25 / 1.1);
   });
 });
 

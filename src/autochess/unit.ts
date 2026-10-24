@@ -42,6 +42,12 @@ export interface UnitBattle extends BoardStats {
   flankAtk?: boolean;
   /** D2b flank: corner cell → +1 range */
   flankRange?: boolean;
+  /** D2e Slipstream: >0 attack speed ×1.3 (decremented in unitAI) */
+  slipT?: number;
+  /** D2e Second Wind: >0 respawns at 0 with full HP (decremented while dead) */
+  respawnT?: number;
+  /** D2e Frontline Bond: flat damage reduction while adjacent ally alive */
+  dmgReduce?: number;
 }
 
 /** Flank = any cell except center (touching the ring lane, chebyshev ≤ 1). */
@@ -99,6 +105,7 @@ export function effCd(u: UnitBattle, mods: SynergyMods): number {
   let mul = Math.max(0.1, mods.atkSpdMul);
   if (u.slowT > 0) mul *= 0.5;
   if (u.asBuffT > 0) mul *= 1.3;
+  if ((u.slipT ?? 0) > 0) mul *= 1.3; // D2e Slipstream
   return u.atkCd / mul;
 }
 

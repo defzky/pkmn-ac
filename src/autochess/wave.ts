@@ -67,9 +67,9 @@ export function prepSeconds(wave: number): number {
   return wave <= 1 ? 25 : wave <= 7 ? 15 : 12;
 }
 
-/** Banked-gold interest at wave clear (cap +5). */
-export function interest(gold: number): number {
-  return Math.min(5, Math.floor(gold / 10));
+/** Banked-gold interest at wave clear (cap +5; Compound augment → +8). */
+export function interest(gold: number, cap: number = 5): number {
+  return Math.min(cap, Math.floor(gold / 10));
 }
 
 /** Win-streak bonus (3+ streak → +2/+3/+4). */

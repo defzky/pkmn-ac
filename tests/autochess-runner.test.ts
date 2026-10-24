@@ -53,7 +53,7 @@ describe('economy (D2c — interest/streak/wave bonus)', () => {
     expect(st.base.hp).toBe(45);
     expect(st.foe.hp).toBe(20);
     expect(st.kills).toBe(0);
-    expect(st.buffs).toEqual({ atkMul: 1, hpMul: 1, asMul: 1 });
+    expect(st.buffs).toMatchObject({ atkMul: 1, hpMul: 1, asMul: 1 });
   });
 });
 

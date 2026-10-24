@@ -80,7 +80,7 @@ describe('createRun / economy', () => {
     expect(st.wave).toBe(1);
     expect(st.phase).toBe('prep');
     expect(st.kills).toBe(0);
-    expect(st.buffs).toEqual({ atkMul: 1, hpMul: 1, asMul: 1 });
+    expect(st.buffs).toMatchObject({ atkMul: 1, hpMul: 1, asMul: 1 });
   });
 });
 

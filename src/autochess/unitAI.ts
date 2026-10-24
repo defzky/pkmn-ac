@@ -165,6 +165,7 @@ export function nearestUnit(x: number, y: number, units: UnitBattle[], maxD: num
 export function hitUnit(m: MobBattle, u: UnitBattle, dmg: number): void {
   let d = dmg * typeMult(m.types?.[0] || '', u.types || []);
   if (m.affix === 'elemental') d *= 1.25; // D2d Elemental: +% attack type power
+  if (u.dmgReduce) d *= 1 - u.dmgReduce;  // D2e Frontline Bond
   if (d <= 0) return;
   u.hpCur -= d;
   if (u.hpCur <= 0) { u.hpCur = 0; u.alive = false; }
@@ -239,11 +240,19 @@ export function tick(
 
   // unit timers + grass regen
   for (const u of units) {
-    if (!u.alive) continue;
+    if (!u.alive) {
+      // D2e Second Wind: timed auto-respawn while dead
+      if ((u.respawnT ?? 0) > 0) {
+        u.respawnT = u.respawnT! - dt;
+        if (u.respawnT <= 0) { u.respawnT = 0; u.alive = true; u.hpCur = u.hp; }
+      }
+      continue;
+    }
     if (u.disabledT > 0) u.disabledT = Math.max(0, u.disabledT - dt);
     if (u.slowT > 0) u.slowT = Math.max(0, u.slowT - dt);
     if (u.roarT > 0) u.roarT = Math.max(0, u.roarT - dt);
     if (u.asBuffT > 0) u.asBuffT = Math.max(0, u.asBuffT - dt);
+    if ((u.slipT ?? 0) > 0) u.slipT = Math.max(0, u.slipT! - dt); // D2e Slipstream
     const regen = (mods as any).regen || 0;
     if (regen > 0) u.hpCur = Math.min(u.hp, u.hpCur + u.hp * regen * dt);
   }
@@ -404,7 +413,7 @@ export function tick(
     const moveType = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.type ?? '') : '';
     const tm = typeMult(moveType, best.types);
     // D2b flank: +10% ATK when standing on a lane-touching cell
-    let dmg = totalAtk(u) * tm * (u.flankAtk ? FLANK_ATK_MUL : 1);
+    let dmg = totalAtk(u) * tm * (u.flankAtk ? ((mods as any).flankAtkMul ?? FLANK_ATK_MUL) : 1);
     dmg *= (mods as any).typeBoostMul ?? 1;
     // armor (geodude): flat reduce of direct attack damage
     if (best.armor > 0) dmg *= 1 - best.armor;

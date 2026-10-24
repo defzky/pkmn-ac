@@ -191,9 +191,10 @@ export function tick(
   if (r.gold) st.gold += r.gold;
 
   // leaks → base damage (D2c: normal 6, boss 15); any leak kills the streak
+  // D2e Fortified: normal leaks halved (boss unchanged)
   for (const m of r.leaks) {
     st.leaked = true;
-    const destroyed = baseLeak(st.base, m.boss);
+    const destroyed = baseLeak(st.base, m.boss, m.boss ? st.buffs.leakBossMul : st.buffs.leakNormalMul);
     if (destroyed) {
       st.phase = 'lost';
       return true;
@@ -210,7 +211,7 @@ export function tick(
   // all enemies spawned and cleared → economy (interest → streak → wave bonus) + win at wave 10
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
     st.streak = st.leaked ? 0 : st.streak + 1; // leak-free clear = streak up
-    st.gold += interest(st.gold) + streakBonus(st.streak) + waveBonus(st.wave);
+    st.gold += interest(st.gold, st.buffs.interestCap) + streakBonus(st.streak) + waveBonus(st.wave);
     if (WaveDef.isFinal(st.wave) && !st.endless) {
       st.phase = 'won';
       return true;

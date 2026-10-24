@@ -29,7 +29,7 @@ import { runScore } from './base';
 import Types from '../data/types';
 import { DEFS } from './champions';
 import { Buffs, type BuffDef } from './buffs';
-import { isFlank } from './unit';
+import { isFlank, FLANK_ATK_MUL } from './unit';
 import { planMoveFx } from './move-fx';
 import { evoDex } from './evo';
 import type { UnitBattle } from './unit';
@@ -653,6 +653,8 @@ function paintAcBg(): void {
 const foeLastHp = new Map<MobBattle, number>();
 /** last hpCur per unit cell (x,y) — mob-hit feedback + death visual */
 const unitLastHp = new Map<string, number>();
+/** D2e Second Wind: one auto-respawn per wave */
+let swUsed = false;
 /** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild).
  * Each mob owns a raw canvas + Sprites.Animator (Walk/Idle + facing — dungeon-style;
  * NOT UI.spriteCanvas so the shared live-set doesn't fight over draw/update). */
@@ -1240,12 +1242,29 @@ function battleMods(): SynergyMods {
     atkMul: t.atkMul * b.atkMul,
     baseHpMul: t.baseHpMul * b.hpMul,
     atkSpdMul: t.atkSpdMul * b.asMul,
+    // D2e augments
+    typeBoostMul: (t.typeBoostMul ?? 1) * (b.elementalistMul ?? 1),
+    bountyMul: (t.bountyMul ?? 1) * (b.bountyMul ?? 1),
+    flankAtkMul: FLANK_ATK_MUL * (b.flankAtkMul ?? 1),
   };
 }
 
 function enterCombat(): void {
   st.sel = null;
   st.units = Team.spawnUnits(st.board, battleMods());
+  swUsed = false;
+  const b = st.run.buffs;
+  // D2e Frontline Bond: adjacent allies take 8% less damage this combat
+  if (b?.frontlineBond) {
+    for (const u of st.units) {
+      if (!u.alive) continue;
+      const adj = st.units.some((v) => v !== u && v.alive &&
+        Math.abs(v.x - u.x) + Math.abs(v.y - u.y) === 1);
+      if (adj) u.dmgReduce = 0.08;
+    }
+  }
+  // D2e Slipstream: first unit opens fast for 5s
+  if (b?.slipstream && st.units[0]) st.units[0].slipT = 5;
   renderAll();
 }
 
@@ -1591,6 +1610,11 @@ function updateCombatBars(): void {
       if (ucv) UI.spriteFaint(ucv);
       cell.classList.add('ac-dead');
       Audio.sfx('faint', undefined);
+      // D2e Second Wind: first death of this wave gets a timed auto-respawn
+      if (!swUsed && (st.run.buffs?.secondWindT ?? 0) > 0) {
+        swUsed = true;
+        b.respawnT = st.run.buffs.secondWindT;
+      }
     }
     // mob hits: hp drop → red dmg number (threshold skips runner chip spam — bar still moves)
     const prevU = unitLastHp.get(key);
@@ -1621,6 +1645,7 @@ function reset(): void {
   clearTdMobs();
   foeLastHp.clear();
   unitLastHp.clear();
+  swUsed = false;
   lastBaseHp = null;
   lastRoundWave = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;

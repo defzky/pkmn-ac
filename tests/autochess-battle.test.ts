@@ -501,3 +501,50 @@ describe('D2d elemental affix (unitAI)', () => {
     expect((m.statuses || []).length).toBe(1);
   });
 });
+
+describe('D2e — augment runtime effects', () => {
+  it('base.leak mul: normal half = −3, boss full = −15', () => {
+    const b = Base.create(60);
+    Base.leak(b, false, 0.5);
+    expect(b.hp).toBe(57);
+    Base.leak(b, true, 1);
+    expect(b.hp).toBe(42);
+  });
+
+  it('flankAtkMul from mods: Flank Master 1.25/1.1 → ratio ≈1.25', () => {
+    const flankU = unitAt(6, 0, 1); flankU.atk = 100; flankU.atkCd = 0;
+    const midU = unitAt(6, 1, 1); midU.atk = 100; midU.atkCd = 0;
+    const mods = { flankAtkMul: 1.25 } as any;
+    const m1 = mob({ progress: 4, hp: 1e9, atk: 0 });
+    const m2 = mob({ progress: 4, hp: 1e9, atk: 0 });
+    UnitAI.tick([flankU], [m1], 0.01, mods, Path.laneCells());
+    UnitAI.tick([midU], [m2], 0.01, mods, Path.laneCells());
+    expect((1e9 - m1.hp) / (1e9 - m2.hp)).toBeCloseTo(1.25, 2);
+  });
+
+  it('effCd: slipT ×1.3 vs normal', () => {
+    const u = unitAt(1, 1, 1);
+    const mods = { atkSpdMul: 1 } as any;
+    const normal = Unit.effCd(u, mods);
+    u.slipT = 3;
+    expect(Unit.effCd(u, mods)).toBeCloseTo(normal / 1.3, 5);
+  });
+
+  it('second wind: dead unit with respawnT respawns full after countdown', () => {
+    const u = unitAt(1, 1, 1);
+    u.alive = false; u.hpCur = 0; u.respawnT = 4;
+    UnitAI.tick([u], [], 2.0, undefined, []);
+    expect(u.alive).toBe(false);
+    UnitAI.tick([u], [], 2.0, undefined, []);
+    expect(u.alive).toBe(true);
+    expect(u.hpCur).toBe(u.hp);
+  });
+
+  it('frontline bond: dmgReduce 0.08 → 100 dmg becomes 92', () => {
+    const u = unitAt(4, 1, 1);
+    u.types = ['normal']; // tm 1.0 vs fire
+    u.hpCur = 100; u.dmgReduce = 0.08;
+    UnitAI.hitUnit(mob({ types: ['fire'], atk: 0 }), u, 100);
+    expect(u.hpCur).toBeCloseTo(8, 5); // 100 − 100×0.92
+  });
+});

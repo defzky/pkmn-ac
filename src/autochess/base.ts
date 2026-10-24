@@ -15,9 +15,10 @@ export function create(maxHp: number = START_HP): BaseState {
   return { hp: maxHp, maxHp };
 }
 
-/** Leak: deduct; boss leaks cost more. Returns true if base destroyed. */
-export function leak(b: BaseState, boss: boolean = false): boolean {
-  b.hp = Math.max(0, b.hp - (boss ? LEAK_BOSS : LEAK_NORMAL));
+/** Leak: deduct; boss leaks cost more. mul = augment (Fortified 0.5 normal).
+ * Returns true if base destroyed. */
+export function leak(b: BaseState, boss: boolean = false, mul: number = 1): boolean {
+  b.hp = Math.max(0, b.hp - Math.round((boss ? LEAK_BOSS : LEAK_NORMAL) * mul));
   return b.hp <= 0;
 }
 

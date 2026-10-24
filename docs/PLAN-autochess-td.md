@@ -125,6 +125,12 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > TD runner-chip vs bulwark-stop, auto slot war), lane asimetris + flank bonus,
 > interest/streak, affix + shop bias, augment rule-changer P19, score/endless.
 > **Sisa D2a–D2e implementasi**, lalu save v4, co-op P20.
+> **D2a–D2e ✅ (2026-10-25)** — mobs-fight-back (chip/bulwark/slot-war + death/
+> respawn), lane asimetris + flank + preview chip, economy 5-menit (interest/
+> streak, base 60, leak 6/15, wave 10 score/endless), affix 4 rotasi + shop bias,
+> augment rule-changer (pool 13: Fortified/Compound/Second Wind/Slipstream/
+> Flank Master/Frontline Bond/Elementalist/Blood Money wired ke battleMods);
+> 310 test hijau. Sisa: save v4, co-op P20.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

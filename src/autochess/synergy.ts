@@ -24,6 +24,8 @@ export interface SynergyMods {
   chainChance: number;   // electric: chance to bounce attack
   skillDmgMul: number;   // psychic: skill damage multiplier
   regen: number;         // grass: hp regen fraction per second
+  // ---- D2e augments (optional) ----
+  flankAtkMul?: number;  // Flank Master: effective flank ATK bonus (default FLANK_ATK_MUL)
 }
 
 export interface SynergyDef {

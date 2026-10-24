@@ -214,7 +214,7 @@ export function tick(
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
     st.streak++;
     st.lossStreak = 0;
-    st.gold += interest(st.gold) + streakBonus(st.streak) + waveBonus(st.wave);
+    st.gold += interest(st.gold, st.buffs.interestCap) + streakBonus(st.streak) + waveBonus(st.wave);
     const survivors = units.filter((u) => u.alive).length;
     st.foe.hp = Math.max(0, st.foe.hp - (1 + survivors));
     if (st.foe.hp <= 0 || (WaveDef.isFinal(st.wave) && !st.endless)) {
