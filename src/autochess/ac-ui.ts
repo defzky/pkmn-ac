@@ -92,6 +92,7 @@ function ensureDom(): HTMLElement {
           <div class="ac-foehud">
             <span class="ac-cap" id="ac-foe-cap"></span>
           </div>
+          <div class="ac-foechips" id="ac-foechips"></div>
           <div class="ac-grid" id="ac-foe-grid"></div>
         </div>
         <div class="ac-arow">
@@ -528,11 +529,29 @@ function renderStage(): void {
 
   // enemy arena: prep = ghost preview of next round (auto only; TD uses #ac-td-wave strip)
   if (!td) {
-    const preview = st.run.phase === 'combat' ? [] : WaveRunner.getComp(st.run as any).mobs.slice(0, WaveRunner.MAX_FIELD);
+    const comp = WaveRunner.getComp(st.run as any);
+    const preview = st.run.phase === 'combat' ? [] : comp.mobs.slice(0, WaveRunner.MAX_FIELD);
+    // AU-3: foe-arena header = type chips + affix badge + overflow count (parity w/ TD strip)
+    const chipsEl = $('ac-foechips');
+    if (chipsEl) {
+      if (preview.length) {
+        const tset: string[] = [];
+        for (const spec of preview) {
+          const e = ((G as any).DEX_BY || {})[spec.dex] || {};
+          for (const t of e.types || []) if (!tset.includes(t)) tset.push(t);
+        }
+        const over = Math.max(0, comp.mobs.length - WaveRunner.MAX_FIELD);
+        chipsEl.innerHTML =
+          `<span class="ac-td-types">${tset.map((t) =>
+            `<i style="background:${(U.TYPE_COLOR as any)[t] || '#888'}">${esc(t)}</i>`).join('')}</span>` +
+          (comp.affix ? `<b class="ac-td-affix a-${comp.affix}">${WaveDef.AFFIX_LABEL[comp.affix]}</b>` : '') +
+          (over ? `<b class="ac-foe-over">+${over}</b>` : '');
+      } else chipsEl.innerHTML = '';
+    }
     preview.forEach((spec, i) => {
       const slot = WaveRunner.FOE_SLOTS[i];
       const cell = document.createElement('div');
-      cell.className = 'ac-cell ghost';
+      cell.className = 'ac-cell ghost' + (spec.boss ? ' boss' : '');
       cell.dataset.xy = slot.x + ',' + slot.y;
       cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
       cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
@@ -549,6 +568,7 @@ function renderStage(): void {
         const spec = preview[i];
         if (spec) {
           cell.classList.add('ghost');
+          if (spec.boss) cell.classList.add('boss');
           cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
           cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
         }
@@ -1324,6 +1344,10 @@ function enterCombat(): void {
   st.sel = null;
   st.units = Team.spawnUnits(st.board, battleMods());
   swUsed = false;
+  // AU-3: flank is TD-only (GDD td §1) — dual units never flank
+  if (currentMode !== 'td') {
+    for (const u of st.units) { u.flankAtk = false; u.flankRange = false; }
+  }
   const b = st.run.buffs;
   // D2e Frontline Bond: adjacent allies take 8% less damage this combat
   if (b?.frontlineBond) {
@@ -1426,7 +1450,7 @@ function offerBuff(): void {
   buffPending = true;
   const ov = $('ac-over');
   ov.classList.remove('hidden');
-  const choices = Buffs.rollBuffs();
+  const choices = Buffs.rollBuffs(Math.random, { noTdOnly: currentMode !== 'td' });
   ov.innerHTML = `
     <div class="box center">
       <h3>Wave ${st.run.wave} cleared — pick a buff</h3>

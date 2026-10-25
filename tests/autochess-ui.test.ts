@@ -1004,3 +1004,42 @@ describe('AU-2 heart feedback + streak pip', () => {
     expect(pip.hidden).toBe(true);
   });
 });
+
+describe('AU-3 parity — flank TD-only + foe preview chips', () => {
+  it('flank flags cleared in auto, kept in TD', () => {
+    ACUI.open('auto');
+    try {
+      ACUI.board.units.push({ dex: 1, star: 1, x: 0, y: 0 });
+      ACUI.render();
+      document.getElementById('ac-start')!.click();
+      expect(ACUI.units[0].flankAtk).toBe(false);   // corner normally flanks
+      expect(ACUI.units[0].flankRange).toBe(false);
+    } finally { ACUI.reset(); }
+    ACUI.open('td');
+    try {
+      ACUI.board.units.push({ dex: 1, star: 1, x: 0, y: 0 });
+      ACUI.render();
+      document.getElementById('ac-start')!.click();
+      expect(ACUI.units[0].flankAtk).toBe(true);
+      expect(ACUI.units[0].flankRange).toBe(true);
+    } finally { ACUI.reset(); }
+  });
+
+  it('foe header: type chips + affix badge + boss ghost + overflow', () => {
+    ACUI.open('auto');
+    try {
+      ACUI.render();
+      const chips = document.getElementById('ac-foechips')!;
+      expect(chips.querySelector('.ac-td-types i')).toBeTruthy();
+      ACUI.run.wave = 3; // swarm affix
+      ACUI.render();
+      expect(chips.querySelector('.ac-td-affix.a-swarm')).toBeTruthy();
+      ACUI.run.wave = 5; // boss wave → ghost gets .boss
+      ACUI.render();
+      expect(document.querySelector('#ac-foe-grid .ac-cell.ghost.boss')).toBeTruthy();
+      ACUI.run.wave = 19; // 12 mobs > 9 slots → +3 overflow
+      ACUI.render();
+      expect(chips.querySelector('.ac-foe-over')!.textContent).toMatch(/^\+\d+$/);
+    } finally { ACUI.reset(); }
+  });
+});

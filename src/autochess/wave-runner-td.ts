@@ -142,7 +142,7 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number)
 /** Cached composition for st.wave: wave strip preview & startCombat read THIS. */
 export function getComp(st: TdRunState): WaveComp {
   if (!st.comp || st.compW !== st.wave) {
-    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
+    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined, 'td');
     st.compW = st.wave;
   }
   return st.comp;

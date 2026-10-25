@@ -158,8 +158,10 @@ function baseSpec(e: any): Omit<MobSpec, 'hp' | 'atk' | 'spd'> {
 
 /** Compose wave. Deterministic given seed (U.rnd default = Math.random).
  * No upper clamp — endless mode composes waves past MAX_WAVE (scaling keeps rising). */
-/** Apply wave affix to a composed mob list (mutates specs; D2d). */
-function applyAffix(mobs: MobSpec[], affix: Affix | null): MobSpec[] {
+/** Apply wave affix to a composed mob list (mutates specs; D2d).
+ * AU-3: mode 'td' = swarm pads count ×1.4 (cap 20); mode 'auto' = NO padding
+ * (field is 9 slots — padding useless), swarm instead gives all mobs atk ×1.08. */
+function applyAffix(mobs: MobSpec[], affix: Affix | null, mode: 'td' | 'auto' = 'td'): MobSpec[] {
   if (!affix || !mobs.length) return mobs;
   for (const m of mobs) {
     m.affix = affix;
@@ -169,6 +171,10 @@ function applyAffix(mobs: MobSpec[], affix: Affix | null): MobSpec[] {
     // elemental: burn/poison immune + ×1.25 attack power (unitAI hitUnit/addBurn)
   }
   if (affix === 'swarm') {
+    if (mode !== 'td') {
+      for (const m of mobs) m.atk = Math.max(1, Math.round(m.atk * 1.08));
+      return mobs;
+    }
     const base = [...mobs];
     const target = Math.min(20, Math.ceil(mobs.length * 1.4));
     while (mobs.length < target) mobs.push({ ...base[mobs.length % base.length]! });
@@ -176,7 +182,7 @@ function applyAffix(mobs: MobSpec[], affix: Affix | null): MobSpec[] {
   return mobs;
 }
 
-export function compose(wave: number, rnd: () => number = Math.random): WaveComp {
+export function compose(wave: number, rnd: () => number = Math.random, mode: 'td' | 'auto' = 'td'): WaveComp {
   wave = Math.max(1, Math.floor(wave));
   const mul = waveMul(wave);
   const affix = affixFor(wave);
@@ -217,7 +223,7 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
         roar: !!bossDef.roar,
         disable: !!bossDef.disable,
         side: 0,
-      }, ...escorts], affix),
+      }, ...escorts], affix, mode),
     };
   }
 
@@ -248,7 +254,7 @@ export function compose(wave: number, rnd: () => number = Math.random): WaveComp
       side: (wave % 2 === 1 ? (i % 5 === 4 ? 1 : 0) : (i % 5 === 0 ? 0 : 1)) as 0 | 1,
     });
   }
-  return { wave, mobs: applyAffix(mobs, affix), boss: false, affix };
+  return { wave, mobs: applyAffix(mobs, affix, mode), boss: false, affix };
 }
 
 /** Win when final wave cleared. */

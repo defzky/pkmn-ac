@@ -275,6 +275,18 @@ describe('D2e buffs — augment rule-changers', () => {
     expect(st.buffs.elementalistMul).toBeCloseTo(1.15);
     expect(st.buffs.flankAtkMul).toBeCloseTo(1.25 / 1.1);
   });
+
+  it('AU-3 tdOnly: Fortified + Flank Master flagged, filtered by noTdOnly', () => {
+    expect(Buffs.POOL.find((b: any) => b.id === 'fortified').tdOnly).toBe(true);
+    expect(Buffs.POOL.find((b: any) => b.id === 'flank-master').tdOnly).toBe(true);
+    const filtered = Buffs.rollBuffs(() => 0, { noTdOnly: true });
+    expect(filtered.length).toBe(3);
+    for (const b of filtered) {
+      expect(b.id === 'fortified' || b.id === 'flank-master').toBe(false);
+    }
+    const all = Buffs.rollBuffs(() => 0); // default pool order → first pick = flank-master
+    expect(all[0]!.id).toBe('flank-master');
+  });
 });
 
 describe('synergy', () => {
@@ -393,5 +405,20 @@ describe('D2d affixes', () => {
     const elem = WaveDef.compose(6, () => 0);
     expect(elem.affix).toBe('elemental');
     for (const m of elem.mobs) expect(m.affix).toBe('elemental');
+  });
+
+  it('AU-3 swarm in auto: no count pad, all atk ×1.08 (mode param)', () => {
+    const td = WaveDef.compose(3, () => 0);            // default mode 'td' → pad to 6
+    const auto = WaveDef.compose(3, () => 0, 'auto');
+    expect(td.mobs.length).toBe(6);
+    expect(auto.mobs.length).toBe(4);                  // raw count 3+floor(3/2), unpadded
+    expect(auto.affix).toBe('swarm');
+    for (const m of auto.mobs) expect(m.affix).toBe('swarm');
+    // hp ×0.7 identical in both modes; atk bump only in auto
+    for (let i = 0; i < auto.mobs.length; i++) {
+      expect(auto.mobs[i]!.hp).toBe(td.mobs[i]!.hp);
+      expect(auto.mobs[i]!.atk).toBeGreaterThanOrEqual(td.mobs[i]!.atk);
+      expect(auto.mobs[i]!.atk).toBeLessThanOrEqual(Math.round(td.mobs[i]!.atk * 1.08) + 1);
+    }
   });
 });

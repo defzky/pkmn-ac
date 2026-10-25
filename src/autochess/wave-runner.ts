@@ -154,7 +154,7 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number)
 /** Cached composition for st.wave: preview, shop bias & startCombat all read THIS. */
 export function getComp(st: RunState): WaveComp {
   if (!st.comp || st.compW !== st.wave) {
-    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
+    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined, 'auto'); // AU-3: dual swarm = no pad
     st.compW = st.wave;
   }
   return st.comp;

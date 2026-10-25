@@ -65,7 +65,7 @@ common §1 dipertahankan; data di kode `unit.ts` / shop).
 
 | Affix | Efek wave |
 | :--- | :--- |
-| **Swarm** | +40% count, HP ×0.7 |
+| **Swarm** | TD: +40% count · auto: tanpa pad, semua mob atk ×1.08 · HP ×0.7 |
 | **Fast** | SPD ×1.5 |
 | **Armored** | armor +0.25 |
 | **Elemental** | mobs immune burn/poison; +% type power |

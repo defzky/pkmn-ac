@@ -41,6 +41,9 @@
 
 * **Targeting unit:** musuh dalam jangkauan, **posisi paling depan** (y −1
   didahulukan) → seri: terdekat.
+* **Flank bonus TD-only (AU-3):** mode auto **tidak** punya flank +10% ATK /
+  +1 range — flag `flankAtk`/`flankRange` dibersihkan saat `enterCombat` di
+  mode auto. (Augment Flank Master juga `tdOnly`.)
 * **Musuh menyerang unit (baru):**
   * Tiap mob menyerang **unit frontline hidup terdekat** (`tdist ≤ 1` baris
     depan↔depan = sel seberang) **tiap 1.2s** dengan `mob.atk` (× typeMult vs
@@ -64,7 +67,10 @@
 
 1. **PREP (25s wave 1; 15s selanjutnya; 12s wave 8+ / Ready):**
    * Respawn semua unit (HP penuh). Shop refresh gratis; beli/atur/merge.
-   * Wave preview: sprite musuh + type chip + affix (common §2a).
+   * Wave preview: **header arena foe** (AU-3) = sprite ghost + type chip +
+     affix badge + glow boss (`⚠` cell `.boss`) + `+N` overflow kalau wave
+     > 9 mob — markup chip sama dengan strip TD (common §2a). Preview =
+     wave komposisi asli (satu cache `getComp`).
 2. **COMBAT:** musuh spawn bertahap; slot war (§2); beli masih boleh.
 3. **ROUND RESULT (otomatis):** menang → heart musuh −(1+penyintas) + economy;
    kalah → heart pemain −(3+floor(wave/4)). Kelipatan 3 → augment pick.

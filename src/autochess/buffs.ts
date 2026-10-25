@@ -44,6 +44,8 @@ export interface BuffDef {
   id: string;
   name: string;
   desc: string;
+  /** TD-only effect — never offered in auto mode (AU-3: no leaks / no flank there) */
+  tdOnly?: boolean;
   apply(st: { buffs: RunBuffs; gold: number; base: { hp: number; maxHp: number } }): void;
 }
 
@@ -51,9 +53,9 @@ const clampHp = (hp: number, maxHp: number): number => Math.max(0, Math.min(hp, 
 
 export const POOL: BuffDef[] = [
   // ---- rule-changers (GDD common §5) ----
-  { id: 'flank-master', name: 'Flank Master', desc: 'Flank bonus +25% ATK (was +10%)',
+  { id: 'flank-master', name: 'Flank Master', desc: 'Flank bonus +25% ATK (was +10%)', tdOnly: true,
     apply: (st) => { st.buffs.flankAtkMul = 1.25 / 1.1; } },
-  { id: 'fortified', name: 'Fortified', desc: 'Leaks deal half damage (boss leaks unchanged)',
+  { id: 'fortified', name: 'Fortified', desc: 'Leaks deal half damage (boss leaks unchanged)', tdOnly: true,
     apply: (st) => { st.buffs.leakNormalMul = 0.5; st.buffs.leakBossMul = 1; } },
   { id: 'second-wind', name: 'Second Wind', desc: 'First unit death each wave respawns after 4s',
     apply: (st) => { st.buffs.secondWindT = 4; } },
@@ -75,9 +77,13 @@ export const POOL: BuffDef[] = [
   { id: 'heal', name: 'Repair', desc: 'Base heals 15 HP', apply: (st) => { st.base.hp = clampHp(st.base.hp + 15, st.base.maxHp); } },
 ];
 
-/** 3 distinct random buffs for the overlay. */
-export function rollBuffs(rnd: () => number = Math.random): BuffDef[] {
-  const pool = POOL.slice();
+/** 3 distinct random buffs for the overlay.
+ * AU-3: opts.noTdOnly drops tdOnly cards (Fortified/Flank Master) — auto mode. */
+export function rollBuffs(
+  rnd: () => number = Math.random,
+  opts?: { noTdOnly?: boolean },
+): BuffDef[] {
+  const pool = POOL.filter((b) => !(opts?.noTdOnly && b.tdOnly));
   const out: BuffDef[] = [];
   while (out.length < 3 && pool.length) {
     out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
