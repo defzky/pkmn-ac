@@ -23,15 +23,14 @@ Test: **~347** (lihat `npm test`), typecheck+build hijau, 0 runtime deps.
 ## 2. Backlog terprioritas (rekomendasi urutan)
 
 ### P21 — CI minimal (halangi regresi diam-diam)
-GitHub Actions: `npm ci && npm run typecheck && npm test && npm run build`.
-Kenapa dulu: 325 test hanya dijalankan manual.
+✅ selesai (2026-10-25, `2a1b6dd`) — `.github/workflows/ci.yml`:
+`npm ci && npm run typecheck && npm test && npm run build` on push main + PR.
 
 ### P22 — I18n diselaraskan
-Masalah 3 bahasa: player-facing ES/EN (`lang-en.js`), docs ID, komentar ES.
-- Pilih: docs tetap **ID**, komentar kode tetap ES, player UI = ES default +
-  EN toggle (sudah ada).
-- Fix: `manifest.webmanifest` masih nama **"PokéSurvivor"** / lang `es` —
-  rename ke **PokéAutochess** + description baru (dampak PWA install).
+✅ selesai (2026-10-25) — manifest rename **PokéAutochess** dilakukan;
+keputusan terdokumentasi: docs tetap **ID**, komentar kode tetap ES, player UI = ES default +
+EN toggle (sudah ada). Rebrand penuh di luar scope (translation keys = string ES,
+legal terikat domain pokesurvivor.com).
 - Fix: `index.html` credits/`settings-ui` konsisten (sudah SpriteCollab ✓).
 
 ### P23 — Analytics event (spec di `docs/QA-ANALYTICS.md` §4)

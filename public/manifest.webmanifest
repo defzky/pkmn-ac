@@ -1,7 +1,7 @@
 {
-  "name": "PokéSurvivor",
-  "short_name": "PokéSurvivor",
-  "description": "Fan game gratuito: sobrevive a las hordas con tu compañero Pokémon. Sin anuncios.",
+  "name": "PokéAutochess",
+  "short_name": "PokéAutochess",
+  "description": "Fan game de autochess y tower defense con tu equipo Pokémon. Sin anuncios.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",
