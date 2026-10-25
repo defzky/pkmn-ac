@@ -52,6 +52,8 @@ export interface RunState {
   compW: number;
   /** last round resolution for the UI (loss must not show the win banner) */
   roundResult?: 'win' | 'loss';
+  /** last round economy breakdown for the banner sub (wave/int/streak gold) */
+  lastEcon?: { wave: number; interest: number; streak: number };
 }
 
 /** enemy grid slots, front row first (y −1 = front … y −3 = back) */
@@ -231,7 +233,9 @@ export function tick(
   if (!units.some((u) => u.alive)) {
     st.streak = 0;
     st.lossStreak++;
-    if (st.lossStreak >= 2) st.gold += Math.min(2, st.lossStreak - 1); // GDD common §4
+    const cons = st.lossStreak >= 2 ? Math.min(2, st.lossStreak - 1) : 0;
+    if (cons) st.gold += cons; // GDD common §4
+    st.lastEcon = { wave: 0, interest: 0, streak: cons };
     st.base.hp = Math.max(0, st.base.hp - (LOSS_DMG + Math.floor(st.wave / 4)));
     if (st.base.hp <= 0) {
       st.phase = 'lost';
@@ -247,7 +251,11 @@ export function tick(
     st.roundResult = 'win';
     st.streak++;
     st.lossStreak = 0;
-    st.gold += interest(st.gold, st.buffs.interestCap) + streakBonus(st.streak) + waveBonus(st.wave);
+    const ei = interest(st.gold, st.buffs.interestCap);
+    const es = streakBonus(st.streak);
+    const eb = waveBonus(st.wave);
+    st.gold += ei + es + eb;
+    st.lastEcon = { wave: eb, interest: ei, streak: es };
     const survivors = units.filter((u) => u.alive).length;
     st.foe.hp = Math.max(0, st.foe.hp - (1 + survivors));
     if (st.foe.hp <= 0 || (WaveDef.isFinal(st.wave) && !st.endless)) {

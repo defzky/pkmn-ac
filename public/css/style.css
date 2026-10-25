@@ -1351,6 +1351,24 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 .ac-td-base.flash { animation: ac-baseflash .5s ease; }
 @keyframes ac-heartpulse { 0%,100% { transform: scale(1); } 35% { transform: scale(1.35); color: #ff5f6d; } }
 .ac-heart.pulse { animation: ac-heartpulse .45s ease; }
+/* AU-2: heart hit — floating damage number over the topbar heart */
+.ac-heart { position: relative; }
+.ac-heartdmg {
+  position: absolute; left: 50%; top: -2px; z-index: 5;
+  font-size: 13px; font-weight: bold; color: #ff6b6b; white-space: nowrap;
+  text-shadow: 0 1px 2px #000; pointer-events: none;
+  animation: ac-heartdmg .9s ease-out forwards;
+}
+@keyframes ac-heartdmg {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(.6); }
+  20% { opacity: 1; transform: translate(-50%, -6px) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -24px) scale(1); }
+}
+/* AU-2: streak pip in topbar */
+.ac-streak {
+  font-size: 13px; font-weight: bold; color: #ff9a3c;
+  text-shadow: 0 0 8px rgba(255,154,60,.5); white-space: nowrap;
+}
 
 /* ready button fighting state (was dead class) */
 .ac-ready.fighting { background: linear-gradient(180deg, #6b7385, #3a4152); cursor: default; }

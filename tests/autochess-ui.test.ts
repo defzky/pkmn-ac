@@ -957,5 +957,50 @@ describe('AU-1 round result (auto mode)', () => {
     expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/cleared/i);
     const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
     expect(toasts).toMatch(/gold/);
+    // AU-2: economy breakdown sub (wave + interest + streak)
+    const sub = document.getElementById('ac-banner')!.innerHTML;
+    expect(sub).toContain('wave');
+    expect(sub).toContain('int');
+    expect(sub).toContain('streak');
+  });
+});
+
+describe('AU-2 heart feedback + streak pip', () => {
+  it('foe heart drop → pulse + floating −N + value updated (non-destructive)', () => {
+    ACUI.open('auto');
+    ACUI.render(); // baseline tracking
+    ACUI.run.foe.hp -= 5;
+    ACUI.render();
+    const foe = document.getElementById('ac-foe-hp')!;
+    expect(foe.querySelector('b')!.textContent).toBe(String(ACUI.run.foe.hp));
+    expect(foe.classList.contains('pulse')).toBe(true);
+    const fx = foe.querySelector('.ac-heartdmg');
+    expect(fx).toBeTruthy();
+    expect(fx!.textContent).toBe('−5');
+  });
+
+  it('player heart drop → floating −N over #ac-hp', () => {
+    ACUI.open('auto');
+    ACUI.render();
+    ACUI.run.base.hp -= 3;
+    ACUI.render();
+    const hp = document.getElementById('ac-hp')!;
+    expect(hp.classList.contains('pulse')).toBe(true);
+    expect(hp.querySelector('.ac-heartdmg')!.textContent).toBe('−3');
+    expect(hp.querySelector('b')!.textContent).toBe(String(ACUI.run.base.hp));
+  });
+
+  it('streak pip hidden at 0/1, shows 🔥×N from streak 2', () => {
+    ACUI.open('auto');
+    const pip = document.getElementById('ac-streak')!;
+    ACUI.render();
+    expect(pip.hidden).toBe(true);
+    ACUI.run.streak = 3;
+    ACUI.render();
+    expect(pip.hidden).toBe(false);
+    expect(pip.textContent).toBe('🔥×3');
+    ACUI.run.streak = 1;
+    ACUI.render();
+    expect(pip.hidden).toBe(true);
   });
 });

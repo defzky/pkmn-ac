@@ -79,6 +79,7 @@ function ensureDom(): HTMLElement {
     <div class="ac-app">
       <div class="ac-topbar">
         <span class="ac-round" id="ac-round">Round 1</span>
+        <b class="ac-streak" id="ac-streak" hidden></b>
         <span class="ac-heart blue" id="ac-hp">♥ <b>45</b></span>
         <span class="ac-heart red" id="ac-foe-hp">♥ <b>20</b></span>
         <span class="ac-power" id="ac-power">⚔️ 0</span>
@@ -142,6 +143,9 @@ function ensureDom(): HTMLElement {
 let lastFoeCap = -1;
 let lastPCap = -1;
 let lastBaseHp: number | null = null;
+/** AU-2: topbar heart tracking (auto mode) */
+let lastPlayerHp: number | null = null;
+let lastFoeHp: number | null = null;
 /** last Round number shown — wave++ re-pulses the .ac-round pill (Fase L) */
 let lastRoundWave: number | null = null;
 
@@ -170,6 +174,26 @@ function leakFx(dmg: number): void {
   if (heart) { heart.classList.remove('pulse'); void (heart as HTMLElement).offsetWidth; heart.classList.add('pulse'); }
   banner('leak', `Base hit! −${dmg}`, 'a mob leaked through');
   Audio.sfx('hurt', undefined);
+}
+
+/** AU-2: heart hit — pulse + floating −N over the topbar heart (auto mode). */
+function heartFx(el: HTMLElement | null, dmg: number): void {
+  if (!el) return;
+  el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+  el.querySelectorAll('.ac-heartdmg').forEach((n) => n.remove()); // no stacking
+  const fx = document.createElement('span');
+  fx.className = 'ac-heartdmg';
+  fx.textContent = '−' + dmg;
+  el.appendChild(fx); // renderHud heart writes only update <b>, never wipe children
+  setTimeout(() => fx.remove(), 950);
+}
+
+/** non-destructive heart value update (keeps the floating −N child alive) */
+function setHeart(el: HTMLElement | null, hp: number): void {
+  if (!el) return;
+  const b = el.querySelector('b');
+  if (b) b.textContent = String(hp);
+  else el.innerHTML = `♥ <b>${hp}</b>`;
 }
 
 function playerPower(): number {
@@ -201,8 +225,24 @@ function renderHud(): void {
     lastRoundWave = r.wave;
   }
   // foe HP pill lives in the topbar (auto only — CSS hides it in TD)
-  if (!td) ($('ac-foe-hp') as HTMLElement).innerHTML = `♥ <b>${r.foe.hp}</b>`;
-  ($('ac-hp') as HTMLElement).innerHTML = `♥ <b>${r.base.hp}</b>`;
+  if (!td) {
+    const foeEl = $('ac-foe-hp') as HTMLElement;
+    const fh = r.foe.hp;
+    if (lastFoeHp != null && fh < lastFoeHp) heartFx(foeEl, lastFoeHp - fh); // AU-2
+    lastFoeHp = fh;
+    setHeart(foeEl, fh);
+  }
+  const php = r.base.hp;
+  if (!td && lastPlayerHp != null && php < lastPlayerHp) heartFx($('ac-hp') as HTMLElement, lastPlayerHp - php);
+  if (!td) lastPlayerHp = php;
+  setHeart($('ac-hp') as HTMLElement, php);
+  // AU-2: streak pip 🔥×N (topbar, visible from streak 2)
+  const pip = $('ac-streak');
+  if (pip) {
+    const sk = r.streak || 0;
+    pip.hidden = sk < 2;
+    pip.textContent = '🔥×' + sk;
+  }
   $('ac-gold').innerHTML = `☀️ <b>${r.gold}</b>`;
   $('ac-power').innerHTML = `⚔️ ${playerPower()}`;
   // prep timer bar (D2c: wave-scaled 25/15/12s)
@@ -1337,13 +1377,20 @@ function loop(ts: number): void {
             // AU-1: team wiped — real result, no fake gold toast
             const lostWave = Math.max(1, r.wave - 1);
             const dmg = WaveRunner.LOSS_DMG + Math.floor(lostWave / 4);
-            banner('leak', 'Round lost!', `Your heart −${dmg} ♥`);
+            const e = (r as any).lastEcon;
+            const cons = e && e.streak ? ` · +${e.streak} consolation` : '';
+            banner('leak', 'Round lost!', `Your heart −${dmg} ♥${cons}`);
             Audio.sfx('hurt', undefined);
           } else {
-          const bonus = Runner.waveBonus(r.wave - 1);
-          UI.toast(`+${bonus} gold`); // wave already advanced
-          // wave-cleared banner + gold pill pop (Fase J)
-          banner('clear', `Wave ${r.wave - 1} cleared!`, `+${bonus} ☀ gold`);
+          const e = (r as any).lastEcon;
+          const bonus = e ? e.wave : Runner.waveBonus(r.wave - 1);
+          const total = e ? e.wave + e.interest + e.streak : bonus;
+          UI.toast(`+${total} gold`); // wave already advanced
+          // wave-cleared banner + gold pill pop (Fase J); AU-2: economy breakdown sub
+          const sub = e
+            ? `+${total} ☀ = ${e.wave} wave + ${e.interest} int + ${e.streak} streak`
+            : `+${bonus} ☀ gold`;
+          banner('clear', `Wave ${r.wave - 1} cleared!`, sub);
           Audio.sfx('levelup', undefined);
           const gold = $('ac-gold');
           gold.classList.remove('pop'); void gold.offsetWidth; gold.classList.add('pop');
@@ -1687,6 +1734,8 @@ function reset(): void {
   unitLastHp.clear();
   swUsed = false;
   lastBaseHp = null;
+  lastPlayerHp = null;
+  lastFoeHp = null;
   runRecorded = false;
   lastRoundWave = null;
   acShopN = 0;

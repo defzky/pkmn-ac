@@ -52,6 +52,8 @@ export interface TdRunState {
   comp: WaveComp | null;
   /** wave the cache belongs to (invalidates on direct st.wave mutation / debug API) */
   compW: number;
+  /** last round economy breakdown for the banner sub (wave/int/streak gold) */
+  lastEcon?: { wave: number; interest: number; streak: number };
 }
 
 /** base HP for TD run (D2c 5-min sprint: 60) */
@@ -234,7 +236,11 @@ export function tick(
   // all enemies spawned and cleared → economy (interest → streak → wave bonus) + win at wave 10
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
     st.streak = st.leaked ? 0 : st.streak + 1; // leak-free clear = streak up
-    st.gold += interest(st.gold, st.buffs.interestCap) + streakBonus(st.streak) + waveBonus(st.wave);
+    const ei = interest(st.gold, st.buffs.interestCap);
+    const es = streakBonus(st.streak);
+    const eb = waveBonus(st.wave);
+    st.gold += ei + es + eb;
+    st.lastEcon = { wave: eb, interest: ei, streak: es };
     if (WaveDef.isFinal(st.wave) && !st.endless) {
       st.phase = 'won';
       return true;
