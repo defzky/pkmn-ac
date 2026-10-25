@@ -14,8 +14,10 @@
 | Rework UX | landscape full-width, forest backdrop, juice J–L, layout M–Q, HP 3× | commits `7a229ac`…`401d5b7` |
 | **D1–D2e** | konsep 5 pilar: mobs-fight-back, lane asimetris+flank, ekonomi 5-menit (interest/streak, base 60, wave 10, score/endless), affix+shop bias, augment rule-changer | GDD tertulis ulang, `54972ef`…`78001bd` |
 | **S1–S3** | save v4, daily seed (mulberry32, shop+wave seeded), debug API + balance sim 100 run | `b29c752`,`d06fc19`,`61f51ed` |
+| **Docs 8-pillar** | LICENSE MIT, ARCHITECTURE/LEGAL/ART/ROADMAP/PLATFORM/QA/LIVEOPS/NON-FUNCTIONAL | `00eaafe` |
+| **AU-1–AU-4** | autochess rework: round-result benar + compose cache + slot-war target + bounty 1/2/10; heart FX + streak pip; preview chips + flank TD-only + tdOnly augment + swarm dual; buff tile +10% + arena identity + star glow | `43fd4c1`,`10c7c98`,`8bc5ec1`,`93a1933` |
 
-Test: **~325** (lihat `npm test`), typecheck+build hijau, 0 runtime deps.
+Test: **~347** (lihat `npm test`), typecheck+build hijau, 0 runtime deps.
 **Tidak pernah di-push ke origin** selama sesi ini (lokal semua).
 
 ## 2. Backlog terprioritas (rekomendasi urutan)

@@ -147,6 +147,19 @@ Co-op (P20) = **di-skip atas permintaan user** (lihat `docs/ROADMAP.md` P24).
 > (tanpa UI); sim 100 run seeded (50 dual + 50 TD, dt 0.25, invariants
 > gold/hp/wave per tick): dual 50W/0L, TD 48W/2L, ~1s. 325 test hijau.
 > **Co-op P20: di-skip atas permintaan user.**
+> **Docs 8-pillar ✅ (2026-10-25)** — LICENSE (MIT) + 8 doc standar:
+> ARCHITECTURE / LEGAL / ART-DIRECTION / ROADMAP / PLATFORM / QA-ANALYTICS /
+> LIVEOPS / NON-FUNCTIONAL; README/PLAN ref dibersihkan. `00eaafe`.
+> **Autochess rework AU-1–AU-4 ✅ (2026-10-25)** — AU-1 `roundResult`
+> (loss banner benar, no gold palsu) + `getComp` cache (preview=combat=bias)
+> + spawnQ tanpa slice + `slotWarTarget` (frontline tdist≤1 → fallback
+> y2→y1→y0) + bounty 1/2/10 (`43fd4c1`); AU-2 `heartFx` −N melayang +
+> streak 🔥×N + sub banner ekonomi breakdown (`10c7c98`); AU-3 auto preview
+> header (type chip/affix/boss/`+N`) + flank TD-only + `tdOnly` augment
+> (Fortified/Flank Master) + swarm dual adaptif tanpa pad atk×1.08
+> (`8bc5ec1`); AU-4 buff tile +10% ATK mekanis + `fitAutoTiles` min(2 arena)
+> + arena identity LAWAN/TIMMU + star glow data-star (`93a1933`).
+> 347 test hijau.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

@@ -76,6 +76,11 @@
 2. **COMBAT:** musuh spawn bertahap; slot war (§2); beli masih boleh.
 3. **ROUND RESULT (otomatis):** menang → heart musuh −(1+penyintas) + economy;
    kalah → heart pemain −(3+floor(wave/4)). Kelipatan 3 → augment pick.
+   * **Feedback (AU-1/AU-2):** menang → banner `Wave N cleared!` + sub
+     rincian `+N ☀ = wave + interest + streak` + toast gold; kalah → banner
+     **`Round lost!`** + heart pulse `−N` — **tanpa** gold toast palsu
+     (bedakan lewat `roundResult`). Heart kena damage selalu kasih
+     `pulse` + nomor melayang merah (`heartFx`).
 4. **BUFF/AUGMENT (kelipatan 3):** pause, 3 kartu, pilih 1.
 5. **WIN / GAME OVER (10-wave sprint):**
    * **Menang run:** heart musuh 0 **atau** wave 10 selesai → **RUN COMPLETE**

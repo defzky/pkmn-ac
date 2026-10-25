@@ -70,6 +70,9 @@ Feedback wajib untuk tiap aksi (jangan pernah "silent"):
 | Aksi | Aksi | Preseden (kode) |
 |---|---|---|
 | Wave mulai / boss / clear | banner tengah + sfx (`boss/confirm/levelup`) | `banner()` ac-ui |
+| Round menang / kalah (auto) | menang: banner + sub rincian ekonomi `+N = wave+int+streak`; kalah: banner `Round lost!` **tanpa** gold toast palsu | `roundResult` hook loop |
+| Heart kena damage (auto) | `.pulse` + nomor melayang `−N` merah di atas heart | `heartFx()` |
+| Wave preview (auto) | header arena: type chip + affix badge + glow boss + `+N` overflow | `#ac-foechips` |
 | Base kena leak | flash base + heart pulse + banner warn + `hurt` sfx | `leakFx()` |
 | Buy/place/merge/sell | ring+burst+`ac-pop`/`mergeflash` + sfx (`land/levelup/coin`) | `placeFx()` |
 | Mob kena hit | anim `Hurt` + `.hurt` flash + `hit` sfx; dmg number **berwarna eff** (super `#ffe14d` besar, weak `#a3abb8`) | `syncEnemies`, `stepFx` |
