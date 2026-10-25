@@ -167,6 +167,10 @@ Co-op (P20) = **di-skip atas permintaan user** (lihat `docs/ROADMAP.md` P24).
 > (Regen+Enrage) / augment 16 (Overclock/Bulwark/Eagle Eye) / waveMul
 > 0.48+0.20 dengan sim band dual ≥45 TD ≥46 per 50 run (356 test hijau).
 > P24 co-op tetap di-skip.
+> **Tempo wave P25b ✅ (2026-10-25)** — `SPAWN_GAP` dual 6.3 / TD 5.1 +
+> `SPD_SCALE` 0.4 → combat +±15s per wave (dual 3.75→19.3s, TD 8.44→23.4s
+> avg 50-seed sim); band menang sim tetap hijau; sim test kini log
+> `avg combat/wave` per mode.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

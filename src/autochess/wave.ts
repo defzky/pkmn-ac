@@ -137,9 +137,9 @@ function dexEntry(dex: number): any {
 /**
  * Global movement scale (cells/s). Pokedex spd/50 puts typical mob at
  * 1.0–1.8 c/s → crosses 8-cell ring in ~4–5s (too fast to react).
- * ×0.6 → typical 0.6–1.1 c/s, crossing ~7–13s; fast runners ~6s.
+ * P26 tempo: ×0.4 → typical 0.4–0.7 c/s, crossing ~11–20s.
  */
-const SPD_SCALE = 0.6;
+const SPD_SCALE = 0.4;
 
 /** Mob cells/s from pokedex spd + role/boss multiplier, clamped then scaled. */
 function mobSpd(base: number, mul = 1): number {

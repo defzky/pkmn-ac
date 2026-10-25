@@ -52,6 +52,13 @@ Growlithe/Pikachu/Exeggcute/Rapidash/Lapras, skill kit reuse), affix 4 → **6**
 atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 (observasi terakhir 50/50 & 49/50). GDD common §1/§2a/§5 disinkronkan.
 - Boss mechanic tambahan (per-boss gimmick baru): belum — kandidat lanjutan.
+### P25b — Tempo wave +15s (✅ 2026-10-25)
+- Permintaan user: tiap wave tempur +±15 detik (prep/beli tetap 25/15/12s).
+- `SPAWN_GAP`: dual 0.4 → **6.3s**, TD 0.4 → **5.1s** (durasi ≈ `(n−1)×gap`);
+  `SPD_SCALE` 0.6 → **0.4** (crossing ~11–20s).
+- Hasil sim (avg combat per wave, 50 seed): dual **3.75 → 19.3s (+15.6)**,
+  TD **8.44 → 23.4s (+14.9)**; band menang tetap 50/50 (≥45 / ≥46 hijau).
+
 
 ### P26 — Kualitas hidup
 - Self-serve account delete (privacy, `docs/LEGAL.md` §4).

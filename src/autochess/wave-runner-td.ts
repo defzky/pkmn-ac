@@ -60,7 +60,7 @@ export interface TdRunState {
 export const TD_BASE_HP = 60;
 /** default buy/placement window (wave 1; later waves use prepSeconds(wave)) */
 export const PREP_SECONDS = 25;
-export const SPAWN_GAP = 0.4;
+export const SPAWN_GAP = 5.1;
 export const START_GOLD = 5;
 /** gold granted on every wave clear — D2c: 2 + floor(w/2) */
 export function waveBonus(wave: number): number {

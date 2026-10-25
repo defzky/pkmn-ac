@@ -71,7 +71,7 @@ export const LOSS_DMG = 3;
 
 /** buy/placement window before wave auto-starts (wave 1; later waves use prepSeconds(wave)) */
 export const PREP_SECONDS = 25;
-export const SPAWN_GAP = 0.4;
+export const SPAWN_GAP = 6.3;
 export const START_GOLD = 5;
 /** gold granted on every wave clear — D2c: 2 + floor(w/2) */
 export function waveBonus(wave: number): number {

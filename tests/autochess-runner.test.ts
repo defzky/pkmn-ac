@@ -272,7 +272,8 @@ describe('AU-1 correctness', () => {
     WR.startCombat(st);
     const tank = godUnit();
     tank.atk = 0; // survives, kills nothing → field backs up at 9
-    WR.tick(st, [tank], 5);
+    // spawn pacing P26 (gap 6.3s): tick real-time until field caps
+    for (let t = 0; t < 120 && st.mobs.length < WR.MAX_FIELD; t++) WR.tick(st, [tank], 0.5);
     expect(st.mobs.length).toBe(WR.MAX_FIELD);
     expect(st.spawnQ.length).toBeGreaterThan(0);
   });

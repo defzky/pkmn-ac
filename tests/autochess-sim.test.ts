@@ -62,13 +62,16 @@ describe('balance sim (S3)', () => {
     return board;
   };
 
-  /** mainkan run penuh sampai won/lost; return { phase, wave, gold, baseHp } */
+  /** mainkan run penuh sampai won/lost; return { phase, wave, gold, baseHp, combatSec } */
   function playRun(st: any, Runner: any, units: any[], mods: any, guardMax: number): any {
     let guard = 0;
+    st.combatSec = 0; // akumulasi detik fase combat (tempo P26)
     while (st.phase !== 'won' && st.phase !== 'lost' && guard++ < guardMax) {
       if (st.phase === 'prep') st.prepLeft = 0.01;
       else if (st.phase === 'buff') Runner.pickBuff(st, Buffs.rollBuffs()[0]);
+      const inCombat = st.phase === 'combat';
       Runner.tick(st, units, 0.25, mods);
+      if (inCombat) st.combatSec += 0.25;
       // invariants per tick
       expect(st.gold).toBeGreaterThanOrEqual(0);
       expect(st.base.hp).toBeGreaterThanOrEqual(0);
@@ -79,7 +82,7 @@ describe('balance sim (S3)', () => {
   }
 
   it('50 dual runs seeded: semua berakhir won/lost, invariant gold/hp sehat', () => {
-    let wins = 0, losses = 0;
+    let wins = 0, losses = 0, secSum = 0, waveSum = 0;
     for (let seed = 1; seed <= 50; seed++) {
       const board = buildBoard();
       const units = Team.spawnUnits(board, Team.teamMods(board));
@@ -89,15 +92,16 @@ describe('balance sim (S3)', () => {
       expect(st.wave).toBeLessThanOrEqual(10); // tanpa endless
       expect(st.gold).toBeGreaterThanOrEqual(0);
       if (st.phase === 'won') wins++; else losses++;
+      secSum += st.combatSec; waveSum += st.wave;
     }
-    console.log('dual balance: wins', wins, 'losses', losses);
+    console.log('dual balance: wins', wins, 'losses', losses, 'avg combat/wave:', (secSum / waveSum).toFixed(2), 's');
     expect(wins + losses).toBe(50);
     // P25 target: dual win-rate ≥90% (GDD balance band)
     expect(wins).toBeGreaterThanOrEqual(45);
   });
 
   it('50 TD runs seeded: semua berakhir won/lost, base HP sehat', () => {
-    let wins = 0, losses = 0;
+    let wins = 0, losses = 0, secSum = 0, waveSum = 0;
     for (let seed = 1; seed <= 50; seed++) {
       const board = buildBoard();
       const units = Team.spawnUnits(board, Team.teamMods(board));
@@ -107,8 +111,9 @@ describe('balance sim (S3)', () => {
       expect(st.wave).toBeLessThanOrEqual(10);
       expect(st.base.hp).toBeGreaterThanOrEqual(0);
       if (st.phase === 'won') wins++; else losses++;
+      secSum += st.combatSec; waveSum += st.wave;
     }
-    console.log('td balance: wins', wins, 'losses', losses);
+    console.log('td balance: wins', wins, 'losses', losses, 'avg combat/wave:', (secSum / waveSum).toFixed(2), 's');
     expect(wins + losses).toBe(50);
     // P25 target: TD win-rate ~95% (≥92% band; seeded but combat rolls Math.random → margin)
     expect(wins).toBeGreaterThanOrEqual(46);
