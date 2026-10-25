@@ -548,3 +548,31 @@ describe('D2e — augment runtime effects', () => {
     expect(u.hpCur).toBeCloseTo(8, 5); // 100 − 100×0.92
   });
 });
+
+describe('AU-1 slotWarTarget (GDD autochess §2)', () => {
+  it('stage A: adjacent (tdist≤1) prefers frontmost over merely nearest', () => {
+    const mid = unitAt(1, 1, 1);   // tdist(1,-1→1,1) = 1
+    const front = unitAt(1, 2, 2); // tdist = max(1, 0) = 1 — farther x, front row
+    const t = UnitAI.slotWarTarget(1, -1, [mid, front]);
+    expect(t).toBe(front); // y2 beats y1 at equal reach (order-independent)
+  });
+
+  it('stage B: no adjacent → backline fallback tier y2→y1→y0', () => {
+    const y0 = unitAt(1, 1, 0);
+    const y1 = unitAt(1, 1, 1);
+    expect(UnitAI.slotWarTarget(1, -1, [y0, y1])).toBe(y1); // tier y1 first
+    const only0 = UnitAI.slotWarTarget(1, -1, [y0]);
+    expect(only0).toBe(y0); // then y0
+  });
+
+  it('out of reach (all tdist > 3) → null', () => {
+    const far = unitAt(1, 0, 0);
+    expect(UnitAI.slotWarTarget(1, -3, [far])).toBe(null); // tdist 4
+  });
+
+  it('dead units ignored', () => {
+    const u = unitAt(1, 1, 1);
+    u.alive = false;
+    expect(UnitAI.slotWarTarget(1, -1, [u])).toBe(null);
+  });
+});

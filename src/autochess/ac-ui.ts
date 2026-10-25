@@ -488,7 +488,7 @@ function renderStage(): void {
 
   // enemy arena: prep = ghost preview of next round (auto only; TD uses #ac-td-wave strip)
   if (!td) {
-    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave, waveRndFor(st.run.wave)).mobs.slice(0, WaveRunner.MAX_FIELD);
+    const preview = st.run.phase === 'combat' ? [] : WaveRunner.getComp(st.run as any).mobs.slice(0, WaveRunner.MAX_FIELD);
     preview.forEach((spec, i) => {
       const slot = WaveRunner.FOE_SLOTS[i];
       const cell = document.createElement('div');
@@ -519,7 +519,7 @@ function renderStage(): void {
     // TD: next-wave preview in visible strip above board + base gate marker at path end
     const waveBox = $('ac-td-wave');
     waveBox.innerHTML = '';
-    const comp = WaveDef.compose(st.run.wave, waveRndFor(st.run.wave));
+    const comp = WaveRunnerTd.getComp(st.run as any);
     const preview = st.run.phase === 'combat' ? [] : comp.mobs.slice(0, WaveRunnerTd.MAX_MOBS);
     waveBox.insertAdjacentHTML('beforeend', '<span class="ac-td-gate">⬇ Spawn</span>');
     // D2b: type chips (counter-building) + side summary of the coming wave
@@ -1125,7 +1125,7 @@ function onBuy(i: number) {
 /** D2d shop bias: champion dexes super-effective vs upcoming wave types. */
 function waveBiasDexes(): number[] {
   const w = Math.max(1, st.run?.wave || 1);
-  const comp = WaveDef.compose(w, waveRndFor(w));
+  const comp = (currentMode === 'td' ? WaveRunnerTd : WaveRunner).getComp(st.run as any);
   const mobTypes: string[] = [];
   for (const s of comp.mobs) {
     const e = ((G as any).DEX_BY || {})[s.dex] || {};
@@ -1333,6 +1333,13 @@ function loop(ts: number): void {
       else {
         if (prev === 'combat' && after === 'prep') {
         st.shop = Shop.createShop(r.wave, shopRndFor(), waveBiasDexes()); // wave cleared → free shop refresh
+          if ((r as any).roundResult === 'loss') {
+            // AU-1: team wiped — real result, no fake gold toast
+            const lostWave = Math.max(1, r.wave - 1);
+            const dmg = WaveRunner.LOSS_DMG + Math.floor(lostWave / 4);
+            banner('leak', 'Round lost!', `Your heart −${dmg} ♥`);
+            Audio.sfx('hurt', undefined);
+          } else {
           const bonus = Runner.waveBonus(r.wave - 1);
           UI.toast(`+${bonus} gold`); // wave already advanced
           // wave-cleared banner + gold pill pop (Fase J)
@@ -1340,6 +1347,7 @@ function loop(ts: number): void {
           Audio.sfx('levelup', undefined);
           const gold = $('ac-gold');
           gold.classList.remove('pop'); void gold.offsetWidth; gold.classList.add('pop');
+          }
         }
         renderAll();
       }

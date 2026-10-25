@@ -9,7 +9,7 @@
  * Leak penalty via base.ts (normal 5, boss 20).
  */
 import { register } from '../core/registry';
-import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec } from './wave';
+import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec, type WaveComp } from './wave';
 import { create as createBase, leak as baseLeak, type BaseState } from './base';
 import { tick as aiTick, respawnUnits } from './unitAI';
 import type { MobBattle } from './unitAI';
@@ -48,6 +48,10 @@ export interface TdRunState {
   endless: boolean;
   /** daily seed (undefined = Math.random) */
   seed?: number;
+  /** cached wave composition — preview & combat share ONE roll per wave */
+  comp: WaveComp | null;
+  /** wave the cache belongs to (invalidates on direct st.wave mutation / debug API) */
+  compW: number;
 }
 
 /** base HP for TD run (D2c 5-min sprint: 60) */
@@ -72,7 +76,7 @@ function dexEntry(dex: number): any {
 /** Walking mob — NO cx/cy (progress-based); spawner sets branch (ring lane 0/1). */
 function toMob(s: MobSpec): MobBattle {
   const e = dexEntry(s.dex);
-  const bounty = s.boss ? 10 : s.elite ? 2 : Math.random() < 0.28 ? 1 : 0;
+  const bounty = s.boss ? 10 : s.elite ? 2 : 1; // GDD common §4 — always pays
   return {
     dex: s.dex,
     hp: s.hp,
@@ -128,14 +132,25 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number)
     leaked: false,
     endless: false,
     seed,
+    comp: null,
+    compW: 0,
   };
 }
 
-/** roll composition for current wave, enter combat */
+/** Cached composition for st.wave: wave strip preview & startCombat read THIS. */
+export function getComp(st: TdRunState): WaveComp {
+  if (!st.comp || st.compW !== st.wave) {
+    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
+    st.compW = st.wave;
+  }
+  return st.comp;
+}
+
+/** roll composition for current wave (queue = full wave, no slice), enter combat */
 export function startCombat(st: TdRunState): void {
   if (st.phase !== 'prep') return;
-  const comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
-  st.spawnQ = comp.mobs.slice(0, MAX_MOBS).map((m) => ({ ...m }));
+  const comp = getComp(st);
+  st.spawnQ = comp.mobs.map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];
   st.leaked = false; // fresh wave — streak survives unless a leak happens
@@ -144,6 +159,8 @@ export function startCombat(st: TdRunState): void {
 
 function advanceWave(st: TdRunState): void {
   st.wave++;
+  st.comp = null; // next wave = fresh roll
+  st.compW = 0;
   st.phase = 'prep';
   st.prepLeft = prepSeconds(st.wave); // D2c: 25 / 15 / 12s curve
 }
@@ -152,6 +169,8 @@ function advanceWave(st: TdRunState): void {
 export function resumeEndless(st: TdRunState): void {
   st.endless = true;
   st.wave += 1;
+  st.comp = null;
+  st.compW = 0;
   st.phase = 'prep';
   st.prepLeft = prepSeconds(st.wave);
 }
@@ -247,6 +266,7 @@ export function forceStart(st: TdRunState): void {
 
 const WaveRunnerTd = {
   createRun,
+  getComp,
   startCombat,
   tick,
   pickBuff,

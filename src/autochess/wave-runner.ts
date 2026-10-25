@@ -6,7 +6,7 @@
  * damage the enemy heart; round lost = player team wiped → damage the player heart.
  */
 import { register } from '../core/registry';
-import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec } from './wave';
+import { WaveDef, prepSeconds, interest, streakBonus, type MobSpec, type WaveComp } from './wave';
 import { create as createBase, type BaseState } from './base';
 import { tick as aiTick, respawnUnits } from './unitAI';
 import type { MobBattle } from './unitAI';
@@ -46,6 +46,12 @@ export interface RunState {
   endless: boolean;
   /** daily seed (undefined = Math.random) */
   seed?: number;
+  /** cached wave composition — preview, shop bias & combat share ONE roll per wave */
+  comp: WaveComp | null;
+  /** wave the cache belongs to (invalidates on direct st.wave mutation / debug API) */
+  compW: number;
+  /** last round resolution for the UI (loss must not show the win banner) */
+  roundResult?: 'win' | 'loss';
 }
 
 /** enemy grid slots, front row first (y −1 = front … y −3 = back) */
@@ -78,8 +84,8 @@ function dexEntry(dex: number): any {
 
 function toMob(s: MobSpec, slot: { x: number; y: number }): MobBattle {
   const e = dexEntry(s.dex);
-  // GDD bounty: boss 10, elite 2, normal ~1 per 3–5 kills (direct coin drop 28% ≈ 1/3.6)
-  const bounty = s.boss ? 10 : s.elite ? 2 : Math.random() < 0.28 ? 1 : 0;
+  // GDD common §4: normal 1 / elite 2 / boss 10 — always pays (drop chance removed)
+  const bounty = s.boss ? 10 : s.elite ? 2 : 1;
   return {
     dex: s.dex,
     hp: s.hp,
@@ -138,14 +144,25 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number)
     lossStreak: 0,
     endless: false,
     seed,
+    comp: null,
+    compW: 0,
   };
 }
 
-/** roll composition for current wave (capped to the 3×3 grid), enter combat */
+/** Cached composition for st.wave: preview, shop bias & startCombat all read THIS. */
+export function getComp(st: RunState): WaveComp {
+  if (!st.comp || st.compW !== st.wave) {
+    st.comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
+    st.compW = st.wave;
+  }
+  return st.comp;
+}
+
+/** roll composition for current wave (queue = full wave, no slice), enter combat */
 export function startCombat(st: RunState): void {
   if (st.phase !== 'prep') return;
-  const comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
-  st.spawnQ = comp.mobs.slice(0, MAX_FIELD).map((m) => ({ ...m }));
+  const comp = getComp(st);
+  st.spawnQ = comp.mobs.map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];
   st.phase = 'combat';
@@ -153,6 +170,8 @@ export function startCombat(st: RunState): void {
 
 function advanceWave(st: RunState): void {
   st.wave++;
+  st.comp = null; // next wave = fresh roll
+  st.compW = 0;
   st.phase = 'prep';
   st.prepLeft = prepSeconds(st.wave); // D2c: 25 / 15 / 12s curve
 }
@@ -161,6 +180,8 @@ function advanceWave(st: RunState): void {
 export function resumeEndless(st: RunState): void {
   st.endless = true;
   st.wave += 1;
+  st.comp = null;
+  st.compW = 0;
   st.phase = 'prep';
   st.prepLeft = prepSeconds(st.wave);
 }
@@ -186,11 +207,14 @@ export function tick(
   }
   if (st.phase !== 'combat') return false;
 
-  // spawn queue → fixed enemy-arena slots (front row first)
+  // spawn queue → free enemy-arena slots (max MAX_FIELD alive; queue keeps full wave)
   if (st.spawnQ.length) {
     st.spawnT -= dt;
-    while (st.spawnQ.length && st.spawnT <= 0) {
-      const slot = FOE_SLOTS[st.mobs.length % MAX_FIELD];
+    let guard = 0;
+    while (st.spawnQ.length && st.spawnT <= 0 && guard++ <= MAX_FIELD) {
+      const used = new Set(st.mobs.map((m) => m.cx + ',' + m.cy));
+      const slot = FOE_SLOTS.find((s) => !used.has(s.x + ',' + s.y));
+      if (!slot) break;
       st.mobs.push(toMob(st.spawnQ.shift()!, slot));
       st.spawnT += st.spawnGap;
     }
@@ -199,6 +223,9 @@ export function tick(
   const r = aiTick(units, st.mobs, dt, mods, []);
   st.kills += r.kills;
   if (r.gold) st.gold += r.gold;
+  // dead mobs leave the array → frees their slot for the spawn queue (syncEnemies
+  // detects the missing mob → Faint fade path)
+  if (st.mobs.some((m) => !m.alive)) st.mobs = st.mobs.filter((m) => m.alive);
 
   // player team wiped (or never fielded) → damage player heart + consolation streak
   if (!units.some((u) => u.alive)) {
@@ -210,12 +237,14 @@ export function tick(
       st.phase = 'lost';
       return true;
     }
+    st.roundResult = 'loss'; // AU-1: UI must not show the win banner on a wipe
     advanceWave(st);
     return true;
   }
 
   // all enemies spawned and cleared → economy + damage enemy heart + win at wave 10
   if (!st.spawnQ.length && !st.mobs.some((m) => m.alive)) {
+    st.roundResult = 'win';
     st.streak++;
     st.lossStreak = 0;
     st.gold += interest(st.gold, st.buffs.interestCap) + streakBonus(st.streak) + waveBonus(st.wave);
@@ -252,6 +281,7 @@ export function forceStart(st: RunState): void {
 
 const WaveRunner = {
   createRun,
+  getComp,
   startCombat,
   tick,
   pickBuff,

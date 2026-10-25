@@ -64,18 +64,19 @@ describe('FOE_SLOTS / startCombat', () => {
     expect(WR.FOE_SLOTS[2]).toEqual({ x: 2, y: -1 });
     expect(WR.FOE_SLOTS[8]).toEqual({ x: 2, y: -3 });
   });
-  it('rolls composition into spawn queue (capped to MAX_FIELD)', () => {
+  it('rolls composition into spawn queue (AU-1: FULL wave, no slice)', () => {
     const st = WR.createRun();
     WR.startCombat(st);
     expect(st.phase).toBe('combat');
     const wave1 = (globalThis as any).G.WaveDef.compose(1);
     expect(st.spawnQ.length).toBe(wave1.mobs.length);
     expect(st.spawnQ.length).toBe(3); // 3 + floor(1/2)
-    // high wave capped at 9 (wave 13 rolls 9; boss waves 5/10/15/20 are single-boss)
+    // high wave: queue keeps the WHOLE composition (was sliced to 9)
     const st2 = WR.createRun();
-    st2.wave = 13;
+    st2.wave = 19;
     WR.startCombat(st2);
-    expect(st2.spawnQ.length).toBe(WR.MAX_FIELD);
+    expect(st2.spawnQ.length).toBe(WR.getComp(st2).mobs.length);
+    expect(st2.spawnQ.length).toBeGreaterThan(WR.MAX_FIELD);
   });
   it('ignored outside prep', () => {
     const st = WR.createRun();
@@ -252,5 +253,56 @@ describe('D2a respawn at prep (dual)', () => {
     WR.tick(st, [u], 0.1); // phase prep
     expect(u.alive).toBe(true);
     expect(u.hpCur).toBe(u.hp);
+  });
+});
+describe('AU-1 correctness', () => {
+  it('getComp: identity per wave, fresh object after wave change', () => {
+    const st = WR.createRun();
+    const a = WR.getComp(st);
+    expect(WR.getComp(st)).toBe(a); // cached — preview === combat === shop bias
+    st.wave = 3; // direct mutation (debug API / tests) invalidates via compW
+    const b = WR.getComp(st);
+    expect(b).not.toBe(a);
+    expect(WR.getComp(st)).toBe(b);
+  });
+
+  it('spawn gate: alive mobs cap at MAX_FIELD while queue keeps draining past deaths', () => {
+    const st = WR.createRun();
+    st.wave = 19;
+    WR.startCombat(st);
+    const tank = godUnit();
+    tank.atk = 0; // survives, kills nothing → field backs up at 9
+    WR.tick(st, [tank], 5);
+    expect(st.mobs.length).toBe(WR.MAX_FIELD);
+    expect(st.spawnQ.length).toBeGreaterThan(0);
+  });
+
+  it('roundResult: loss on wipe with NO fake gold; win on clear', () => {
+    const st = WR.createRun();
+    WR.forceStart(st);
+    const dead = godUnit();
+    dead.alive = false;
+    const g0 = st.gold;
+    WR.tick(st, [dead], 0.1);
+    expect(st.roundResult).toBe('loss');
+    expect(st.gold).toBe(g0); // wave bonus only on win (bug: loss showed cleared banner)
+    expect(st.wave).toBe(2); // still advances
+
+    const st2 = WR.createRun();
+    WR.forceStart(st2);
+    let g = 0;
+    while (st2.phase === 'combat' && g++ < 600) WR.tick(st2, [godUnit()], 0.1);
+    expect(st2.roundResult).toBe('win');
+    expect(st2.wave).toBe(2);
+  });
+
+  it('bounty: normal mob always 1 gold (GDD common §4, drop chance removed)', () => {
+    const st = WR.createRun();
+    WR.forceStart(st);
+    const tank = godUnit();
+    tank.atk = 0; // keep the spawned mob alive to inspect its bounty
+    WR.tick(st, [tank], 0.1);
+    expect(st.mobs.length).toBeGreaterThan(0);
+    for (const m of st.mobs) expect(m.bounty).toBe(1);
   });
 });

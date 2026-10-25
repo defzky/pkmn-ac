@@ -161,6 +161,29 @@ export function nearestUnit(x: number, y: number, units: UnitBattle[], maxD: num
   return best;
 }
 
+/** GDD autochess §2 slot-war pick: (A) adjacent combat tdist ≤ 1, frontmost → nearest;
+ * (B) no adjacent → fallback tiers y2 → y1 → y0, nearest within tier, reach tdist ≤ 3. */
+export function slotWarTarget(x: number, y: number, units: UnitBattle[]): UnitBattle | null {
+  const alive = units.filter((u) => u.alive);
+  let adj: UnitBattle | null = null, adjD = Infinity;
+  for (const u of alive) {
+    const d = tdist(x, y, u.x, u.y);
+    if (d > 1) continue;
+    if (!adj || u.y > adj.y || (u.y === adj.y && d < adjD)) { adj = u; adjD = d; }
+  }
+  if (adj) return adj;
+  for (const ty of [2, 1, 0]) {
+    let tier: UnitBattle | null = null, tierD = Infinity;
+    for (const u of alive) {
+      if (u.y !== ty) continue;
+      const d = tdist(x, y, u.x, u.y);
+      if (d <= 3 && d < tierD) { tier = u; tierD = d; }
+    }
+    if (tier) return tier;
+  }
+  return null;
+}
+
 /** Mob hits unit: typeMult(mob primary type vs unit types) on raw dmg. */
 export function hitUnit(m: MobBattle, u: UnitBattle, dmg: number): void {
   let d = dmg * typeMult(m.types?.[0] || '', u.types || []);
@@ -347,8 +370,8 @@ export function tick(
     if (!m.alive) continue;
     if ((m.statuses || []).some((s) => s.type === 'stun')) continue;
     if (m.cx != null) {
-      // slot war (autochess): nearest alive unit in engagement range (front-to-front 0 … 3)
-      const t = nearestUnit(m.cx, m.cy as number, units, 3);
+      // slot war (autochess): frontline-first + tier fallback (GDD autochess §2)
+      const t = slotWarTarget(m.cx, m.cy as number, units);
       if (t) {
         m.atkT = (m.atkT || 0) - dt;
         if (m.atkT <= 0) { hitUnit(m, t, m.atk); m.atkT = MOB_ATK_CD; }
@@ -475,7 +498,7 @@ export function over(mobs: MobBattle[]): boolean {
   return mobs.every((m) => !m.alive);
 }
 
-const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, tdist, typeMult, addBurn, addSlow, addStun, applyDamage, hitUnit, nearestUnit, respawnUnits, MOB_ATK_CD, STOP_CAP, RUNNER_CHIP };
+const UnitAI = { tick, over, mobCell, cellsOf, mobPos, cellDist, tdist, typeMult, addBurn, addSlow, addStun, applyDamage, hitUnit, nearestUnit, slotWarTarget, respawnUnits, MOB_ATK_CD, STOP_CAP, RUNNER_CHIP };
 register('UnitAI', UnitAI);
 export { UnitAI };
 export default UnitAI;

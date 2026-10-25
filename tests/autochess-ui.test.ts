@@ -926,3 +926,36 @@ describe('debug API (S3)', () => {
     expect(ACUI.run.phase).toBe('won');
   });
 });
+
+describe('AU-1 round result (auto mode)', () => {
+  it('team wipe → "Round lost!" banner (leak), NO fake gold toast', () => {
+    ACUI.open('auto');
+    const r: any = ACUI.run;
+    r.phase = 'combat';
+    r.spawnQ = []; r.mobs = []; // empty board (no units) → runner wipe branch
+    ACUI.step(performance.now() + 50);
+    const el = document.getElementById('ac-banner')!;
+    expect(el.hidden).toBe(false);
+    expect(el.textContent).toContain('Round lost!');
+    expect(el.classList.contains('leak')).toBe(true);
+    const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
+    expect(toasts).not.toMatch(/gold/); // bug: wipe used to show "Wave cleared +N gold"
+  });
+
+  it('wave clear → "cleared!" banner + gold toast (win branch intact)', () => {
+    ACUI.open('auto');
+    ACUI.board.units.push({ dex: 1, star: 1, x: 1, y: 1, bench: null } as any);
+    ACUI.render();
+    document.getElementById('ac-start')!.click(); // Ready → enterCombat
+    for (const u of ACUI.units) { u.atk = 1e6; u.hp = u.hpCur = 1e9; u.range = 99; u.atkCd = 0.01; }
+    // monotonically increasing ts: constant ts would freeze dt (step uses ts - st.last)
+    for (let i = 0; i < 400 && (ACUI.run as any).phase === 'combat'; i++) {
+      ACUI.step(performance.now() + 50 * (i + 1));
+    }
+    expect((ACUI.run as any).phase).toBe('prep');
+    expect((ACUI.run as any).roundResult).toBe('win');
+    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/cleared/i);
+    const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
+    expect(toasts).toMatch(/gold/);
+  });
+});
