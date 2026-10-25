@@ -20,7 +20,7 @@ baru:  2 arena 3×3 → auto-battle → gold → shop → repeat
 
 Run = N wave. Kalah = heart pemain 0. Menang = heart musuh 0 atau wave 20. Ranking = **waves survived** (bukan time).
 
-### Core loop (final — sinkron GDD `game-design.md`)
+### Core loop (final — sinkron GDD `docs/game-design-common.md` + `game-design-autochess.md`)
 
 ```
 PREP (30s)         BATTLE               ROUND WIN
@@ -77,8 +77,9 @@ src/autochess/
   ac-ui.ts        # screen scr-ac: mode select → twin arena (auto) / path board (td), drag-drop buy, loop, syncEnemies
 ```
 
-Sisa rencana lama yang **belum** diimplementasi (kandidat tahap lanjut):
-save v4 roster/star (P18), augment/items (P19), co-op (P20).
+Sisa rencana lama yang **sudah** diimplementasi kemudian: save v4 (S1),
+augment rule-changer (D2e), daily seed (S2), debug+sim (S3).
+Co-op (P20) = **di-skip atas permintaan user** (lihat `docs/ROADMAP.md` P24).
 
 ---
 
@@ -185,7 +186,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 
 ```
 npm run dev          # :5173
-npm test             # vitest: 14 test files, 231 tests
+npm test             # vitest: 18 test files, ~325 tests (baseline 2026-10-25)
 npm run build        # dev bundle
 npm run build:prod   # obfuscated prod + version.json
 npm run preview

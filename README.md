@@ -48,25 +48,40 @@ src/
   game.ts          # legacy dungeon mode + Flow
   systems/         # legacy survivor systems (stats, gacha, progress)
   ui/              # menu, screens, UI helpers
-tests/             # vitest suites (13 files)
+tests/             # vitest suites (18 files)
 docs/
   game-design-common.md    # shared: units, shop, merge, synergy, buffs
   game-design-autochess.md # full autochess: dual-board, foe heart
   game-design-td.md        # TD: path board, base HP, leak
-  PLAN-autochess-td.md     # historical P11–P18 plan
+  ARCHITECTURE.md ART-DIRECTION.md ROADMAP.md PLATFORM.md
+  NON-FUNCTIONAL.md QA-ANALYTICS.md LEGAL.md LIVEOPS.md   # standard doc set
+  PLAN-autochess-td.md     # historical P11–P20 plan
   PLAN-move-animation.md   # historical move FX plan
 ```
 
 ## Modes
 
-- **Tower Defence** — single 3×3 board, path serpentine lewat grid, musuh jalan dari spawn ke base. Leak = base HP damage. Survive 20 waves.
-- **Full Autochess** — dual-board 3×3 (enemy atas, player bawah). Beli/merge unit, eliminate musuh → damage enemy heart. Win = enemy heart 0 atau wave 20 clear.
+- **Tower Defence** — single 3×3 board, path lewat grid (lane kiri = runner cepat, kanan = bulwark lambat), musuh jalan dari spawn ke base. Leak = base HP damage. Sprint **10 wave** (boss 5 & 10), lalu endless.
+- **Full Autochess** — dual-board 3×3 (enemy atas, player bawah). Beli/merge unit, eliminate musuh → damage enemy heart. Win = enemy heart 0 atau wave 10 clear → bisa endless.
 
 ## Docs
 
-- Design source of truth: `docs/game-design-*.md` (split per mode + shared).
-- Historical plans: `docs/PLAN-*.md` (executed, kept for reference).
+**Standar (8 pillar):**
+
+- `docs/ARCHITECTURE.md` — technical design: module map, data flow, save v4 spec
+- `docs/ART-DIRECTION.md` — art direction: pixel style, sprite pipeline, juice standards
+- `docs/ROADMAP.md` — scope & status: backlog terprioritas, konvensi phase
+- `docs/PLATFORM.md` — platform & distribution: build pipeline, versi/cache, release checklist
+- `docs/NON-FUNCTIONAL.md` — perf budget, offline/PWA, aksesibilitas, device matrix
+- `docs/QA-ANALYTICS.md` — test strategy, regression policy, spec analytics
+- `docs/LEGAL.md` — atribusi asset, privasi, trademark, monetisasi
+- `docs/LIVEOPS.md` — retention loops, content cadence, tuning
+
+**Design source of truth:** `docs/game-design-*.md` (common / td / autochess).
+**Historical plans:** `docs/PLAN-*.md` (executed, kept for reference).
 
 ## License
 
+Kode: **MIT** (`LICENSE`). Asset pihak ketiga punya lisensi sendiri —
+lihat `docs/LEGAL.md` (SpriteCollab CC BY-NC 4.0, Pixelify Sans OFL).
 Fan project. Pokémon © Nintendo / Creatures Inc. / GAME FREAK inc.
