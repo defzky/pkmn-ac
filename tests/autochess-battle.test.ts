@@ -549,6 +549,20 @@ describe('D2e — augment runtime effects', () => {
   });
 });
 
+describe('P25 enrage affix (unitAI)', () => {
+  it('below 40% maxHp → ×1.4 damage; above → normal', () => {
+    const rage = unitAt(4, 1, 1);
+    rage.types = ['normal'];
+    rage.hpCur = 100;
+    UnitAI.hitUnit(mob({ types: ['fire'], affix: 'enrage', hp: 30, maxHp: 100 }), rage, 40);
+    const calm = unitAt(4, 1, 1);
+    calm.types = ['normal'];
+    calm.hpCur = 100;
+    UnitAI.hitUnit(mob({ types: ['fire'], affix: 'enrage', hp: 90, maxHp: 100 }), calm, 40);
+    expect(100 - rage.hpCur).toBeCloseTo((100 - calm.hpCur) * 1.4, 5);
+  });
+});
+
 describe('AU-1 slotWarTarget (GDD autochess §2)', () => {
   it('stage A: adjacent (tdist≤1) prefers frontmost over merely nearest', () => {
     const mid = unitAt(1, 1, 1);   // tdist(1,-1→1,1) = 1

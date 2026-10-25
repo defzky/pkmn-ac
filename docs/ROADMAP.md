@@ -45,10 +45,13 @@ Dua board, satu base. Reuse `net/` rooms, JANGAN pakai `net/coop.ts` legacy
 minta.
 
 ### P25 — Konten & balance
-- Roster champion (12 → 20), affix baru (rotasi 4 → 6), augment 13 → 16.
-- Balance pass via sim (`tests/autochess-sim.test.ts`) — target win-rate
-  dual ≥90%, TD ~95% (baseline sekarang 100%/96% — TD terlalu mudah?).
-- Boss lebih ramai (wave 5/10 sudah, tambah mechanic per boss).
+✅ selesai (2026-10-25) — champion 12 → **20** (Magikarp/Hoothoot/Poliwag/
+Growlithe/Pikachu/Exeggcute/Rapidash/Lapras, skill kit reuse), affix 4 → **6**
+(+Regen +3%/s, +Enrage ×1.4 <40% HP, rotasi `(wave−3)%6`), augment 13 →
+**16** (+Overclock/Bulwark/Eagle Eye trade-off), waveMul hp 0.42→**0.48** /
+atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
+(observasi terakhir 50/50 & 49/50). GDD common §1/§2a/§5 disinkronkan.
+- Boss mechanic tambahan (per-boss gimmick baru): belum — kandidat lanjutan.
 
 ### P26 — Kualitas hidup
 - Self-serve account delete (privacy, `docs/LEGAL.md` §4).

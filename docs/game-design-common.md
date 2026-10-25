@@ -39,8 +39,11 @@ di-key base dex. ★ multiplier: ATK ×1/×1.8/×3.5, ATK-speed ×1/×1.2/×1.5,
 * HP bar unit tampil di petak (sudah ada), menyusut saat kena damage.
 * Regen (Grass synergy, dll) tetap jalan selama hidup.
 
-Daftar line-up 12 champion + skill tetap sama seperti sebelumnya (tabel lama
-common §1 dipertahankan; data di kode `unit.ts` / shop).
+Line-up **20 champion** (P25, pool tetap — tanpa evo-vektor baru):
+Bulbasaur, Charmander, Squirtle, Pidgey, Mareep, Machop, Gastly, Abra, Aron,
+Swinub, Ralts, Dratini + **Magikarp, Hoothoot, Poliwag, Growlithe, Pikachu,
+Exeggcute, Rapidash, Lapras** (dex baru di luar chain ★-lama; skill reuse
+kit yang sudah ada, data `champions.ts`).
 
 ### Sinergi tipe dasar (tetap)
 
@@ -59,7 +62,8 @@ common §1 dipertahankan; data di kode `unit.ts` / shop).
   **side hint** (TD saja: kiri/kanan/both).
 * Pool musuh, role, elite, boss table: **tetap** seperti tabel lama
   (Rattata…Mewtwo) dengan scaling wave yang disesuaikan 10-wave
-  (`hp = base × (1 + wave×0.42)`, biar wave 10 ≈ wave 20 lama).
+  (`hp = base × (1 + wave×0.48)`, `atk × (0.4 + wave×0.20)` — P25 balance,
+  band sim: dual ≥90% menang, TD ~95%).
 
 ### 2a. Affix (mulai wave 3, berputar)
 
@@ -69,8 +73,12 @@ common §1 dipertahankan; data di kode `unit.ts` / shop).
 | **Fast** | SPD ×1.5 |
 | **Armored** | armor +0.25 |
 | **Elemental** | mobs immune burn/poison; +% type power |
+| **Regen** (P25) | semua mob regen +3% maxHp/detik |
+| **Enrage** (P25) | mob < 40% HP → damage ×1.4 |
 
-Affix di-tag di preview. Affix tidak menumpuk (1 per wave).
+Affix di-tag di preview. Affix tidak menumpuk (1 per wave). Rotasi 6
+(berputar `(wave−3) % 6`): swarm → fast → armored → elemental → regen →
+enrage → …
 
 ### 2b. Shop bias (counter-building)
 
@@ -109,8 +117,8 @@ ke champion yang type-nya *super effective* vs type dominan wave berikutnya
 
 ## 5. Buff → Augment (P19 — rework filosofi)
 
-Lama: 5 stat-stick (Power Up, dst). **Baru:** pool **8–10 augment
-rule-changer**, pilih 1 dari 3 tiap kelipatan 3 wave (tetap), contoh:
+Lama: 5 stat-stick (Power Up, dst). **Baru:** pool **16 augment** (11
+rule-changer + 5 dasar), pilih 1 dari 3 tiap kelipatan 3 wave (tetap), contoh:
 
 | Augment | Efek |
 | :--- | :--- |
@@ -122,6 +130,9 @@ rule-changer**, pilih 1 dari 3 tiap kelipatan 3 wave (tetap), contoh:
 | **Elementalist** | skill cast ikut kena typeBoost |
 | **Slipstream** | unit pertama tiap prep +30% atk speed 5s |
 | **Blood Money** | kill bounty ×1.5 |
+| **Overclock** (P25) | +20% ATK, +15% atk speed, −15% HP (trade-off) |
+| **Bulwark** (P25) | +35% HP tapi −10% atk speed (trade-off) |
+| **Eagle Eye** (P25) | semua unit +1 range |
 
 Stat-stick lama boleh tetap sebagai 2 kartu "dasar" (Power Up / Tough Skin).
 

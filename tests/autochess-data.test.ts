@@ -150,9 +150,9 @@ describe('wave', () => {
 
   it('count formula 3+floor(w/2) cap 16 (non-boss waves)', () => {
     expect(WaveDef.compose(2).mobs.length).toBe(4);
-    expect(WaveDef.compose(9).mobs.length).toBe(7);
-    // wave 19 = swarm affix → 12 × 1.4 = 17 clones (D2d)
-    expect(WaveDef.compose(19).mobs.length).toBe(17);
+    expect(WaveDef.compose(13).mobs.length).toBe(9); // regen affix → no padding
+    // wave 9 = swarm affix (P25 rotation) → 7 × 1.4 = 10 clones (D2d)
+    expect(WaveDef.compose(9).mobs.length).toBe(10);
   });
 
   it('fixed boss every 5th wave (5/10/15/20): boss + 2 escorts', () => {
@@ -197,9 +197,9 @@ describe('wave', () => {
     }
   });
 
-  it('hp/atk scale with wave (D2c: hp = 1+wave*0.42, atk = 0.4+wave*0.16)', () => {
-    expect(WaveDef.waveMul(1).hp).toBeCloseTo(1.42);
-    expect(WaveDef.waveMul(4).atk).toBeCloseTo(1.04);
+  it('hp/atk scale with wave (P25 balance: hp = 1+wave*0.48, atk = 0.4+wave*0.20)', () => {
+    expect(WaveDef.waveMul(1).hp).toBeCloseTo(1.48);
+    expect(WaveDef.waveMul(4).atk).toBeCloseTo(1.2);
     expect(WaveDef.waveMul(11).hp).toBeGreaterThan(WaveDef.waveMul(1).hp);
     expect(WaveDef.waveMul(11).atk).toBeGreaterThan(WaveDef.waveMul(1).atk);
     const w1 = WaveDef.compose(1).mobs[0];
@@ -246,9 +246,9 @@ describe('D2e buffs — augment rule-changers', () => {
 
   const mkSt = () => ({ buffs: Buffs.initBuffs(), gold: 10, base: { hp: 20, maxHp: 60 } });
 
-  it('pool = 13 (8 rule-changers + 5 basics), rollBuffs 3 distinct', () => {
-    expect(Buffs.POOL.length).toBe(13);
-    for (const id of ['flank-master', 'fortified', 'second-wind', 'compound', 'frontline-bond', 'elementalist', 'slipstream', 'blood-money']) {
+  it('pool = 16 (11 rule-changers + 5 basics), rollBuffs 3 distinct', () => {
+    expect(Buffs.POOL.length).toBe(16);
+    for (const id of ['flank-master', 'fortified', 'second-wind', 'compound', 'frontline-bond', 'elementalist', 'slipstream', 'blood-money', 'overclock', 'bulwark', 'eagle-eye']) {
       expect(Buffs.POOL.some((b: any) => b.id === id)).toBe(true);
     }
     const r = Buffs.rollBuffs();
@@ -375,14 +375,17 @@ describe('synergy', () => {
 });
 
 describe('D2d affixes', () => {
-  it('affixFor: null before wave 3, then rotates swarm/fast/armored/elemental', () => {
+  it('affixFor: null before wave 3, then rotates 6 affixes (P25: +regen/enrage)', () => {
     expect(WaveDef.affixFor(1)).toBe(null);
     expect(WaveDef.affixFor(2)).toBe(null);
     expect(WaveDef.affixFor(3)).toBe('swarm');
     expect(WaveDef.affixFor(4)).toBe('fast');
     expect(WaveDef.affixFor(5)).toBe('armored');
     expect(WaveDef.affixFor(6)).toBe('elemental');
-    expect(WaveDef.affixFor(7)).toBe('swarm');
+    expect(WaveDef.affixFor(7)).toBe('regen');
+    expect(WaveDef.affixFor(8)).toBe('enrage');
+    expect(WaveDef.affixFor(9)).toBe('swarm');
+    expect(WaveDef.affixFor(10)).toBe('fast');
   });
 
   it('swarm wave 3: +40% count (cap 20), hp ×0.7, all tagged', () => {
@@ -420,5 +423,47 @@ describe('D2d affixes', () => {
       expect(auto.mobs[i]!.atk).toBeGreaterThanOrEqual(td.mobs[i]!.atk);
       expect(auto.mobs[i]!.atk).toBeLessThanOrEqual(Math.round(td.mobs[i]!.atk * 1.08) + 1);
     }
+  });
+});
+
+describe('P25 content & balance', () => {
+  let Buffs: any, Champions: any;
+  beforeAll(async () => {
+    ({ Buffs } = await import('../src/autochess/buffs.ts'));
+    ({ Champions } = await import('../src/autochess/champions.ts'));
+  });
+
+  it('champion pool 12 → 20, new dexes shoppable, none inside an old evo chain', () => {
+    expect(Champions.DEFS.length).toBe(20);
+    for (const dex of [129, 163, 60, 58, 25, 102, 78, 131]) {
+      expect(Champions.isChampion(dex), `dex ${dex}`).toBe(true);
+      expect(Champions.costOf(dex)).toBeGreaterThanOrEqual(1);
+      expect(Champions.costOf(dex)).toBeLessThanOrEqual(4);
+    }
+    // ★-display safety: no new dex shadows an old champion's ★2/★3 sprite
+    expect(Champions.isChampion(148)).toBe(false); // Dratini ★2 sprite stays non-pool
+    expect(Champions.isChampion(59)).toBe(false);  // Growlithe ★2 (Arcanine) stays non-pool
+  });
+
+  it('regen affix: +3%/s regen on every mob (wave 7 rotation)', () => {
+    const c = WaveDef.compose(7, () => 0);
+    expect(c.affix).toBe('regen');
+    for (const m of c.mobs) expect(m.regen).toBeGreaterThanOrEqual(0.03);
+  });
+
+  it('new augments apply: overclock / bulwark / eagle-eye', () => {
+    const mk = () => ({ buffs: Buffs.initBuffs(), gold: 0, base: { hp: 10, maxHp: 60 } });
+    let st = mk();
+    Buffs.POOL.find((b: any) => b.id === 'overclock').apply(st);
+    expect(st.buffs.atkMul).toBeCloseTo(1.2);
+    expect(st.buffs.asMul).toBeCloseTo(1.15);
+    expect(st.buffs.hpMul).toBeCloseTo(0.85);
+    st = mk();
+    Buffs.POOL.find((b: any) => b.id === 'bulwark').apply(st);
+    expect(st.buffs.hpMul).toBeCloseTo(1.35);
+    expect(st.buffs.asMul).toBeCloseTo(0.9);
+    st = mk();
+    Buffs.POOL.find((b: any) => b.id === 'eagle-eye').apply(st);
+    expect(st.buffs.rangeAdd).toBe(1);
   });
 });

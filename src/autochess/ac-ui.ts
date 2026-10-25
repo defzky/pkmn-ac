@@ -1363,6 +1363,8 @@ function battleMods(): SynergyMods {
     typeBoostMul: (t.typeBoostMul ?? 1) * (b.elementalistMul ?? 1),
     bountyMul: (t.bountyMul ?? 1) * (b.bountyMul ?? 1),
     flankAtkMul: FLANK_ATK_MUL * (b.flankAtkMul ?? 1),
+    // P25 Eagle Eye: additive with synergy rangeAdd
+    rangeAdd: (t.rangeAdd ?? 0) + (b.rangeAdd ?? 0),
   };
 }
 

@@ -28,6 +28,8 @@ export interface RunBuffs {
   elementalistMul: number;
   /** Slipstream: first unit +30% atk speed for 5s at combat start */
   slipstream: boolean;
+  /** P25 Eagle Eye: flat +range (additive with synergy rangeAdd) */
+  rangeAdd: number;
 }
 
 export function initBuffs(): RunBuffs {
@@ -37,6 +39,7 @@ export function initBuffs(): RunBuffs {
     leakNormalMul: 1, leakBossMul: 1,
     bountyMul: 1, secondWindT: 0,
     frontlineBond: false, elementalistMul: 1, slipstream: false,
+    rangeAdd: 0,
   };
 }
 
@@ -69,6 +72,13 @@ export const POOL: BuffDef[] = [
     apply: (st) => { st.buffs.slipstream = true; } },
   { id: 'blood-money', name: 'Blood Money', desc: 'Kill bounties ×1.5',
     apply: (st) => { st.buffs.bountyMul *= 1.5; } },
+  // ---- P25 pool 13 → 16 (trade-off rule-changers) ----
+  { id: 'overclock', name: 'Overclock', desc: '+20% ATK, +15% speed, −15% HP',
+    apply: (st) => { st.buffs.atkMul *= 1.2; st.buffs.asMul *= 1.15; st.buffs.hpMul *= 0.85; } },
+  { id: 'bulwark', name: 'Bulwark', desc: '+35% team HP but −10% attack speed',
+    apply: (st) => { st.buffs.hpMul *= 1.35; st.buffs.asMul *= 0.9; } },
+  { id: 'eagle-eye', name: 'Eagle Eye', desc: 'All units +1 attack range',
+    apply: (st) => { st.buffs.rangeAdd += 1; } },
   // ---- basics (kept) ----
   { id: 'atk', name: 'Power Up', desc: '+10% team attack', apply: (st) => { st.buffs.atkMul *= 1.1; } },
   { id: 'hp', name: 'Tough Skin', desc: '+10% team max HP', apply: (st) => { st.buffs.hpMul *= 1.1; } },

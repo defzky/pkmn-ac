@@ -33,11 +33,12 @@ export interface MobSpec {
   affix?: string;
 }
 
-export type Affix = 'swarm' | 'fast' | 'armored' | 'elemental';
+export type Affix = 'swarm' | 'fast' | 'armored' | 'elemental' | 'regen' | 'enrage';
 
-export const AFFIXES: readonly Affix[] = ['swarm', 'fast', 'armored', 'elemental'];
+export const AFFIXES: readonly Affix[] = ['swarm', 'fast', 'armored', 'elemental', 'regen', 'enrage'];
 export const AFFIX_LABEL: Record<Affix, string> = {
   swarm: 'Swarm', fast: 'Fast', armored: 'Armored', elemental: 'Elemental',
+  regen: 'Regen', enrage: 'Enrage',
 };
 
 /** Rotating affix from wave 3, one per wave (GDD common §2a). */
@@ -57,9 +58,10 @@ export interface WaveComp {
 export const MAX_WAVE = 10; // D2c: 5-min sprint (endless opt-in past this)
 export const BOSS_EVERY = 5;
 
-/** hp scale: 1 + wave*0.42 (10-wave sprint ≈ old wave-20 power); atk scale: 0.4 + wave*0.16 */
+/** hp scale: 1 + wave*0.48, atk scale: 0.4 + wave*0.20
+ * (P25 balance pass — sim bands: dual ≥90% / TD ~95% in autochess-sim.test). */
 function waveMul(wave: number): { hp: number; atk: number } {
-  return { hp: 1 + wave * 0.42, atk: 0.4 + wave * 0.16 };
+  return { hp: 1 + wave * 0.48, atk: 0.4 + wave * 0.20 };
 }
 
 /** Prep window per wave (GDD common §4): 25s first, 15s mid, 12s late. */
@@ -168,6 +170,8 @@ function applyAffix(mobs: MobSpec[], affix: Affix | null, mode: 'td' | 'auto' = 
     if (affix === 'swarm') m.hp = Math.max(1, Math.round(m.hp * 0.7));
     else if (affix === 'fast') m.spd *= 1.5;
     else if (affix === 'armored') m.armor = Math.min(0.9, m.armor + 0.25);
+    else if (affix === 'regen') m.regen = (m.regen || 0) + 0.03; // P25: +3%/s (unitAI mob tick)
+    // enrage: runtime — hitUnit ×1.4 while below 40% hp (unitAI)
     // elemental: burn/poison immune + ×1.25 attack power (unitAI hitUnit/addBurn)
   }
   if (affix === 'swarm') {

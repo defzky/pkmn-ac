@@ -160,6 +160,13 @@ Co-op (P20) = **di-skip atas permintaan user** (lihat `docs/ROADMAP.md` P24).
 > (`8bc5ec1`); AU-4 buff tile +10% ATK mekanis + `fitAutoTiles` min(2 arena)
 > + arena identity LAWAN/TIMMU + star glow data-star (`93a1933`).
 > 347 test hijau.
+> **Backlog P21–P25 ✅ (2026-10-25)** — CI GitHub Actions (`2a1b6dd`); manifest
+> rename PokÃa9Autochess + keputusan i18n terdokumentasi (`da4030b`); P23
+> telemetry 7 event batch → Firestore `telemetry` + flag Settings + rules
+> create-only + LEGAL §4a (`43417f3`); P25 konten 20 champion / affix 6
+> (Regen+Enrage) / augment 16 (Overclock/Bulwark/Eagle Eye) / waveMul
+> 0.48+0.20 dengan sim band dual ≥45 TD ≥46 per 50 run (356 test hijau).
+> P24 co-op tetap di-skip.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

@@ -92,6 +92,8 @@ describe('balance sim (S3)', () => {
     }
     console.log('dual balance: wins', wins, 'losses', losses);
     expect(wins + losses).toBe(50);
+    // P25 target: dual win-rate ≥90% (GDD balance band)
+    expect(wins).toBeGreaterThanOrEqual(45);
   });
 
   it('50 TD runs seeded: semua berakhir won/lost, base HP sehat', () => {
@@ -108,5 +110,7 @@ describe('balance sim (S3)', () => {
     }
     console.log('td balance: wins', wins, 'losses', losses);
     expect(wins + losses).toBe(50);
+    // P25 target: TD win-rate ~95% (≥92% band; seeded but combat rolls Math.random → margin)
+    expect(wins).toBeGreaterThanOrEqual(46);
   });
 });

@@ -1,5 +1,5 @@
-/* ============ autochess/champions.ts — fixed 12-champion pool (GDD Bagian 1) ============
- * Shop only sells these 12 lines. Cost 1–4 gold (not rarity×2).
+/* ============ autochess/champions.ts — fixed 20-champion pool (GDD Bagian 1, P25) ============
+ * Shop only sells these 20 lines. Cost 1–4 gold (not rarity×2).
  * Skill id dispatched by skills.ts during battle.
  */
 import { register } from '../core/registry';
@@ -26,6 +26,15 @@ export const DEFS: ChampionDef[] = [
   { dex: 220, name: 'Swinub', cost: 3, skill: 'slowArea', move: 'ice-beam' },
   { dex: 280, name: 'Ralts', cost: 4, skill: 'asAura', move: 'psybeam' },
   { dex: 147, name: 'Dratini', cost: 4, skill: 'meteorAoE', move: 'dragon-rage' },
+  // ---- P25 expansion 12 → 20 (no dex inside an existing evo chain → ★-display safe) ----
+  { dex: 129, name: 'Magikarp', cost: 1, skill: 'none', move: 'bubble' },      // water, feeble
+  { dex: 163, name: 'Hoothoot', cost: 1, skill: 'none', move: 'gust' },        // normal/flying, fast AS
+  { dex: 60, name: 'Poliwag', cost: 1, skill: 'knockback', move: 'water-gun' }, // water, 3rd cost-1 water
+  { dex: 58, name: 'Growlithe', cost: 2, skill: 'burnAoE', move: 'flame-wheel' }, // fire
+  { dex: 25, name: 'Pikachu', cost: 2, skill: 'chainStun', move: 'thunder-shock' }, // electric
+  { dex: 102, name: 'Exeggcute', cost: 3, skill: 'burstLowest', move: 'giga-drain' }, // grass/psychic
+  { dex: 78, name: 'Rapidash', cost: 3, skill: 'knockback', move: 'flamethrower' }, // fire, speedy
+  { dex: 131, name: 'Lapras', cost: 4, skill: 'tank', move: 'ice-beam' },     // water/ice bruiser
 ];
 
 /** Wave-banded shop odds (GDD Bagian 5). Returns [[cost, weight]…] summing 100. */
@@ -62,7 +71,7 @@ export function poolByCost(cost: number): ChampionDef[] {
   return BY_COST[cost] || [];
 }
 
-/** True when dex is one of the 12 champions. */
+/** True when dex is one of the 20 champions. */
 export function isChampion(dex: number): boolean {
   return !!BY_DEX[dex];
 }

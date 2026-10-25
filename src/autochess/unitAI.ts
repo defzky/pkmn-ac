@@ -188,6 +188,7 @@ export function slotWarTarget(x: number, y: number, units: UnitBattle[]): UnitBa
 export function hitUnit(m: MobBattle, u: UnitBattle, dmg: number): void {
   let d = dmg * typeMult(m.types?.[0] || '', u.types || []);
   if (m.affix === 'elemental') d *= 1.25; // D2d Elemental: +% attack type power
+  if (m.affix === 'enrage' && m.hp <= m.maxHp * 0.4) d *= 1.4; // P25 Enrage: low hp fury
   if (u.dmgReduce) d *= 1 - u.dmgReduce;  // D2e Frontline Bond
   if (d <= 0) return;
   u.hpCur -= d;
