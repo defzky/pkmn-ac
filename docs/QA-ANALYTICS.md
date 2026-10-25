@@ -53,22 +53,35 @@ npm run build                   # pastikan bundle hijau
 | 9 | Suara + FX | banner wave, leak, place/merge, dmg number berwarna eff |
 | 10 | `docs/LEGAL.md` §2 masih valid | kredit SpriteCollab tampil (footer + settings) |
 
-## 4. Analytics — SPESIFIKASI (belum aktif)
+## 4. Analytics — ✅ aktif (P23, 2026-10-25)
 
 Tujuan: ukur retention & funnel **tanpa PII** (privacy: `LEGAL.md` §4;
-aktifkan hanya setelah privacy note diperbarui — `ROADMAP.md` P23).
+privacy note sudah diperbarui bersamaan dengan aktivasi ini).
 
-### Event (kandidat final)
+Implementasi: `src/core/telemetry.ts` (kolam lokal → flush 10 event / 30 s /
+`run_end`) → `G.DB.telemetryWrite` → koleksi Firestore `telemetry/{autoId}`
+(doc per flush: `evs[]`, `uid`, `at`). Flag: `Settings.telemetry`
+(toggle "Análisis anónimo" di Ajustes) — off → 0 event. Rules:
+client hanya `create`, baca = admin (TTL manual).
+
+### Event (final)
 
 | Event | Params (non-PII) | Kapan |
 |---|---|---|
-| `run_start` | `mode` (td/auto/daily), `seed?` (bool: daily atau tidak), `ver` | `open()` |
+| `run_start` | `mode` (td/auto/daily), `seed?` (bool: daily atau tidak) | `open()` |
 | `run_end` | `mode`, `wave`, `score`, `endless`(bool), `win`, `duration_s` | `showOver` lost/won |
 | `wave_leak` | `wave`, `boss`, `dmg` | `leakFx()` |
 | `buff_pick` | `buff_id`, `wave` | `onBuffPick` |
 | `augment_offer` | `ids[]` (offer terekspos) | `offerBuff()` |
 | `shop_action` | `action` (buy/sell/reroll), `cost`, `star?` | onBuy/onSell/onReroll |
 | `daily_join` | `dateKey` | `open('daily')` |
+
+Catatan keputusan:
+- Param `ver` **dihapus** — tidak ada sumber versi runtime murah
+  (`version.json` di-fetch async oleh updater); versi deploy bisa dibaca dari
+  metadata build bila perlu.
+- Hanya sesi **login cloud** (`uid` ada, bukan guest) yang mengirim —
+  `uid` anonim = id psuedonimis untuk retensi, bukan PII.
 
 ### Metrik turunan
 
@@ -79,7 +92,7 @@ aktifkan hanya setelah privacy note diperbarui — `ROADMAP.md` P23).
 - **Difficulty signal**: rata-rata `wave_leak` per wave, win-rate per mode.
 - **Augment balance**: win-rate dengan/tanpa tiap `buff_id` (sample size flag).
 
-### Implementasi minimal (saat P23 dikerjakan)
+### Implementasi (dilakukan P23)
 
 - Batch lokal (array, flush tiap 10 event / 30s / run_end) → satu koleksi
   Firestore `telemetry/{autoId}` dengan TTL manual berkala.

@@ -938,8 +938,17 @@ function grantShiny(dex: number, from: string): boolean {
   return true;
 }
 
+/** P23: lote de eventos de analítica anónima → colección `telemetry` (sólo
+ * nube + sesión con uid; sin PII — params enums/números de src/core/telemetry).
+ * Firestore rules: cliente sólo crea (evs/uid/at), lectura = admin (TTL manual). */
+function telemetryWrite(evs: unknown[]): void {
+  if (mode !== 'cloud' || !fs || guest || !uid || !evs.length) return;
+  try { fs.collection('telemetry').add({ evs, uid, at: Date.now() }); } catch { /* nada */ }
+}
+
 const DB = {
   ready, register, login, loginWithGoogle, playAsGuest, logout, commit, deleteAccount, flush: pushNow, saveNow,
+  telemetryWrite,
   owns, grant, ownsShiny, grantShiny, merge, setName, upgradesOf, isFav, setFav,
   onSync(fn: (s: SyncState) => void) { listeners.add(fn); },
   onLeave(fn: (why: string) => unknown) { leaveHooks.push(fn); },

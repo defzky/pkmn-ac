@@ -27,6 +27,7 @@ import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { runScore } from './base';
 import { recordRun, bestOf } from './ac-save';
+import { track, flushNow } from '../core/telemetry';
 import { waveRnd, shopRnd, seedFromDate, dailyKey } from './rng';
 import Types from '../data/types';
 import { DEFS } from './champions';
@@ -173,6 +174,11 @@ function leakFx(dmg: number): void {
   if (heart) { heart.classList.remove('pulse'); void (heart as HTMLElement).offsetWidth; heart.classList.add('pulse'); }
   banner('leak', `Base hit! −${dmg}`, 'a mob leaked through');
   Audio.sfx('hurt', undefined);
+  track('wave_leak', {
+    wave: st.run.wave,
+    boss: (st.run.mobs as any[]).some((m) => m.boss && m.alive),
+    dmg,
+  });
 }
 
 /** AU-2: heart hit — pulse + floating −N over the topbar heart (auto mode). */
@@ -722,6 +728,8 @@ const unitLastHp = new Map<string, number>();
 let swUsed = false;
 /** Save v4: one recordRun per run end (won/lost); cleared on reset + endless resume */
 let runRecorded = false;
+/** P23: epoch ms del open() actual → duration_s en run_end */
+let runOpenedT = Date.now();
 /** Daily seed: shared RNG intent — per-wave/per-batch fresh rng (count-independent) */
 let acSeed: number | null = null;
 let acDailyKey: string | null = null;
@@ -1170,6 +1178,7 @@ function onCell(x: number, y: number): void {
 /** Buy champion i. Returns Shop.buy result. */
 function onBuy(i: number) {
   const before = new Set(st.board.units);
+  const slot = st.shop.slots[i];
   const r = Shop.buy(st.shop, i, st.board, st.run.gold);
   if (!r.ok) {
     Audio.sfx('error', undefined);
@@ -1178,6 +1187,7 @@ function onBuy(i: number) {
   }
   st.run.gold = r.gold;
   Audio.sfx('buy', undefined);
+  track('shop_action', { action: 'buy', cost: slot ? Shop.slotCost(slot) : 0, star: slot?.star ?? 1 });
   afterBoardChange();
   // landing juice on the freshly auto-placed unit (Fase K)
   const u = st.board.units.find((v) => !before.has(v));
@@ -1213,6 +1223,7 @@ function onReroll(): void {
   }
   st.run.gold = r.gold;
   Audio.sfx('buy', undefined);
+  track('shop_action', { action: 'reroll', cost: 1 });
   renderAll();
 }
 
@@ -1220,10 +1231,12 @@ function onSell(): void {
   if (!st.sel) return;
   const name = st.sel;
   const sx = st.sel.x, sy = st.sel.y; // capture pos before the rebuild wipes the cell
+  const star = st.sel.star, g0 = st.run.gold;
   st.run.gold = Shop.sell(st.board, name, st.run.gold);
   st.sel = null;
   Audio.sfx('coin', undefined);
   UI.toast('Sold');
+  track('shop_action', { action: 'sell', cost: st.run.gold - g0, star });
   afterBoardChange();
   if (sx != null && sy != null) placeFx(sx, sy, 'sell');
 }
@@ -1248,6 +1261,7 @@ function onStart(): void {
 function onBuffPick(buff: BuffDef): void {
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   Runner.pickBuff(st.run, buff);
+  track('buff_pick', { buff_id: buff.id, wave: st.run.wave });
   UI.toast(`${buff.name}: ${buff.desc}`);
   Audio.sfx('confirm', undefined);
   hideOver();
@@ -1260,6 +1274,15 @@ function onExit(): void {
 }
 
 function showOver(icon: string, sub: string, opts?: { endless?: boolean; onEndless?: () => void }): void {
+  if (icon === 'trophy' || icon === 'ban') {
+    const r = st.run as any;
+    track('run_end', {
+      mode: currentMode, wave: r.wave, score: runScore(r.wave, r.base.hp, r.gold),
+      endless: !!r.endless, win: icon === 'trophy',
+      duration_s: Math.round((Date.now() - runOpenedT) / 1000),
+    });
+    flushNow();
+  }
   const ov = $('ac-over');
   ov.classList.remove('hidden');
   ov.innerHTML = `
@@ -1457,6 +1480,7 @@ function offerBuff(): void {
   const ov = $('ac-over');
   ov.classList.remove('hidden');
   const choices = Buffs.rollBuffs(Math.random, { noTdOnly: currentMode !== 'td' });
+  track('augment_offer', { ids: choices.map((b) => b.id) });
   ov.innerHTML = `
     <div class="box center">
       <h3>Wave ${st.run.wave} cleared — pick a buff</h3>
@@ -1767,6 +1791,7 @@ function reset(): void {
   lastPlayerHp = null;
   lastFoeHp = null;
   runRecorded = false;
+  runOpenedT = Date.now();
   lastRoundWave = null;
   acShopN = 0;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
@@ -1804,6 +1829,9 @@ function open(mode: 'auto' | 'td' | 'daily' = 'auto'): void {
   UI.show('scr-ac');
   fitAutoTiles(); // layout now measurable (screen visible) — size auto tiles before first frame
   Audio.sfx('confirm', undefined);
+  runOpenedT = Date.now();
+  track('run_start', { mode, seed: mode === 'daily' });
+  if (mode === 'daily') track('daily_join', { dateKey: acDailyKey });
   if (mode === 'daily') banner('wave', 'DAILY RUN', `${acDailyKey} · Best ${bestOf(acDailyKey || undefined)}`);
   requestAnimationFrame(loop);
 }

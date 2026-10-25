@@ -48,8 +48,8 @@ Settings → kredit (`src/ui/settings-ui.ts`) + dialog legal (`index.html`
 ## 4. Privasi (Firebase)
 
 Backend: Firebase project `pokesurvivor-free` (lihat `.firebaserc`).
-**Tidak ada server sendiri, tidak ada SDK analytics** (saat dokumen ini
-ditulis — rencana di `docs/QA-ANALYTICS.md` §4 kalau nanti di-instrument).
+**Tidak ada server sendiri, tidak ada SDK analytics Google** — telemetría
+in-house (P23) memakai Firestore koleksi `telemetry` biasa (lihat §4a).
 
 ### Data yang dikumpulkan
 
@@ -62,6 +62,7 @@ ditulis — rencana di `docs/QA-ANALYTICS.md` §4 kalau nanti di-instrument).
 | Friend code / pertemanan | `friendships/{pid}` | add friend | publik terbatas |
 | Laporan abuse | `reports/{rid}` | fitur report | admin saja |
 | Presence (online) | `pres/{uid}` | login | publik terbatas |
+| Event analitik anónima (P23) | `telemetry/{autoId}` | run/oleada/tienda (hanya sesi login) | admin saja (rules: client create-only) |
 
 - **Tidak ada**: email/telefon di DB game (auth Firebase hanya token UID),
   payment data, lokasi, kontak, data pihak ketiga untuk iklan.
@@ -77,10 +78,18 @@ ditulis — rencana di `docs/QA-ANALYTICS.md` §4 kalau nanti di-instrument).
 - Anti-cheat: validasi server `firestore.rules` (skor sanity: wave/gold cap,
   anti-duplikasi entry) — lihat komentar rules `lb`.
 
-### Jika tambah analytics nanti
+### §4a Telemetría (P23 — aktif 2026-10-25)
 
-Wajib update §4 ini + tulis privacy policy final sebelum aktif. Spec
-kandidat event: `docs/QA-ANALYTICS.md` §4 (tanpa PII, coarse device only).
+- **Isi**: 7 event enum + angka (`run_start/run_end/wave_leak/buff_pick/
+  augment_offer/shop_action/daily_join`) — daftar lengkap di
+  `docs/QA-ANALYTICS.md` §4. Tanpa nama, email, lokasi, IP, fingerprint
+  device, atau string bebas dari pemain.
+- **Identitas**: kolom `uid` = uid Firebase (pseudonymous, bukan PII) — hanya
+  untuk retensi D1/D7. Sesi **tanpa login (guest) tidak mengirim apa pun**.
+- **Kontrol pemain**: Ajustes → "Análisis anónimo" (default menyala) —
+  matikan = 0 event dikirim.
+- **Retensi**: dokumen `telemetry` boleh di-TTL/hapus berkala dari Firebase
+  console (tidak mempengaruhi save game).
 
 ## 5. Monetisasi
 

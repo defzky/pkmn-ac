@@ -92,6 +92,7 @@ function render() {
       + toggle('dmgNumbers', 'Números de daño', 'Los números que salen al golpear y al recibir daño.')
       + toggle('calm', 'Menos sacudidas y destellos', 'La cámara tiembla menos y los fogonazos son suaves.')
       + toggle('fps', 'Mostrar FPS', 'Fotogramas por segundo, en la esquina de abajo.')
+      + toggle('telemetry', 'Análisis anónimo', 'Eventos de partida anónimos (ola, oleada, tienda — sin datos personales) para equilibrar el juego. Apágalo para no enviar nada.')
       + (canFull() ? `<div class="set-row"><div class="grow"><b>Pantalla completa</b><small>Sin barras del navegador.</small></div>
            <button class="btn small" id="set-full">${isFull() ? 'Salir' : 'Activar'}</button></div>`
          : iosTip() ? `<div class="set-row"><div class="grow"><b>Pantalla completa</b><small>${esc(IOS_TIP)}</small></div></div>` : '');

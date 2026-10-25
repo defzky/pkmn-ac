@@ -34,8 +34,10 @@ legal terikat domain pokesurvivor.com).
 - Fix: `index.html` credits/`settings-ui` konsisten (sudah SpriteCollab ✓).
 
 ### P23 — Analytics event (spec di `docs/QA-ANALYTICS.md` §4)
-Impl ringan: batch event lokal → Firestore koleksi `telemetry` (privacy:
-tanpa PII, baca `docs/LEGAL.md` §4) — setelah itu retention diukur.
+✅ selesai (2026-10-25) — `src/core/telemetry.ts` batch lokal → Firestore
+`telemetry` (flush 10/30s/run_end), 7 event, flag `Settings.telemetry`
+(toggle Ajustes), rules create-only, LEGAL §4 + §4a diperbarui.
+Retention diukur pakai uid anonim (hanya sesi login).
 
 ### P24 — Co-op TD (P20 lama — **diparkir atas permintaan user**)
 Dua board, satu base. Reuse `net/` rooms, JANGAN pakai `net/coop.ts` legacy

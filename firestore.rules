@@ -248,6 +248,18 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // Telemetría (P23): el cliente sólo CREA lotes anónimos (evs/uid/at);
+    // lectura/borrado = admin (TTL manual desde consola). Sin otros campos.
+    match /telemetry/{eventId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['evs', 'uid', 'at'])
+        && request.resource.data.uid == me()
+        && request.resource.data.evs is list
+        && request.resource.data.evs.size() <= 50
+        && request.resource.data.at is int;
+      allow read, update, delete: if admin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
