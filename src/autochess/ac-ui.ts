@@ -89,14 +89,13 @@ function ensureDom(): HTMLElement {
       <div class="ac-arenas" id="ac-arenas">
         <div class="ac-td-wave" id="ac-td-wave"></div>
         <div class="ac-arena foe" id="ac-arena-foe">
-          <div class="ac-foehud">
-            <span class="ac-cap" id="ac-foe-cap"></span>
-          </div>
+          <span class="ac-caplbl foe">LAWAN</span>
           <div class="ac-foechips" id="ac-foechips"></div>
           <div class="ac-grid" id="ac-foe-grid"></div>
         </div>
         <div class="ac-arow">
           <div class="ac-arena me" id="ac-arena-me">
+            <span class="ac-caplbl me">TIMMU</span>
             <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
             <div class="ac-me-hud">
               <span class="ac-cap" id="ac-p-cap"></span>
@@ -141,7 +140,6 @@ function ensureDom(): HTMLElement {
 
 // ---------------- rendering ----------------
 
-let lastFoeCap = -1;
 let lastPCap = -1;
 let lastBaseHp: number | null = null;
 /** AU-2: topbar heart tracking (auto mode) */
@@ -276,13 +274,9 @@ function renderHud(): void {
   const btn = $('ac-start') as HTMLButtonElement;
   if (r.phase === 'prep') { btn.textContent = 'Ready'; btn.disabled = false; btn.classList.remove('fighting'); }
   else if (r.phase === 'combat') { btn.textContent = 'Fighting…'; btn.disabled = true; btn.classList.add('fighting'); }
-  // avatars: first player unit / first enemy
+  // avatars: first player unit (foe cap dropped — .ac-foehud is hidden in auto, AU-4)
   const fu = st.board.units.find((u) => u.x !== null);
   lastPCap = setCap('ac-p-cap', fu ? evoDex(fu.dex, fu.star) : null, lastPCap);
-  if (!td) {
-    const fe = st.run.mobs.find((m: any) => m.alive) || null;
-    lastFoeCap = setCap('ac-foe-cap', fe ? fe.dex : null, lastFoeCap);
-  }
   // D2b: flank highlight — lane-touching cells glow during prep (TD only)
   if (td) {
     const hlOn = r.phase === 'prep';
@@ -494,12 +488,18 @@ function clearTdLayers(): void {
 function fitAutoTiles(): void {
   if (currentMode === 'td') return;
   const host = document.getElementById('ac-arenas');
-  const arena = document.getElementById('ac-arena-foe');
-  if (!host || !arena) return;
-  const r = arena.getBoundingClientRect();
-  if (!(r.width > 0) || !(r.height > 0)) return; // jsdom / hidden screen
+  const foe = document.getElementById('ac-arena-foe');
+  const me = document.getElementById('ac-arena-me');
+  if (!host || !foe || !me) return;
+  // AU-4: measure BOTH arenas, take min → portrait + landscape always square-match
+  const sides: number[] = [];
+  for (const el of [foe, me]) {
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) sides.push(Math.min(r.width, r.height));
+  }
+  if (!sides.length) return; // jsdom / hidden screen
   // arena is border-box: padding 10×2 + border 4×2 = 28; grid gap 6×2 = 12
-  const side = Math.min(r.width, r.height) - 28 - 12;
+  const side = Math.min(...sides) - 28 - 12;
   const tile = Math.max(36, Math.min(76, Math.floor(side / 3)));
   host.style.setProperty('--ac-tile', tile + 'px');
 }
@@ -553,6 +553,7 @@ function renderStage(): void {
       const cell = document.createElement('div');
       cell.className = 'ac-cell ghost' + (spec.boss ? ' boss' : '');
       cell.dataset.xy = slot.x + ',' + slot.y;
+      cell.dataset.star = String(spec.star); // AU-4 star glow (CSS)
       cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
       cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
       foeBox.appendChild(cell);
@@ -569,6 +570,7 @@ function renderStage(): void {
         if (spec) {
           cell.classList.add('ghost');
           if (spec.boss) cell.classList.add('boss');
+          cell.dataset.star = String(spec.star);
           cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
           cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
         }
@@ -623,6 +625,7 @@ function renderStage(): void {
       const u = unitAt(x, y);
       if (u) {
         if (st.sel === u) cell.classList.add('sel');
+        cell.dataset.star = String(u.star); // AU-4 star glow (CSS)
         const cv = UI.spriteCanvas(evoDex(u.dex, u.star), 96, 96, { scale: 4.4, lively: true }); // cell res ×2
         cell.appendChild(cv);
         unitCv.set(x + ',' + y, cv);
@@ -1347,6 +1350,9 @@ function enterCombat(): void {
   // AU-3: flank is TD-only (GDD td §1) — dual units never flank
   if (currentMode !== 'td') {
     for (const u of st.units) { u.flankAtk = false; u.flankRange = false; }
+    // AU-4: daily buff tiles give +10% ATK to whoever stands on them
+    const tiles = buffCells(st.run.wave);
+    for (const u of st.units) u.tileAtk = tiles.has(u.x + ',' + u.y);
   }
   const b = st.run.buffs;
   // D2e Frontline Bond: adjacent allies take 8% less damage this combat

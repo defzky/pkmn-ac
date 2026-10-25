@@ -1203,7 +1203,35 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     inset 0 0 0 2px #2e2a28, inset 0 0 0 4px #6b645e,
     0 6px 14px rgba(0,0,0,.55);
 }
-.ac-arena.me { border-color: #6b6350; }
+.ac-arena.me { border-color: #8a7440; }
+/* AU-4: arena identity — foe red accent, me gold accent (subtle outer glow) */
+.ac-arena.foe {
+  border-color: #7a4a45;
+  box-shadow:
+    inset 0 0 0 2px #2e2a28, inset 0 0 0 4px #6b645e,
+    0 6px 14px rgba(0,0,0,.55), 0 0 16px rgba(255,95,109,.14);
+}
+.ac-arena.me {
+  box-shadow:
+    inset 0 0 0 2px #2e2a28, inset 0 0 0 4px #6b645e,
+    0 6px 14px rgba(0,0,0,.55), 0 0 16px rgba(255,210,80,.14);
+}
+/* AU-4: arena captions (auto mode only) */
+.ac-caplbl {
+  display: none; position: absolute; top: 6px; right: 8px; z-index: 5;
+  font-size: 9px; font-weight: bold; letter-spacing: .08em;
+  color: rgba(255,255,255,.75); background: rgba(10,14,22,.7);
+  border: 1px solid rgba(244,248,255,.2); border-radius: 999px;
+  padding: 1px 7px; pointer-events: none;
+}
+#scr-ac.mode-autochess .ac-caplbl { display: block; }
+.ac-caplbl.foe { color: #ffb0b0; border-color: rgba(255,120,120,.45); }
+.ac-caplbl.me { color: #ffd465; border-color: rgba(255,210,80,.45); }
+/* AU-4: star glow — ★2 gold shimmer, ★3 brighter */
+.ac-cell[data-star="2"] canvas { filter: drop-shadow(0 0 3px rgba(255,210,80,.85)); }
+.ac-cell[data-star="3"] canvas {
+  filter: drop-shadow(0 0 4px rgba(255,210,80,.95)) drop-shadow(0 0 9px rgba(255,160,40,.6));
+}
 
 /* floating badges */
 .ac-round {

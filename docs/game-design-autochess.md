@@ -21,7 +21,9 @@
 * **Keyboard:** `1`–`3` beli, `R` reroll, `Space`/`Enter` Ready, `Esc` pause.
 * **Jangkauan serang (Chebyshev lintas arena, `tdist`):** Melee = 2 sel,
   Ranged = 3 sel; baris depan↔depan dipadatkan (y 2 ↔ y −1 = 0 sel vertikal).
-* **Tile buff harian:** 2 petak arena pemain penanda visual per round.
+* **Tile buff harian:** 2 petak arena pemain penanda visual per round —
+  **AU-4: kini mekanis** — unit yang berdiri di petak itu dapat **+10% ATK**
+  selama combat (`tileAtk`, di-set saat `enterCombat`, mode auto saja).
 * Combat: penempatan & sell terkunci; **beli** boleh; merge prep-only.
 * **Ready:** mulai round lebih awal; tanpa unit → tolak ("Place units first").
 

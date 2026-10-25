@@ -48,6 +48,8 @@ export interface UnitBattle extends BoardStats {
   respawnT?: number;
   /** D2e Frontline Bond: flat damage reduction while adjacent ally alive */
   dmgReduce?: number;
+  /** AU-4: standing on a daily buff tile → +10% ATK this combat (set in enterCombat, auto only) */
+  tileAtk?: boolean;
 }
 
 /** Flank = any cell except center (touching the ring lane, chebyshev ≤ 1). */
@@ -58,6 +60,8 @@ export function isCorner(x: number, y: number): boolean {
 }
 /** D2b flank ATK multiplier. */
 export const FLANK_ATK_MUL = 1.1;
+/** AU-4 daily buff tile ATK multiplier. */
+export const TILE_ATK_MUL = 1.1;
 
 /** Build battle unit from board placement + synergy mods + items. */
 export function makeUnit(bu: BoardUnit, mods: SynergyMods = NONE): UnitBattle | null {

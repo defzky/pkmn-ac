@@ -11,7 +11,7 @@
 import { register } from '../core/registry';
 import Types from '../data/types';
 import { Path } from './path';
-import { UnitBattle, totalAtk, effCd, FLANK_ATK_MUL } from './unit';
+import { UnitBattle, totalAtk, effCd, FLANK_ATK_MUL, TILE_ATK_MUL } from './unit';
 import { SynergyMods, NONE } from './synergy';
 import { cast as castSkill, MANA_PER_ATTACK } from './skills';
 
@@ -436,7 +436,9 @@ export function tick(
     const moveType = move ? ((globalThis as any).G?.Moves?.BY_ID?.[move]?.type ?? '') : '';
     const tm = typeMult(moveType, best.types);
     // D2b flank: +10% ATK when standing on a lane-touching cell
-    let dmg = totalAtk(u) * tm * (u.flankAtk ? ((mods as any).flankAtkMul ?? FLANK_ATK_MUL) : 1);
+    // AU-4: daily buff tile +10% ATK (flag set in enterCombat, auto only)
+    let dmg = totalAtk(u) * tm * (u.flankAtk ? ((mods as any).flankAtkMul ?? FLANK_ATK_MUL) : 1)
+      * (u.tileAtk ? TILE_ATK_MUL : 1);
     dmg *= (mods as any).typeBoostMul ?? 1;
     // armor (geodude): flat reduce of direct attack damage
     if (best.armor > 0) dmg *= 1 - best.armor;

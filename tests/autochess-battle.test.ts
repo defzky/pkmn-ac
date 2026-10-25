@@ -576,3 +576,16 @@ describe('AU-1 slotWarTarget (GDD autochess §2)', () => {
     expect(UnitAI.slotWarTarget(1, -1, [u])).toBe(null);
   });
 });
+
+describe('AU-4 — buff tile effect (tileAtk +10%)', () => {
+  it('tileAtk unit deals +10% dmg vs same cell without tile (ratio 1.1)', () => {
+    const t = unitAt(6, 1, 1); t.atk = 100; t.atkCd = 0; t.tileAtk = true;
+    const n = unitAt(6, 1, 1); n.atk = 100; n.atkCd = 0; n.tileAtk = false;
+    expect(t.flankAtk).toBe(false); // center cell — isolates tile bonus
+    const m1 = mob({ progress: 4, hp: 1e9, atk: 0 });
+    const m2 = mob({ progress: 4, hp: 1e9, atk: 0 });
+    UnitAI.tick([t], [m1], 0.01, undefined, Path.laneCells());
+    UnitAI.tick([n], [m2], 0.01, undefined, Path.laneCells());
+    expect((1e9 - m1.hp) / (1e9 - m2.hp)).toBeCloseTo(1.1, 2);
+  });
+});

@@ -1043,3 +1043,57 @@ describe('AU-3 parity — flank TD-only + foe preview chips', () => {
     } finally { ACUI.reset(); }
   });
 });
+
+describe('AU-4 — tile flag, captions, star glow, tile min', () => {
+  it('enterCombat flags exactly 2 tileAtk units in auto (all 9 cells filled)', () => {
+    ACUI.open('auto');
+    try {
+      for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) ACUI.board.units.push({ dex: 1, star: 1, x, y });
+      ACUI.render();
+      document.getElementById('ac-start')!.click();
+      expect(ACUI.units.filter((u: any) => u.tileAtk).length).toBe(2);
+      expect(ACUI.units.filter((u: any) => !u.tileAtk).length).toBe(7);
+    } finally { ACUI.reset(); }
+  });
+
+  it('TD units never get tileAtk', () => {
+    ACUI.open('td');
+    try {
+      ACUI.board.units.push({ dex: 1, star: 1, x: 1, y: 1 });
+      ACUI.render();
+      document.getElementById('ac-start')!.click();
+      expect(ACUI.units.every((u: any) => !u.tileAtk)).toBe(true);
+    } finally { ACUI.reset(); }
+  });
+
+  it('arena captions (LAWAN/TIMMU) + data-star on cells', () => {
+    ACUI.open('auto');
+    try {
+      ACUI.board.units.push({ dex: 1, star: 2, x: 1, y: 1 });
+      ACUI.render();
+      expect(document.querySelector('#ac-arena-foe .ac-caplbl')!.textContent).toBe('LAWAN');
+      expect(document.querySelector('#ac-arena-me .ac-caplbl')!.textContent).toBe('TIMMU');
+      const cell = document.querySelector('#ac-me-grid .ac-cell[data-xy="1,1"]')!;
+      expect(cell.getAttribute('data-star')).toBe('2');
+      expect(document.querySelector('#ac-foe-grid .ac-cell')!.hasAttribute('data-star')).toBe(true);
+    } finally { ACUI.reset(); }
+  });
+
+  it('fitAutoTiles takes min of BOTH arena rects', () => {
+    const orig = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      const box = (w: number, h: number) => ({ width: w, height: h, left: 0, top: 0, right: w, bottom: h, x: 0, y: 0, toJSON: () => ({}) });
+      if (this.id === 'ac-arena-foe') return box(400, 400);
+      if (this.id === 'ac-arena-me') return box(800, 180); // min side 180 wins
+      return box(800, 700);
+    };
+    try {
+      ACUI.open('auto');
+      // side = 180 − 40 = 140 → floor(140/3) = 46
+      expect(document.getElementById('ac-arenas')!.style.getPropertyValue('--ac-tile')).toBe('46px');
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = orig;
+      ACUI.open('auto');
+    }
+  });
+});
