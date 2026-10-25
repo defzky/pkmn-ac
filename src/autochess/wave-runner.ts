@@ -13,6 +13,7 @@ import type { MobBattle } from './unitAI';
 import type { UnitBattle } from './unit';
 import { NONE, type SynergyMods } from './synergy';
 import { initBuffs, type RunBuffs, type BuffDef } from './buffs';
+import { waveRnd } from './rng';
 
 export type Phase = 'prep' | 'combat' | 'buff' | 'won' | 'lost';
 
@@ -43,6 +44,8 @@ export interface RunState {
   lossStreak: number;
   /** opt-in endless past MAX_WAVE (RUN COMPLETE screen) */
   endless: boolean;
+  /** daily seed (undefined = Math.random) */
+  seed?: number;
 }
 
 /** enemy grid slots, front row first (y −1 = front … y −3 = back) */
@@ -117,7 +120,7 @@ function toMob(s: MobSpec, slot: { x: number; y: number }): MobBattle {
 }
 
 /** fresh run at wave 1 */
-export function createRun(gold = START_GOLD, prep = PREP_SECONDS): RunState {
+export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number): RunState {
   return {
     wave: 1,
     phase: 'prep',
@@ -134,13 +137,14 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): RunState {
     streak: 0,
     lossStreak: 0,
     endless: false,
+    seed,
   };
 }
 
 /** roll composition for current wave (capped to the 3×3 grid), enter combat */
 export function startCombat(st: RunState): void {
   if (st.phase !== 'prep') return;
-  const comp = WaveDef.compose(st.wave);
+  const comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
   st.spawnQ = comp.mobs.slice(0, MAX_FIELD).map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];

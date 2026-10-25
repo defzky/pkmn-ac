@@ -136,6 +136,12 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > (max + daily per-key best); `ac-save.ts` (mergeAc pure + recordRun →
 > DB.commit, guest safe); overlay `· Best N ★ NEW BEST` sekali per run
 > (endless resume reset flag); best line di mode select. 315 test hijau.
+> **Daily seed ✅ (2026-10-25)** — `rng.ts` (mulberry32/hashSeed/dailyKey/
+> seedFromDate/waveRnd/shopRnd); RNG per-wave/per-batch (fresh tiap call →
+> preview === startCombat, jumlah frame tak mempengaruhi); `RunState.seed` +
+> `createRun(gold,prep,seed)`; ac-ui `acSeed/acDailyKey/acShopN` (4 situs
+> shop + 3 compose seeded); kartu ke-3 "Daily Run (TD)" + banner DAILY RUN;
+> recordRun simpan `dateKey` → best per seed. 322 test hijau.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

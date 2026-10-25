@@ -27,6 +27,7 @@ import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { runScore } from './base';
 import { recordRun, bestOf } from './ac-save';
+import { waveRnd, shopRnd, seedFromDate, dailyKey } from './rng';
 import Types from '../data/types';
 import { DEFS } from './champions';
 import { Buffs, type BuffDef } from './buffs';
@@ -487,7 +488,7 @@ function renderStage(): void {
 
   // enemy arena: prep = ghost preview of next round (auto only; TD uses #ac-td-wave strip)
   if (!td) {
-    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave).mobs.slice(0, WaveRunner.MAX_FIELD);
+    const preview = st.run.phase === 'combat' ? [] : WaveDef.compose(st.run.wave, waveRndFor(st.run.wave)).mobs.slice(0, WaveRunner.MAX_FIELD);
     preview.forEach((spec, i) => {
       const slot = WaveRunner.FOE_SLOTS[i];
       const cell = document.createElement('div');
@@ -518,7 +519,7 @@ function renderStage(): void {
     // TD: next-wave preview in visible strip above board + base gate marker at path end
     const waveBox = $('ac-td-wave');
     waveBox.innerHTML = '';
-    const comp = WaveDef.compose(st.run.wave);
+    const comp = WaveDef.compose(st.run.wave, waveRndFor(st.run.wave));
     const preview = st.run.phase === 'combat' ? [] : comp.mobs.slice(0, WaveRunnerTd.MAX_MOBS);
     waveBox.insertAdjacentHTML('beforeend', '<span class="ac-td-gate">⬇ Spawn</span>');
     // D2b: type chips (counter-building) + side summary of the coming wave
@@ -658,6 +659,22 @@ const unitLastHp = new Map<string, number>();
 let swUsed = false;
 /** Save v4: one recordRun per run end (won/lost); cleared on reset + endless resume */
 let runRecorded = false;
+/** Daily seed: shared RNG intent — per-wave/per-batch fresh rng (count-independent) */
+let acSeed: number | null = null;
+let acDailyKey: string | null = null;
+/** shop roll batch counter (daily determinism: each createShop/reroll gets own batch) */
+let acShopN = 0;
+
+/** compose rnd: seeded per-wave (preview === startCombat), else undefined → Math.random */
+function waveRndFor(wave: number): (() => number) | undefined {
+  return acSeed != null ? waveRnd(acSeed, wave) : undefined;
+}
+
+/** shop batch rnd: fresh seeded batch per call when daily, else undefined */
+function shopRndFor(): (() => number) | undefined {
+  if (acSeed == null) return undefined;
+  return shopRnd(acSeed, st.run.wave, acShopN++);
+}
 /** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild).
  * Each mob owns a raw canvas + Sprites.Animator (Walk/Idle + facing — dungeon-style;
  * NOT UI.spriteCanvas so the shared live-set doesn't fight over draw/update). */
@@ -1107,7 +1124,8 @@ function onBuy(i: number) {
 
 /** D2d shop bias: champion dexes super-effective vs upcoming wave types. */
 function waveBiasDexes(): number[] {
-  const comp = WaveDef.compose(Math.max(1, st.run?.wave || 1));
+  const w = Math.max(1, st.run?.wave || 1);
+  const comp = WaveDef.compose(w, waveRndFor(w));
   const mobTypes: string[] = [];
   for (const s of comp.mobs) {
     const e = ((G as any).DEX_BY || {})[s.dex] || {};
@@ -1124,7 +1142,7 @@ function waveBiasDexes(): number[] {
 }
 
 function onReroll(): void {
-  const r = Shop.reroll(st.shop, st.run.gold, st.run.wave, Math.random, waveBiasDexes());
+  const r = Shop.reroll(st.shop, st.run.gold, st.run.wave, shopRndFor() ?? Math.random, waveBiasDexes());
   if (!r.ok) {
     Audio.sfx('error', undefined);
     UI.toast('Not enough gold');
@@ -1206,7 +1224,7 @@ function recordOnce(sub: string): string {
   runRecorded = true;
   const r = st.run as any;
   const sc = runScore(r.wave, r.base.hp, r.gold);
-  const res = recordRun({ mode: currentMode, wave: r.wave, score: sc, endless: !!r.endless });
+  const res = recordRun({ mode: currentMode, wave: r.wave, score: sc, endless: !!r.endless, dateKey: acDailyKey || undefined });
   return `${sub} · Best ${res.best}${res.isBest ? ' ★ NEW BEST' : ''}`;
 }
 
@@ -1303,7 +1321,7 @@ function loop(ts: number): void {
         Audio.sfx(boss ? 'boss' : 'confirm', undefined);
       }
       else if (after === 'buff') {
-        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes()); // wave cleared → free shop refresh
+        st.shop = Shop.createShop(r.wave, shopRndFor(), waveBiasDexes()); // wave cleared → free shop refresh
         renderAll(); offerBuff(); return;
       }
       else if (after === 'lost') {
@@ -1314,7 +1332,7 @@ function loop(ts: number): void {
       }
       else {
         if (prev === 'combat' && after === 'prep') {
-        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes()); // wave cleared → free shop refresh
+        st.shop = Shop.createShop(r.wave, shopRndFor(), waveBiasDexes()); // wave cleared → free shop refresh
           const bonus = Runner.waveBonus(r.wave - 1);
           UI.toast(`+${bonus} gold`); // wave already advanced
           // wave-cleared banner + gold pill pop (Fase J)
@@ -1337,7 +1355,7 @@ function loop(ts: number): void {
       onEndless: () => {
         runRecorded = false; // run berlanjut → rekam lagi saat akhir nanti
         Runner.resumeEndless(r);
-        st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes());
+        st.shop = Shop.createShop(r.wave, shopRndFor(), waveBiasDexes());
         renderAll();
         if (st.open) requestAnimationFrame(loop);
       },
@@ -1663,9 +1681,10 @@ function reset(): void {
   lastBaseHp = null;
   runRecorded = false;
   lastRoundWave = null;
+  acShopN = 0;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
-  st.run = Runner.createRun();
-  st.shop = Shop.createShop(1, Math.random, waveBiasDexes());
+  st.run = Runner.createRun(undefined, undefined, acSeed ?? undefined);
+  st.shop = Shop.createShop(1, shopRndFor(), waveBiasDexes());
   st.board = { units: [] };
   st.sel = null;
   st.units = [];
@@ -1683,9 +1702,11 @@ function wire(): void {
   document.addEventListener('keydown', onKey);
 }
 
-function open(mode: 'auto' | 'td' = 'auto'): void {
+function open(mode: 'auto' | 'td' | 'daily' = 'auto'): void {
   ensureDom();
-  currentMode = mode;
+  currentMode = mode === 'daily' ? 'td' : mode;
+  if (mode === 'daily') { acSeed = seedFromDate(); acDailyKey = dailyKey(); }
+  else { acSeed = null; acDailyKey = null; }
   reset();
   st.open = true;
   st.paused = false;
@@ -1696,6 +1717,7 @@ function open(mode: 'auto' | 'td' = 'auto'): void {
   UI.show('scr-ac');
   fitAutoTiles(); // layout now measurable (screen visible) — size auto tiles before first frame
   Audio.sfx('confirm', undefined);
+  if (mode === 'daily') banner('wave', 'DAILY RUN', `${acDailyKey} · Best ${bestOf(acDailyKey || undefined)}`);
   requestAnimationFrame(loop);
 }
 

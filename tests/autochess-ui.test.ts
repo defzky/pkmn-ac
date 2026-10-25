@@ -880,3 +880,35 @@ describe('D2d — affix badge in wave strip', () => {
     expect(badge!.className).toContain('a-swarm');
   });
 });
+
+describe('daily seed mode (S2)', () => {
+  it("open('daily') → TD mode + seeded run + banner", () => {
+    try {
+      ACUI.open('daily');
+      expect(ACUI.mode).toBe('td');
+      expect(ACUI.run.seed).toBeGreaterThan(0);
+      expect(document.getElementById('ac-banner')!.textContent).toContain('DAILY RUN');
+    } finally {
+      ACUI.open('td'); // kembalikan state module (acSeed null) untuk test lain
+    }
+  });
+
+  it('shop deterministik: reset dengan seed sama → slots identik', () => {
+    try {
+      ACUI.open('daily');
+      const snap = () => ACUI.shop.slots.map((s: any) => (s ? `${s.dex}:${s.star}` : '-')).join(',');
+      const a = snap();
+      ACUI.reset();
+      const b = snap();
+      expect(a).toBe(b);
+      expect(a).not.toBe(''); // ada konten
+    } finally {
+      ACUI.open('td');
+    }
+  });
+
+  it("open('td') tanpa daily → seed undefined (Math.random)", () => {
+    ACUI.open('td');
+    expect(ACUI.run.seed).toBeUndefined();
+  });
+});

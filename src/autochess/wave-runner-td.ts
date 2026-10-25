@@ -17,6 +17,7 @@ import type { UnitBattle } from './unit';
 import { NONE, type SynergyMods } from './synergy';
 import { initBuffs, type RunBuffs, type BuffDef } from './buffs';
 import { Path } from './path';
+import { waveRnd } from './rng';
 
 export type Phase = 'prep' | 'combat' | 'buff' | 'won' | 'lost';
 
@@ -45,6 +46,8 @@ export interface TdRunState {
   leaked: boolean;
   /** opt-in endless past MAX_WAVE (RUN COMPLETE screen) */
   endless: boolean;
+  /** daily seed (undefined = Math.random) */
+  seed?: number;
 }
 
 /** base HP for TD run (D2c 5-min sprint: 60) */
@@ -108,7 +111,7 @@ function toMob(s: MobSpec): MobBattle {
 }
 
 /** fresh TD run at wave 1 */
-export function createRun(gold = START_GOLD, prep = PREP_SECONDS): TdRunState {
+export function createRun(gold = START_GOLD, prep = PREP_SECONDS, seed?: number): TdRunState {
   return {
     wave: 1,
     phase: 'prep',
@@ -124,13 +127,14 @@ export function createRun(gold = START_GOLD, prep = PREP_SECONDS): TdRunState {
     streak: 0,
     leaked: false,
     endless: false,
+    seed,
   };
 }
 
 /** roll composition for current wave, enter combat */
 export function startCombat(st: TdRunState): void {
   if (st.phase !== 'prep') return;
-  const comp = WaveDef.compose(st.wave);
+  const comp = WaveDef.compose(st.wave, st.seed ? waveRnd(st.seed, st.wave) : undefined);
   st.spawnQ = comp.mobs.slice(0, MAX_MOBS).map((m) => ({ ...m }));
   st.spawnT = 0;
   st.mobs = [];
