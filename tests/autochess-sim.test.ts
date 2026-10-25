@@ -42,3 +42,71 @@ describe('sim', () => {
     expect(center.mana).toBeGreaterThan(0);      // center unit always in range → attacked
   });
 });
+
+describe('balance sim (S3)', () => {
+  let WRTD: any, Buffs: any;
+  beforeAll(async () => {
+    ({ WaveRunnerTd: WRTD } = await import('../src/autochess/wave-runner-td.ts'));
+    ({ Buffs } = await import('../src/autochess/buffs.ts'));
+  });
+
+  const buildBoard = (): any => {
+    const board: any = { units: [] };
+    const picks = [1, 4, 7, 66];
+    const spots = [[1, 1], [0, 0], [2, 0], [0, 2]];
+    picks.forEach((d, i) => {
+      const u = { dex: d, star: 1, x: null, y: null, bench: null };
+      board.units.push(u);
+      Board.place(board, u, spots[i][0], spots[i][1]);
+    });
+    return board;
+  };
+
+  /** mainkan run penuh sampai won/lost; return { phase, wave, gold, baseHp } */
+  function playRun(st: any, Runner: any, units: any[], mods: any, guardMax: number): any {
+    let guard = 0;
+    while (st.phase !== 'won' && st.phase !== 'lost' && guard++ < guardMax) {
+      if (st.phase === 'prep') st.prepLeft = 0.01;
+      else if (st.phase === 'buff') Runner.pickBuff(st, Buffs.rollBuffs()[0]);
+      Runner.tick(st, units, 0.25, mods);
+      // invariants per tick
+      expect(st.gold).toBeGreaterThanOrEqual(0);
+      expect(st.base.hp).toBeGreaterThanOrEqual(0);
+      expect(st.base.hp).toBeLessThanOrEqual(st.base.maxHp);
+      expect(Number.isFinite(st.wave)).toBe(true);
+    }
+    return st;
+  }
+
+  it('50 dual runs seeded: semua berakhir won/lost, invariant gold/hp sehat', () => {
+    let wins = 0, losses = 0;
+    for (let seed = 1; seed <= 50; seed++) {
+      const board = buildBoard();
+      const units = Team.spawnUnits(board, Team.teamMods(board));
+      const st = WR.createRun(undefined, undefined, seed);
+      playRun(st, WR, units, Team.teamMods(board), 4000);
+      expect(['won', 'lost']).toContain(st.phase);
+      expect(st.wave).toBeLessThanOrEqual(10); // tanpa endless
+      expect(st.gold).toBeGreaterThanOrEqual(0);
+      if (st.phase === 'won') wins++; else losses++;
+    }
+    console.log('dual balance: wins', wins, 'losses', losses);
+    expect(wins + losses).toBe(50);
+  });
+
+  it('50 TD runs seeded: semua berakhir won/lost, base HP sehat', () => {
+    let wins = 0, losses = 0;
+    for (let seed = 1; seed <= 50; seed++) {
+      const board = buildBoard();
+      const units = Team.spawnUnits(board, Team.teamMods(board));
+      const st = WRTD.createRun(undefined, undefined, seed);
+      playRun(st, WRTD, units, Team.teamMods(board), 4000);
+      expect(['won', 'lost']).toContain(st.phase);
+      expect(st.wave).toBeLessThanOrEqual(10);
+      expect(st.base.hp).toBeGreaterThanOrEqual(0);
+      if (st.phase === 'won') wins++; else losses++;
+    }
+    console.log('td balance: wins', wins, 'losses', losses);
+    expect(wins + losses).toBe(50);
+  });
+});

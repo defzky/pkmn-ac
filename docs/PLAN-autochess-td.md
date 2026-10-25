@@ -130,7 +130,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > streak, base 60, leak 6/15, wave 10 score/endless), affix 4 rotasi + shop bias,
 > augment rule-changer (pool 13: Fortified/Compound/Second Wind/Slipstream/
 > Flank Master/Frontline Bond/Elementalist/Blood Money wired ke battleMods);
-> 310 test hijau. Sisa: save v4, co-op P20.
+> 310 test hijau. Sisa: co-op P20 (user pilih skip).
 > **Save v4 ✅ (2026-10-25)** — `SAVE_VERSION` 3→4, `Save.ac` {bestScore,
 > bestWave, bestEndless, runs, daily (cap 30)}; migrate/sanitize/merge
 > (max + daily per-key best); `ac-save.ts` (mergeAc pure + recordRun →
@@ -142,6 +142,10 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > `createRun(gold,prep,seed)`; ac-ui `acSeed/acDailyKey/acShopN` (4 situs
 > shop + 3 compose seeded); kartu ke-3 "Daily Run (TD)" + banner DAILY RUN;
 > recordRun simpan `dateKey` → best per seed. 322 test hijau.
+> **Debug + balance sim ✅ (2026-10-25)** — `ACUI.debug.{wave,gold,base,win}`
+> (tanpa UI); sim 100 run seeded (50 dual + 50 TD, dt 0.25, invariants
+> gold/hp/wave per tick): dual 50W/0L, TD 48W/2L, ~1s. 325 test hijau.
+> **Co-op P20: di-skip atas permintaan user.**
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /
@@ -151,7 +155,7 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > side-by-side + dock horizontal), topbar terpadu (Round · ♥45 · ♥20 · ⚔ ·
 > pause/close — heart pindah dari arena, `.ac-foehud`/`.ac-me-hud` disembunyi
 > di auto); 275 test hijau (GDD §1a autochess).
-> Sisa: save v4, augment/items (P19), co-op (P20).
+> Sisa: co-op P20 (di-skip user; save v4 + daily seed + debug/sim ✅).
 
 | # | Isi | Test |
 |---|---|---|

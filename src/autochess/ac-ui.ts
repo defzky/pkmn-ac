@@ -1744,6 +1744,18 @@ const ACUI = {
   get impacts() { return acImpacts.length; },
   /** Save v4: best score untuk mode select */
   best: () => bestOf(),
+  /** Dev/debug API (P20): tanpa UI — dipakai test & console */
+  debug: {
+    /** set wave + percepat prep ke start (debug only) */
+    wave(n: number): void {
+      st.run.wave = Math.max(1, Math.floor(n));
+      if (st.run.phase === 'prep') st.run.prepLeft = 0.01;
+      renderAll();
+    },
+    gold(n: number): void { st.run.gold = Math.max(0, Math.floor(n)); renderAll(); },
+    base(n: number): void { st.run.base.hp = Math.max(0, Math.floor(n)); renderAll(); },
+    win(): void { st.run.phase = 'won'; },
+  },
 };
 register('AutochessUI', ACUI);
 export { ACUI };

@@ -912,3 +912,17 @@ describe('daily seed mode (S2)', () => {
     expect(ACUI.run.seed).toBeUndefined();
   });
 });
+
+describe('debug API (S3)', () => {
+  it('debug.wave/gold/base set state', () => {
+    ACUI.open('td');
+    ACUI.debug.wave(7);
+    ACUI.debug.gold(50);
+    ACUI.debug.base(30);
+    expect(ACUI.run.wave).toBe(7);
+    expect(ACUI.run.gold).toBe(50);
+    expect(ACUI.run.base.hp).toBe(30);
+    ACUI.debug.win();
+    expect(ACUI.run.phase).toBe('won');
+  });
+});
