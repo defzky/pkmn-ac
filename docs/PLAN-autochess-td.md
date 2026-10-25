@@ -131,6 +131,11 @@ save v4 roster/star (P18), augment/items (P19), co-op (P20).
 > augment rule-changer (pool 13: Fortified/Compound/Second Wind/Slipstream/
 > Flank Master/Frontline Bond/Elementalist/Blood Money wired ke battleMods);
 > 310 test hijau. Sisa: save v4, co-op P20.
+> **Save v4 ✅ (2026-10-25)** — `SAVE_VERSION` 3→4, `Save.ac` {bestScore,
+> bestWave, bestEndless, runs, daily (cap 30)}; migrate/sanitize/merge
+> (max + daily per-key best); `ac-save.ts` (mergeAc pure + recordRun →
+> DB.commit, guest safe); overlay `· Best N ★ NEW BEST` sekali per run
+> (endless resume reset flag); best line di mode select. 315 test hijau.
 > **Mode-switch fix ✅ (2026-10-24): Fase R** — cleanup TD→autochess
 > (`clearTdLayers()`: lanes+portal+castle+wave strip+`--ac-pitch`/`--ac-lane-pad`
 > di-wipe di awal `renderStage` & `close()`, CSS scoping `#scr-ac.mode-td` /

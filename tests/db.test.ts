@@ -16,13 +16,14 @@ import type { Save } from '../src/types/save';
 function clone<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
 
 describe('newSave', () => {
-  it('partida nueva: 500 monedas, v3, tickets a 0', () => {
+  it('partida nueva: 500 monedas, v4, tickets a 0, ac meta', () => {
     const s = newSave('Test');
     expect(s.coins).toBe(500);
-    expect(s.v).toBe(3);
+    expect(s.v).toBe(4);
     expect(s.tickets).toEqual({ t1: 0, t10: 0 });
     expect(s.owned).toEqual({});
     expect(s.stats.runs).toBe(0);
+    expect(s.ac).toEqual({ bestScore: 0, bestWave: 0, bestEndless: 0, runs: 0, daily: {} });
   });
 });
 
@@ -71,7 +72,23 @@ describe('migrate', () => {
     expect(s.tickets).toEqual({ t1: 0, t10: 0 });
     expect(s.stats).toBeTruthy();
     expect(s.stats.runs).toBe(0);
-    expect(s.v).toBe(3);
+    expect(s.v).toBe(4);
+    // v3→v4: ac meta diisi default
+    expect(s.ac).toEqual({ bestScore: 0, bestWave: 0, bestEndless: 0, runs: 0, daily: {} });
+  });
+
+  it('v4 sanitize: ac.clamp + daily cap 30', () => {
+    const s: any = clone(newSave('Old'));
+    s.ac.bestScore = 'x'; s.ac.bestWave = -9; s.ac.runs = 2.7;
+    for (let i = 0; i < 40; i++) s.ac.daily['2026-01-' + String(i + 1).padStart(2, '0')] = { score: i, wave: 1, at: 1000 + i };
+    s.ac.daily['bad'] = null;
+    sanitize(s);
+    expect(s.ac.bestScore).toBe(0);
+    expect(s.ac.bestWave).toBe(0);
+    expect(s.ac.runs).toBe(2);
+    expect(Object.keys(s.ac.daily).length).toBe(30);
+    expect(s.ac.daily['bad']).toBeUndefined();
+    expect(s.ac.daily['2026-01-40'].score).toBe(39); // newest kept
   });
 
   it('v2→v3: mejoras de cuenta pasan al compañero', () => {

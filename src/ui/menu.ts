@@ -57,10 +57,15 @@ const MenuUI = (() => {
 
   // ---------------- menú principal ----------------
 
-  /** mode select: TD / Full Autochess */
+  /** mode select: TD / Full Autochess — tampil best score (save v4) */
   function openAcMode() {
     UI.chrome(true);
     UI.show('scr-ac-mode');
+    const line = document.getElementById('ac-best-line');
+    if (line) {
+      const b = (G as any).AutochessUI?.best ? (G as any).AutochessUI.best() : 0;
+      line.textContent = b > 0 ? `Best score: ${b}` : '';
+    }
     Audio.sfx('click', undefined);
   }
 

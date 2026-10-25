@@ -26,6 +26,7 @@ import { WaveRunner } from './wave-runner';
 import { WaveRunnerTd } from './wave-runner-td';
 import { WaveDef } from './wave';
 import { runScore } from './base';
+import { recordRun, bestOf } from './ac-save';
 import Types from '../data/types';
 import { DEFS } from './champions';
 import { Buffs, type BuffDef } from './buffs';
@@ -655,6 +656,8 @@ const foeLastHp = new Map<MobBattle, number>();
 const unitLastHp = new Map<string, number>();
 /** D2e Second Wind: one auto-respawn per wave */
 let swUsed = false;
+/** Save v4: one recordRun per run end (won/lost); cleared on reset + endless resume */
+let runRecorded = false;
 /** TD mob element cache (create once, update pos/hp per frame — no 60fps DOM rebuild).
  * Each mob owns a raw canvas + Sprites.Animator (Walk/Idle + facing — dungeon-style;
  * NOT UI.spriteCanvas so the shared live-set doesn't fight over draw/update). */
@@ -1197,6 +1200,16 @@ function hideOver(): void {
   $('ac-over').classList.add('hidden');
 }
 
+/** Save v4: rekam run sekali → append Best/NEW BEST ke sub overlay. */
+function recordOnce(sub: string): string {
+  if (runRecorded) return sub;
+  runRecorded = true;
+  const r = st.run as any;
+  const sc = runScore(r.wave, r.base.hp, r.gold);
+  const res = recordRun({ mode: currentMode, wave: r.wave, score: sc, endless: !!r.endless });
+  return `${sub} · Best ${res.best}${res.isBest ? ' ★ NEW BEST' : ''}`;
+}
+
 // ---------------- pause + keyboard ----------------
 
 function togglePause(force?: boolean): void {
@@ -1296,7 +1309,7 @@ function loop(ts: number): void {
       else if (after === 'lost') {
         renderAll();
         const sc = runScore(r.wave, r.base.hp, r.gold); // D2c: score on game over too
-        showOver('ban', td ? `Wave ${r.wave} — the base fell · Score ${sc}` : `Wave ${r.wave} — your heart broke · Score ${sc}`);
+        showOver('ban', recordOnce(td ? `Wave ${r.wave} — the base fell · Score ${sc}` : `Wave ${r.wave} — your heart broke · Score ${sc}`));
         return;
       }
       else {
@@ -1319,9 +1332,10 @@ function loop(ts: number): void {
     renderAll();
     // D2c: RUN COMPLETE screen with score + opt-in Endless
     const sc = runScore(r.wave, r.base.hp, r.gold);
-    showOver('trophy', `RUN COMPLETE — Wave ${WaveDef.MAX_WAVE} · Score ${sc} · Gold ${r.gold}`, {
+    showOver('trophy', recordOnce(`RUN COMPLETE — Wave ${WaveDef.MAX_WAVE} · Score ${sc} · Gold ${r.gold}`), {
       endless: !r.endless,
       onEndless: () => {
+        runRecorded = false; // run berlanjut → rekam lagi saat akhir nanti
         Runner.resumeEndless(r);
         st.shop = Shop.createShop(r.wave, Math.random, waveBiasDexes());
         renderAll();
@@ -1647,6 +1661,7 @@ function reset(): void {
   unitLastHp.clear();
   swUsed = false;
   lastBaseHp = null;
+  runRecorded = false;
   lastRoundWave = null;
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   st.run = Runner.createRun();
@@ -1705,6 +1720,8 @@ const ACUI = {
   get mode() { return currentMode; },
   get projs() { return acProjs.length; },
   get impacts() { return acImpacts.length; },
+  /** Save v4: best score untuk mode select */
+  best: () => bestOf(),
 };
 register('AutochessUI', ACUI);
 export { ACUI };

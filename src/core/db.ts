@@ -25,7 +25,7 @@
  * El modo invitado juega con una partida en memoria que no se guarda.
  */
 import { register as regModule } from './registry';
-import { SAVE_VERSION, START_COINS, Ledger, Save } from '../types/save';
+import { SAVE_VERSION, START_COINS, AC_INIT, Ledger, Save } from '../types/save';
 
 /* Firebase compat SDK (cargado en initCloud() con loadScript). */
 declare const firebase: any;
@@ -101,7 +101,8 @@ function newSave(name: string): Save {
     missions: {},           // misiones del día / semana (systems/progress.js)
     profile: { favs: [], title: '' },   // perfil público: 3 favoritos y título
     stats: { runs: 0, bestTime: 0, bestLevel: 0, totalKills: 0, pulls: 0, coinsEarned: 0, shinies: 0,
-             bossesTotal: 0, riftWins: 0, evolutions: 0, missionsDone: 0, groupRuns: 0, bestGroupTime: 0 }
+             bossesTotal: 0, riftWins: 0, evolutions: 0, missionsDone: 0, groupRuns: 0, bestGroupTime: 0 },
+    ac: JSON.parse(JSON.stringify(AC_INIT)) // v4: autochess best score/wave + daily seeds
   };
 }
 
@@ -136,6 +137,26 @@ function sanitize(s: Save): void {
   s.coins = n(s.coins);
   s.tickets.t1 = n(s.tickets.t1);
   s.tickets.t10 = n(s.tickets.t10);
+  // v4: autochess meta — clamp angka, daily max 30 entri terbaru
+  if (!isObj(s.ac)) s.ac = JSON.parse(JSON.stringify(AC_INIT));
+  const ac = s.ac!;
+  ac.bestScore = n(ac.bestScore);
+  ac.bestWave = n(ac.bestWave);
+  ac.bestEndless = n(ac.bestEndless);
+  ac.runs = n(ac.runs);
+  if (!isObj(ac.daily)) ac.daily = {};
+  else {
+    for (const d of Object.keys(ac.daily)) {
+      const e: any = (ac.daily as any)[d];
+      if (!isObj(e)) { delete (ac.daily as any)[d]; continue; }
+      e.score = n(e.score); e.wave = n(e.wave); e.at = n(e.at) || Date.now();
+    }
+    const keys = Object.keys(ac.daily);
+    if (keys.length > 30) {
+      keys.sort((a, b) => (ac.daily[b].at || 0) - (ac.daily[a].at || 0));
+      for (const k of keys.slice(30)) delete ac.daily[k];
+    }
+  }
   if (isObj(s.led)) {
     for (const dev of Object.keys(s.led)) {
       const e = (s.led as any)[dev];
@@ -297,6 +318,24 @@ function merge(a: Save | null, b: Save | null): Save {
     });
   }
   for (const k in older.stats || {}) (r.stats as any)[k] = Math.max((r.stats as any)[k] || 0, (older.stats as any)[k] || 0);
+  // v4: autochess meta — skor terbaik max, daily best per seed (skor >, lalu at lebih baru)
+  const ao: any = older.ac || {}, ar: any = (r.ac = isObj(r.ac) ? r.ac : JSON.parse(JSON.stringify(AC_INIT)));
+  for (const k of ['bestScore', 'bestWave', 'bestEndless', 'runs']) ar[k] = Math.max(num(ar[k]), num(ao[k]));
+  if (!isObj(ar.daily)) ar.daily = {};
+  for (const d in ao.daily || {}) {
+    const o: any = ao.daily[d]; if (!isObj(o)) continue;
+    const cur: any = (ar.daily as any)[d];
+    if (!cur || num(o.score) > num(cur.score) || (num(o.score) === num(cur.score) && num(o.at) > num(cur.at))) {
+      (ar.daily as any)[d] = { score: num(o.score), wave: num(o.wave), at: num(o.at) };
+    }
+  }
+  { // cap 30 after merge
+    const keys = Object.keys(ar.daily);
+    if (keys.length > 30) {
+      keys.sort((a, b) => (ar.daily[b].at || 0) - (ar.daily[a].at || 0));
+      for (const k of keys.slice(30)) delete ar.daily[k];
+    }
+  }
   if (r.starter == null) r.starter = older.starter;
   if (r.personality == null) r.personality = older.personality;
   if (r.partner == null || !r.owned[r.partner]) { r.partner = older.partner; r.partnerShiny = older.partnerShiny; }

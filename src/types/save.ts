@@ -87,10 +87,25 @@ export interface Save {
   legend?: boolean;
   sus?: boolean;
   ban?: boolean;
+  /** autochess meta (v4) */
+  ac?: SaveAc;
 }
 
 /** START_COINS default for new saves (db.js). */
 export const START_COINS = 500;
 
+/** Autochess meta (save v4): best scores + per-daily-seed best. */
+export interface AcDailyEntry { score: number; wave: number; at: number; }
+export interface SaveAc {
+  bestScore: number;
+  bestWave: number;
+  bestEndless: number;
+  runs: number;
+  /** YYYY-MM-DD -> best run of that daily seed (keep newest 30) */
+  daily: Record<string, AcDailyEntry>;
+}
+/** Default ac block (migrate/newSave). */
+export const AC_INIT: SaveAc = { bestScore: 0, bestWave: 0, bestEndless: 0, runs: 0, daily: {} };
+
 /** Save schema version (db.js VERSION). */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
