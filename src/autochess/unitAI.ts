@@ -89,6 +89,13 @@ export interface MobBattle {
   /** mewtwo future sight */
   future?: boolean;
   futureUsed?: boolean;
+  // ---- P25c: one-shot UI pulse flags (read+cleared by ac-ui stepFx) ----
+  /** onix harden fired → ac-ui draws steel ring */
+  hardenPulse?: boolean;
+  /** mewtwo future sight fired → ac-ui draws psychic ring */
+  futurePulse?: boolean;
+  /** gyarados roar fired (existing) → ac-ui draws roar ring */
+  roarPulse?: boolean;
   statuses: MobStatus[];
   /** temporary armor shred (machop skill) */
   shred: number;
@@ -325,12 +332,13 @@ export function tick(
     if (m.harden && !m.hardened && m.hp <= m.maxHp * 0.5) {
       m.hardened = true;
       m.armor = Math.min(0.9, m.armor + 0.3);
+      m.hardenPulse = true; // UI: steel ring + sfx (ac-ui stepFx)
     }
 
     // P25c Mewtwo Future Sight: HP ≤40% → disable semua unit 1.5s sekali
     if (m.future && !m.futureUsed && m.hp <= m.maxHp * 0.4) {
       m.futureUsed = true;
-      (m as any).futurePulse = true; // UI: ring + sfx (ac-ui stepFx, reuse roarPulse)
+      m.futurePulse = true; // UI: psychic ring + sfx (ac-ui stepFx)
       for (const u of units) {
         if (u.alive) u.disabledT = Math.max(u.disabledT, 1.5);
       }
@@ -367,7 +375,7 @@ export function tick(
       m.roarCd -= dt;
       if (m.roarCd <= 0) {
         m.roarCd = 10;
-        (m as any).roarPulse = true; // UI: ring + sfx at mob pos (ac-ui stepFx)
+        m.roarPulse = true; // UI: ring + sfx at mob pos (ac-ui stepFx)
         if (m.raindance) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.05); // P25c: heal 5%
         const c = mobPos(m, cells);
         for (const u of units) {

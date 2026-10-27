@@ -610,6 +610,7 @@ describe('P25c boss gimmick (per-boss)', () => {
     UnitAI.tick([], [m], 0.1, undefined, Path.laneCells());
     expect(m.armor).toBeCloseTo(0.3, 5);
     expect(m.hardened).toBe(true);
+    expect(m.hardenPulse).toBe(true); // UI: ac-ui stepFx reads+clears this (steel ring)
     const a = m.armor;
     UnitAI.tick([], [m], 0.1, undefined, Path.laneCells());
     expect(m.armor).toBe(a); // once only
@@ -632,5 +633,6 @@ describe('P25c boss gimmick (per-boss)', () => {
     UnitAI.tick([u], [m], 0.1, undefined, Path.laneCells());
     expect(m.futureUsed).toBe(true);
     expect(u.disabledT).toBeGreaterThanOrEqual(1.4); // disabled
+    expect(m.futurePulse).toBe(true); // UI: ac-ui stepFx reads+clears this (psychic ring)
   });
 });

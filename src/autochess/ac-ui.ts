@@ -1760,10 +1760,22 @@ function stepFx(dt: number): void {
       g.lineWidth = 2;
       g.beginPath(); g.arc(px, py - LIFT - 6, 13 + Math.sin(fxT * 5) * 1.5, 0, 6.2832); g.stroke();
     }
-    if ((m as any).roarPulse) {
-      (m as any).roarPulse = false;
+    if (m.roarPulse) {
+      m.roarPulse = false;
       FX.ring(px, py - LIFT * 0.5, 6, 30, '#ff5f6d', 0.5, 3);
       FX.burst(px, py - LIFT * 0.5, '#ff5f6d', 10, 140);
+      Audio.sfx('boss', undefined);
+    }
+    if (m.hardenPulse) {
+      m.hardenPulse = false;
+      FX.ring(px, py - LIFT * 0.5, 6, 26, '#b9c4d4', 0.45, 3); // steel
+      FX.burst(px, py - LIFT * 0.5, '#b9c4d4', 8, 120);
+      Audio.sfx('confirm', undefined);
+    }
+    if (m.futurePulse) {
+      m.futurePulse = false;
+      FX.ring(px, py - LIFT * 0.5, 8, 44, '#c47bff', 0.6, 4); // psychic
+      FX.burst(px, py - LIFT * 0.5, '#c47bff', 14, 170);
       Audio.sfx('boss', undefined);
     }
   }
