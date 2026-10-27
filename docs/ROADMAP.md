@@ -61,9 +61,39 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 
 
 ### P26 — Kualitas hidup
-- Self-serve account delete (privacy, `docs/LEGAL.md` §4).
-- Screen-reader labels dasar (NON-FUNCTIONAL §3 — skor aksesibilitas).
+- Self-serve account delete (privacy, `docs/LEGAL.md` §4):
+  ✅ **sudah ada** — Settings → Account → "Borrar cuenta" →
+  `UI.confirmDelete` → `DB.deleteAccount` → `Flow.toLogin()`
+  (`src/ui/settings-ui.ts` renderAccount L155–174). Cukup dicek ulang, bukan
+  pekerjaan baru.
+- Screen-reader labels dasar (NON-FUNCTIONAL §3 — skor aksesibilitas):
+  **belum** — lihat log sesi §6 (T9 kandidat).
 - Tutorial singkat onboarding (belum ada).
+
+## 6. Log sesi review-loop 2026-10-27/28 (5 jam, MCP browser)
+
+> User: "lakukan improvement tanpa henti sambil review dengan mcp selama
+> 5 jam, jika tugas selesai buat tugas lagi dari riset kekurangan".
+> Loop: review (playwright) → fix → verify (typecheck+test+browser) →
+> commit lokal → riset kekurangan berikutnya. **Semua lokal, tidak di-push.**
+
+| # | Commit | Isi |
+|---|---|---|
+| T1 | `93fb873` | i18n: 3 `<small>` kartu mode bahasa Indonesia → ES + 5 entri EN |
+| T2 | `6408c4f` | konsol 0 error: warning Firestore host (`merge:true`) + `autocomplete="current-password"` |
+| T4 | `5c35bf0` | i18n autochess: LAWAN/TIMMU/Ready/aria → ES source + dict EN + tes |
+| T5 | `09925c5` | i18n: entri EN toggle telemetría (fragment `Partida`→Save merusak frasa) |
+| T6 | `8506c44` | `autocomplete="username"` di `#f-user` |
+| T7 | `b19cfa4` | **bug besar**: papan TD landscape collapse 18×18 — selector `.ac-me-grid` mati sejak lahir (DOM pakai `id`), arow → `stretch`. Tes `tests/layout-css.test.ts` |
+| T7b | `3dc9615` | dock kompak ≤760px landscape (tienda tak terpotong) + Versión About 3.0 |
+| T8 | `dfc8f85` | autochess landscape dual-arena: dock `flex-direction:column` base menang ururan → spesifikasikan; arenas+arow `stretch` (putus lingkaran `fitAutoTiles`); arow `flex:1 1 0` → simetris |
+
+Hasil: **367 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
+warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
+portrait. Temuan review lain (belum dikerjakan): a11y sel papan/kartu shop =
+div polos tanpa role/nama (kandidat P26b), tab Accessibility settings cuma
+1 baris, logo About masih "PokéSurvivor", `synbar` tumpah ~20px di band
+pendek (tampilan OK, diparkir).
 
 ## 3. Sengaja TIDAK dikerjakan
 
