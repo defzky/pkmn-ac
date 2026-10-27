@@ -53,4 +53,23 @@ describe('style.css — TD landscape board layout (T7)', () => {
     expect(m![1]).toBe(pkg.version.split('.')[0]);
     expect(Date.parse(m![3])).not.toBeNaN();
   });
+
+  it('autochess landscape: row dock outranks the portrait base rule, arenas stretch, arow grows', () => {
+    // base portrait rule (later in file, equal specificity) would win without .ac-app >
+    expect(rules).toMatch(
+      /#scr-ac\.mode-autochess \.ac-app > \.ac-dock \{[^}]*flex-direction: row/,
+    );
+    // band-constrained arenas → fitAutoTiles measures real space (no circular growth)
+    expect(rules).toMatch(
+      /#scr-ac\.mode-autochess \.ac-arenas \{[^}]*align-items: stretch/,
+    );
+    // me+syn wrapper must share the foe arena's flex:1 1 0 → symmetric halves
+    expect(rules).toMatch(
+      /#scr-ac\.mode-autochess \.ac-arow \{[^}]*flex: 1 1 0/,
+    );
+    // and stretch so the me-arena is band-constrained (fitAutoTiles min() loop)
+    expect(rules).toMatch(
+      /#scr-ac\.mode-autochess \.ac-arow \{[^}]*align-items: stretch/,
+    );
+  });
 });
