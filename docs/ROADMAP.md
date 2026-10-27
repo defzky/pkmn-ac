@@ -105,6 +105,7 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T17 | `77ba771` | i18n 17 buff name/desc (`buffs.ts` POOL) ke ES source + 34 entri dict EN |
 | T18 | — | audit i18n sweep Gacha/Missions/Leaderboard + grep toast/aria/placeholder: **CLEAR**, 0 leak, 0 bug (tanpa perubahan kode) |
 | T19 | `7641b94` | **a11y**: toast `role="status"` + `aria-live="polite"` — SR announce pesan toast |
+| T20 | `6c81065` | **a11y**: tab pattern Settings — `role=tablist/tab/tabpanel` + `aria-selected` sinkron class `on` (SR kenali `tab [selected]`) |
 
 Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
