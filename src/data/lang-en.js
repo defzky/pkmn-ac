@@ -288,6 +288,10 @@ G.I18n.add({
   // a11y (T9): etiquetas ARIA de celdas/tienda — patrón {x} reutiliza la captura traducida
   'Casilla {x}': 'Cell {x}', 'vacía': 'empty', 'seleccionada': 'selected',
   'Comprar {x}': 'Buy {x}', 'monedas': 'coins', 'jefe': 'boss', 'Recargar la tienda': 'Reroll the shop',
+  // P26c: tutorial coach TD
+  'Compra un Pokémon de la tienda': 'Buy a Pokémon from the shop',
+  'Pulsa Listo para luchar': 'Press Ready to fight',
+  'Saltar': 'Skip',
   '⬅ izquierda': '⬅ left', '⭢ derecha': '⭢ right', '⬌ ambos': '⬌ both',
   '{x} premio por recoger': '{x} reward to claim', '{x} premios por recoger': '{x} rewards to claim', 'premio por recoger': 'reward to claim', 'premios por recoger': 'rewards to claim',
   'Volver a tu sala ({x})': 'Back to your room ({x})', '{x} en línea': '{x} online', 'en línea': 'online',

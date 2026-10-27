@@ -153,3 +153,24 @@ castle 🏰 + ring conic-gradient + pill HP; cell hover lift; Round pill pulse.
 * Wave strip: sprite ghost + type chip + affix tag + side hint.
 * Score screen = overlay `#ac-over` (ikon + skor breakdown + Endless/Menu).
 * Layout landscape + backdrop forest: §1a; juice: §1b.
+
+## 6. Tutorial onboarding (P26c)
+
+> Spes ditulis 2026-10-28 (sesi review-loop). Implementasi = kartu coach
+> mini di TD, sekali seumur hidup.
+
+* **Kapan:** `open('td')` pertama kali (flag localStorage `ps.tut !== '1'`).
+  Mode `auto`/`daily` tidak pernah menampilkan (TD = mode rekomendasi).
+* **Isi (2 langkah memandu):**
+  1. Prep pertama: "Compra un Pokémon de la tienda" + highlight ring pada
+     `#ac-shop`. Maju saat pembelian pertama berhasil.
+  2. "Pulsa Listo para luchar" + highlight pada `#ac-start`. Selesai saat
+     `onStart`.
+* **Dismiss:** tombol "Saltar" (skip) kapan saja, atau selesai langkah 2 →
+  set `ps.tut='1'` → tidak pernah muncul lagi.
+* **Implementasi:** `#ac-tut` overlay di `ac-ui.ts` (state `tutStep`), CSS
+  glass panel; teks ES source + dict EN (pola `{x}` tidak perlu — string
+  statis). Tamat run / ganti mode saat tutorial aktif → dismiss tanpa flag
+  (muncul lagi run berikutnya).
+* **Tes:** open('td') pertama → kartu tampil step 1; buy → step 2; start →
+  hilang + flag; open lagi → tidak tampil; Saltar → hilang + flag.

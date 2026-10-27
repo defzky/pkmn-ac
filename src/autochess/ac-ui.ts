@@ -124,6 +124,7 @@ function ensureDom(): HTMLElement {
       <div class="ac-kbd">[1]–[3] buy · [R] reroll · [Space] start · [Esc] pause</div>
     </div>
     <div class="ac-over hidden" id="ac-over"></div>
+    <div class="ac-tut hidden" id="ac-tut"><span id="ac-tut-text"></span><button class="btn small" id="ac-tut-skip">Saltar</button></div>
     <div class="ac-over hidden" id="ac-pause">
       <div class="box center">
         <h3>Paused</h3>
@@ -747,6 +748,35 @@ let acSeed: number | null = null;
 let acDailyKey: string | null = null;
 /** shop roll batch counter (daily determinism: each createShop/reroll gets own batch) */
 let acShopN = 0;
+/** P26c tutorial onboarding: -1 off, 0 = step "buy", 1 = step "start" (TD first run only) */
+let tutStep = -1;
+
+/** localStorage guard (tests sandbox / private mode) */
+function tutSeen(): boolean {
+  try { return localStorage.getItem('ps.tut') === '1'; } catch (e) { return true; }
+}
+/** dismiss tanpa flag (run selesai / ganti mode) — muncul lagi run TD berikutnya */
+function tutDismiss(): void {
+  tutStep = -1;
+  const el = $('ac-tut');
+  if (el) el.classList.add('hidden');
+  $('ac-shop')?.classList.remove('tut-hl');
+  $('ac-start')?.classList.remove('tut-hl');
+}
+function tutFinish(): void {
+  try { localStorage.setItem('ps.tut', '1'); } catch (e) { /* nada */ }
+  tutDismiss();
+}
+/** render kartu coach (step 0/1) — highlight target sekali, tanpa blocking input */
+function tutShow(step: number): void {
+  const el = $('ac-tut'), txt = $('ac-tut-text');
+  if (!el || !txt) return;
+  tutStep = step;
+  el.classList.remove('hidden');
+  txt.textContent = step === 0 ? 'Compra un Pokémon de la tienda' : 'Pulsa Listo para luchar';
+  $('ac-shop')?.classList.toggle('tut-hl', step === 0);
+  $('ac-start')?.classList.toggle('tut-hl', step === 1);
+}
 
 /** compose rnd: seeded per-wave (preview === startCombat), else undefined → Math.random */
 function waveRndFor(wave: number): (() => number) | undefined {
@@ -1202,6 +1232,7 @@ function onBuy(i: number) {
   st.run.gold = r.gold;
   Audio.sfx('buy', undefined);
   track('shop_action', { action: 'buy', cost: slot ? Shop.slotCost(slot) : 0, star: slot?.star ?? 1 });
+  if (tutStep === 0) tutShow(1); // P26c: maju ke langkah "Listo"
   afterBoardChange();
   // landing juice on the freshly auto-placed unit (Fase K)
   const u = st.board.units.find((v) => !before.has(v));
@@ -1267,6 +1298,7 @@ function onStart(): void {
     Audio.sfx('error', undefined);
     return;
   }
+  if (tutStep === 1) tutFinish(); // P26c: selesai langkah "Listo"
   const Runner: any = currentMode === 'td' ? WaveRunnerTd : WaveRunner;
   Runner.forceStart(st.run);
   enterCombat();
@@ -1289,6 +1321,7 @@ function onExit(): void {
 
 function showOver(icon: string, sub: string, opts?: { endless?: boolean; onEndless?: () => void }): void {
   if (icon === 'trophy' || icon === 'ban') {
+    tutDismiss(); // P26c: run selesai → tutup coach tanpa flag
     const r = st.run as any;
     track('run_end', {
       mode: currentMode, wave: r.wave, score: runScore(r.wave, r.base.hp, r.gold),
@@ -1827,6 +1860,7 @@ function wire(): void {
   $('ac-pause-btn').onclick = () => togglePause();
   $('ac-resume').onclick = () => togglePause(false);
   $('ac-quit').onclick = () => { togglePause(false); close(); };
+  $('ac-tut-skip').onclick = () => tutFinish();
   document.addEventListener('keydown', onKey);
 }
 
@@ -1846,6 +1880,8 @@ function open(mode: 'auto' | 'td' | 'daily' = 'auto'): void {
   fitAutoTiles(); // layout now measurable (screen visible) — size auto tiles before first frame
   Audio.sfx('confirm', undefined);
   runOpenedT = Date.now();
+  // P26c: tutorial coach sekali (hanya TD eksplisit — daily/auto tidak)
+  if (mode === 'td' && !tutSeen()) tutShow(0); else tutDismiss();
   track('run_start', { mode, seed: mode === 'daily' });
   if (mode === 'daily') track('daily_join', { dateKey: acDailyKey });
   if (mode === 'daily') banner('wave', 'DAILY RUN', `${acDailyKey} · Best ${bestOf(acDailyKey || undefined)}`);
@@ -1856,6 +1892,7 @@ function close(): void {
   st.open = false;
   st.paused = false;
   buffPending = false;
+  tutDismiss(); // P26c: ganti mode/menu → tutup coach tanpa flag
   clearTdLayers(); // no TD leftovers while sitting in the menu / next mode
   $('ac-pause')?.classList.add('hidden');
   $('ac-over')?.classList.add('hidden');

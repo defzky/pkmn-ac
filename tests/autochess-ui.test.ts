@@ -4,7 +4,7 @@
  * click buy/place/reroll/start/sell, enemy sync lifecycle.
  * UI + Audio mocked; rAF stubbed (loop never runs → deterministic, ACUI.step drives one frame).
  */
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { UI } from '../src/ui/ui';
 
 vi.mock('../src/ui/ui', () => ({
@@ -156,6 +156,59 @@ describe('a11y labels (T9)', () => {
     expect($('#ac-reroll').getAttribute('aria-label')).toBe('Recargar la tienda');
     expect($('#ac-pause-btn').getAttribute('aria-label')).toBe('Pausa');
     expect($('#ac-close').getAttribute('aria-label')).toBe('Salir de la partida');
+  });
+});
+
+describe('tutorial onboarding (T10)', () => {
+  const tut = () => document.getElementById('ac-tut') as HTMLElement;
+  const tutText = () => (document.getElementById('ac-tut-text') as HTMLElement).textContent || '';
+  let store: Record<string, string>;
+  beforeEach(() => {
+    // happy-dom sin localStorage → stub en memoria (tutSeen/tutFinish usan get/setItem)
+    store = {};
+    (globalThis as any).localStorage = {
+      getItem: (k: string) => (k in store ? store[k] : null),
+      setItem: (k: string, v: string) => { store[k] = String(v); },
+      removeItem: (k: string) => { delete store[k]; },
+    };
+    tut().classList.add('hidden'); // reset DOM side-effects antar tes
+  });
+  // suite ini mengubah currentMode + membuka layar — kembalikan ke auto
+  // agar suite berikutnya (enemy sync dual-board) tidak reset ke mode TD
+  afterEach(() => { ACUI.open('auto'); });
+  it('first TD open → coach step 1 (buy) visible; auto/daily never show', () => {
+    ACUI.open('td');
+    expect(tut().classList.contains('hidden')).toBe(false);
+    expect(tutText()).toBe('Compra un Pokémon de la tienda');
+    expect($('#ac-shop').classList.contains('tut-hl')).toBe(true);
+    ACUI.close();
+    ACUI.open('auto');
+    expect(tut().classList.contains('hidden')).toBe(true);
+  });
+  it('buy → step 2 (Listo); start → hidden + flag ps.tut=1', () => {
+    ACUI.open('td');
+    $('.ac-card').click(); // buy → auto-place
+    expect(tutText()).toBe('Pulsa Listo para luchar');
+    expect($('#ac-start').classList.contains('tut-hl')).toBe(true);
+    ($('#ac-start') as HTMLElement).click();
+    expect(tut().classList.contains('hidden')).toBe(true);
+    expect(localStorage.getItem('ps.tut')).toBe('1');
+    // run berikutnya: tidak muncul lagi
+    ACUI.close();
+    ACUI.open('td');
+    expect(tut().classList.contains('hidden')).toBe(true);
+  });
+  it('Saltar dismisses and sets flag', () => {
+    ACUI.open('td');
+    ($('#ac-tut-skip') as HTMLElement).click();
+    expect(tut().classList.contains('hidden')).toBe(true);
+    expect(localStorage.getItem('ps.tut')).toBe('1');
+  });
+  it('close() dismisses WITHOUT flag (muncul lagi run berikutnya)', () => {
+    ACUI.open('td');
+    ACUI.close();
+    expect(tut().classList.contains('hidden')).toBe(true);
+    expect(localStorage.getItem('ps.tut')).toBeNull();
   });
 });
 
