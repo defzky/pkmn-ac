@@ -15,3 +15,7 @@ tools/cache/
 
 # local agent config
 .opencode/
+
+# browser review artifacts (playwright/devtools MCP)
+.playwright-mcp/
+review/
