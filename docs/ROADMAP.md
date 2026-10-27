@@ -101,6 +101,7 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T13 | `e025212` | changelog "Novedades" 2026-10-28: 4 baris new (ES+EN) — tutorial TD, gimmick boss, tab a11y, label a11y |
 | T14 | `6945dc2` | **fix bug**: boss gimmick pulse UI — `futurePulse`/`hardenPulse` diset unitAI tapi tak pernah dibaca ac-ui stepFx → Mewtwo Future Sight & Onix Harden tanpa visual. Typed fields + 3 handler (steel/psychic/roar ring) + 2 assertion |
 | T15 | `a76669f` | i18n banner autochess (wave/boss/leak/clear/daily) ke ES + dict EN + gimmick hint boss (P25c `bossGimmick()`) |
+| T16 | `6d0877d` | i18n toast autochess (11 string) + economy sub ke ES source + dict EN |
 
 Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
