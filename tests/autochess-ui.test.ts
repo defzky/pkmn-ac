@@ -617,7 +617,7 @@ describe('Fase J — combat juice (banner / leak / timer)', () => {
     ACUI.run.prepLeft = 0.01;
     ACUI.step(performance.now() + 50);
     expect(el.hidden).toBe(false);
-    expect(el.innerHTML).toMatch(/Wave/);
+    expect(el.innerHTML).toMatch(/Ola/);
   });
 
   it('leak → base flash + heart pulse + red banner', () => {
@@ -640,7 +640,7 @@ describe('Fase J — combat juice (banner / leak / timer)', () => {
     ACUI.run.spawnQ = []; ACUI.run.mobs = [];
     ACUI.step(performance.now() + 50); // tick detects clear → prep, loop fires banner
     expect(gold.classList.contains('pop')).toBe(true);
-    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/cleared/i);
+    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/superada/i);
   });
 
   it('prep timer blinks in last 3s', () => {
@@ -1019,7 +1019,7 @@ describe('AU-1 round result (auto mode)', () => {
     ACUI.step(performance.now() + 50);
     const el = document.getElementById('ac-banner')!;
     expect(el.hidden).toBe(false);
-    expect(el.textContent).toContain('Round lost!');
+    expect(el.textContent).toContain('¡Ronda perdida!');
     expect(el.classList.contains('leak')).toBe(true);
     const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
     expect(toasts).not.toMatch(/gold/); // bug: wipe used to show "Wave cleared +N gold"
@@ -1037,7 +1037,7 @@ describe('AU-1 round result (auto mode)', () => {
     }
     expect((ACUI.run as any).phase).toBe('prep');
     expect((ACUI.run as any).roundResult).toBe('win');
-    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/cleared/i);
+    expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/superada/i);
     const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
     expect(toasts).toMatch(/gold/);
     // AU-2: economy breakdown sub (wave + interest + streak)

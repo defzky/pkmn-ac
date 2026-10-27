@@ -167,13 +167,22 @@ function banner(kind: 'wave' | 'clear' | 'boss' | 'leak', big: string, sub = '')
   }, 1600);
 }
 
+/** one-line gimmick hint for the boss wave banner (P25c) — ES source, dict EN */
+function bossGimmick(m: any): string {
+  if (m.future) return 'Visión Future: paraliza tu equipo al 40% de vida';
+  if (m.raindance) return 'Danza Lluvia: se cura con cada rugido';
+  if (m.harden) return 'Endurece: +armadura al 50% de vida';
+  if (m.rest) return 'Bloqueo: reduce el daño que recibe';
+  return '';
+}
+
 /** base took a leak — flash base + pulse heart + red banner (Fase J) */
 function leakFx(dmg: number): void {
   const base = $('ac-td-base');
   base.classList.remove('flash'); void base.offsetWidth; base.classList.add('flash');
   const heart = document.querySelector('.ac-heart.blue');
   if (heart) { heart.classList.remove('pulse'); void (heart as HTMLElement).offsetWidth; heart.classList.add('pulse'); }
-  banner('leak', `Base hit! −${dmg}`, 'a mob leaked through');
+  banner('leak', `¡Base dañada! −${dmg}`, 'un Pokémon se coló');
   Audio.sfx('hurt', undefined);
   track('wave_leak', {
     wave: st.run.wave,
@@ -1458,8 +1467,11 @@ function loop(ts: number): void {
         enterCombat();
         // wave-start banner — boss waves red + boss sfx, else gold + confirm (Fase J)
         const mobs: any[] = r.mobs || [];
-        const boss = mobs.some((m: any) => m.boss);
-        banner(boss ? 'boss' : 'wave', boss ? `BOSS — Wave ${r.wave}` : `Wave ${r.wave}`, `${mobs.length} mons incoming`);
+        const bossM = mobs.find((m: any) => m.boss);
+        const boss = !!bossM;
+        const big = boss ? `¡JEFE! Ola ${r.wave}` : `Ola ${r.wave}`;
+        const sub = boss ? (bossGimmick(bossM) || `${mobs.length} Pokémon`) : `${mobs.length} Pokémon acercándose`;
+        banner(boss ? 'boss' : 'wave', big, sub);
         Audio.sfx(boss ? 'boss' : 'confirm', undefined);
       }
       else if (after === 'buff') {
@@ -1480,8 +1492,8 @@ function loop(ts: number): void {
             const lostWave = Math.max(1, r.wave - 1);
             const dmg = WaveRunner.LOSS_DMG + Math.floor(lostWave / 4);
             const e = (r as any).lastEcon;
-            const cons = e && e.streak ? ` · +${e.streak} consolation` : '';
-            banner('leak', 'Round lost!', `Your heart −${dmg} ♥${cons}`);
+            const cons = e && e.streak ? ` · +${e.streak} consuelo` : '';
+            banner('leak', '¡Ronda perdida!', `Tu corazón −${dmg} ♥${cons}`);
             Audio.sfx('hurt', undefined);
           } else {
           const e = (r as any).lastEcon;
@@ -1492,7 +1504,7 @@ function loop(ts: number): void {
           const sub = e
             ? `+${total} ☀ = ${e.wave} wave + ${e.interest} int + ${e.streak} streak`
             : `+${bonus} ☀ gold`;
-          banner('clear', `Wave ${r.wave - 1} cleared!`, sub);
+          banner('clear', `Ola ${r.wave - 1} superada!`, sub);
           Audio.sfx('levelup', undefined);
           const gold = $('ac-gold');
           gold.classList.remove('pop'); void gold.offsetWidth; gold.classList.add('pop');
@@ -1896,7 +1908,7 @@ function open(mode: 'auto' | 'td' | 'daily' = 'auto'): void {
   if (mode === 'td' && !tutSeen()) tutShow(0); else tutDismiss();
   track('run_start', { mode, seed: mode === 'daily' });
   if (mode === 'daily') track('daily_join', { dateKey: acDailyKey });
-  if (mode === 'daily') banner('wave', 'DAILY RUN', `${acDailyKey} · Best ${bestOf(acDailyKey || undefined)}`);
+  if (mode === 'daily') banner('wave', 'DAILY RUN', `${acDailyKey} · Récord ${bestOf(acDailyKey || undefined)}`);
   requestAnimationFrame(loop);
 }
 
