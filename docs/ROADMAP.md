@@ -99,6 +99,7 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T11 | `175cf88` | **P25c boss gimmick**: Onix Harden / Snorlax Block / Gyarados Rain Dance / Mewtwo Future Sight; GDD TD §2a + 4 tes |
 | T12 | `5f5cbbc` | **P26d**: tab Accessibility lengkap — sección Movimiento (+calm +dmgNumbers, key sama dengan Graphics) + 2 entri dict EN |
 | T13 | `e025212` | changelog "Novedades" 2026-10-28: 4 baris new (ES+EN) — tutorial TD, gimmick boss, tab a11y, label a11y |
+| T14 | `6945dc2` | **fix bug**: boss gimmick pulse UI — `futurePulse`/`hardenPulse` diset unitAI tapi tak pernah dibaca ac-ui stepFx → Mewtwo Future Sight & Onix Harden tanpa visual. Typed fields + 3 handler (steel/psychic/roar ring) + 2 assertion |
 
 Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
