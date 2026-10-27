@@ -128,7 +128,10 @@ function render() {
          </div>`;
   } else if (tab === 'a11y') {
     box.innerHTML = section('Apuntado')
-      + toggle('aimManual', 'Apuntar a mano', 'Tus ataques van hacia el ratón (o hacia donde empujes el stick derecho del mando) en vez de al enemigo más cercano. Si sueltas el stick y no mueves el ratón, vuelve a apuntar solo. La cadena y los meteoros siguen buscando a los enemigos solos.');
+      + toggle('aimManual', 'Apuntar a mano', 'Tus ataques van hacia el ratón (o hacia donde empujes el stick derecho del mando) en vez de al enemigo más cercano. Si sueltas el stick y no mueves el ratón, vuelve a apuntar solo. La cadena y los meteoros siguen buscando a los enemigos solos.')
+      + section('Movimiento', 'Reduce el movimiento y los destellos si el balanceo o los fogonazos te incomodan.')
+      + toggle('calm', 'Menos sacudidas y destellos', 'La cámara tiembla menos y los fogonazos son suaves.')
+      + toggle('dmgNumbers', 'Números de daño', 'Los números que salen al golpear y al recibir daño.');
   } else if (tab === 'acc') {
     renderAccount(box);
   } else {

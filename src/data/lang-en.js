@@ -460,6 +460,7 @@ G.I18n.add({
   'Objeto y cartas': 'Item and cards', 'Sin objeto.': 'No item.', 'Aún no has cogido cartas de mejora.': 'You haven’t picked any upgrade cards yet.',
   '{x} físico': '{x} physical', '{x} especial': '{x} special',
   'Accesibilidad': 'Accessibility', 'Apuntado': 'Aiming', 'Apuntar a mano': 'Manual aim',
+  'Movimiento': 'Motion', 'Reduce el movimiento y los destellos si el balanceo o los fogonazos te incomodan.': 'Reduce motion and flashes if shaking or flashes bother you.',
   'Tus ataques van hacia el ratón (o hacia donde empujes el stick derecho del mando) en vez de al enemigo más cercano. Si sueltas el stick y no mueves el ratón, vuelve a apuntar solo. La cadena y los meteoros siguen buscando a los enemigos solos.': 'Your attacks go towards the mouse (or wherever you push the controller’s right stick) instead of the nearest enemy. If you let go of the stick and don’t move the mouse, it aims by itself again. Chain and meteor moves still find enemies by themselves.',
   'Guardar la partida en la nube': 'Save your game to the cloud', 'Tu partida se guarda en este navegador.': 'Your game is saved in this browser.',
   'Como invitado la partida no se guarda.': 'As a guest your game is not saved.', 'Ya está todo guardado en la nube.': 'Everything is already saved in the cloud.',
