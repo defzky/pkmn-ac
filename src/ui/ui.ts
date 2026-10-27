@@ -56,7 +56,7 @@ const UI = (() => {
 
   let toastEl: any = null, toastT = 0;
   function toast(msg: any, ms = 2200) {
-    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; document.body.appendChild(toastEl); }
+    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('aria-live', 'polite'); document.body.appendChild(toastEl); }
     toastEl.textContent = msg;
     toastEl.style.display = 'block';
     clearTimeout(toastT);
