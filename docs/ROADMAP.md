@@ -102,9 +102,10 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 
 Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
-portrait. Temuan review lain (belum dikerjakan): tab Accessibility settings
-cuma 1 baris, logo About masih "PokéSurvivor", `synbar` tumpah ~20px di band
-pendek (tampilan OK, diparkir).
+portrait. Temuan review lain yang sudah dikerjakan: tab Accessibility settings
+(T12, sekarang lengkap). Yang dibatalkan: "logo About masih PokéSurvivor" —
+false positive, `PokéSurvivor` = brand payung konsisten di seluruh app.
+Diparkir: `synbar` tumpah ~20px di band pendek (tampilan OK).
 
 ## 3. Sengaja TIDAK dikerjakan
 
