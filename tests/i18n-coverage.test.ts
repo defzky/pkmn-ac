@@ -48,4 +48,16 @@ describe('index.html — idioma de la UI', () => {
   it('«Elige un modo de juego» tiene traducción EN', () => {
     expect(dict['Elige un modo de juego']).toBe('Choose a game mode');
   });
+
+  it('el toggle de telemetría de Ajustes tiene traducción EN exacta', () => {
+    // Regresión: sin entrada exacta, el fragmento 'Partida'→'Save' rompía la
+    // descripción en inglés ("Eventos de Save anónimos") y la etiqueta se
+    // quedaba en español.
+    const src = readFileSync('src/ui/settings-ui.ts', 'utf8');
+    const m = src.match(/toggle\('telemetry', '([^']+)', '([^']+)'\)/);
+    expect(m, 'toggle telemetry no encontrado en settings-ui.ts').toBeTruthy();
+    const [, label, desc] = m!;
+    expect(dict[label], `falta traducción EN de: "${label}"`).toBeTruthy();
+    expect(dict[desc], `falta traducción EN de: "${desc}"`).toBeTruthy();
+  });
 });
