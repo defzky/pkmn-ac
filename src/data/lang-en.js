@@ -298,6 +298,12 @@ G.I18n.add({
   '¡Base dañada! −{x}': 'Base hit! −{x}', 'un Pokémon se coló': 'a Pokémon leaked through',
   '¡Ronda perdida!': 'Round lost!', 'Tu corazón −{x} ♥': 'Your heart −{x} ♥', 'consuelo': 'consolation',
   'Ola {x} superada!': 'Wave {x} cleared!', 'Récord': 'Best',
+  // T16: toast autochess (i18n dari English hardcoded)
+  'Casilla ocupada': 'Cell occupied', 'Oro insuficiente': 'Not enough gold',
+  '★ fusión': '★ merge', 'Ahí no se puede colocar': 'Can\'t place there',
+  'Oro insuficiente o tablero lleno': 'Not enough gold or board full',
+  'Vendido': 'Sold', 'Coloca primero a tus Pokémon': 'Place units first',
+  '+{x} oro': '+{x} gold', '{x} ola': '{x} wave', '{x} racha': '{x} streak',
   'Visión Future: paraliza tu equipo al 40% de vida': 'Future Sight: freezes your team at 40% HP',
   'Danza Lluvia: se cura con cada rugido': 'Rain Dance: heals with every roar',
   'Endurece: +armadura al 50% de vida': 'Harden: +armor at 50% HP',

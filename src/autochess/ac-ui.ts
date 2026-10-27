@@ -1116,13 +1116,13 @@ function onDragUp(e: any): void {
     if (!slot || target.dex !== slot.dex || target.star !== slot.star
       || target.star >= Board.MAX_STAR || st.run.phase === 'combat') {
       Audio.sfx('error', undefined);
-      UI.toast('Cell occupied');
+      UI.toast('Casilla ocupada');
       return;
     }
     const r = Shop.buyMerge(st.shop, d.idx, st.run.gold);
     if (!r.ok || !r.slot) {
       Audio.sfx('error', undefined);
-      UI.toast('Not enough gold');
+      UI.toast('Oro insuficiente');
       return;
     }
     st.run.gold = r.gold;
@@ -1130,7 +1130,7 @@ function onDragUp(e: any): void {
     const temp: BoardUnit = { dex: r.slot.dex, star: r.slot.star, x: null, y: null, bench: null, items: [] };
     if (Board.tryMergeAt(st.board, temp, x, y)) {
       Audio.sfx('buy', undefined);
-      UI.toast('★ merge');
+      UI.toast('★ fusión');
       afterBoardChange();
       placeFx(x, y, 'merge', temp.star + 1);
     }
@@ -1207,7 +1207,7 @@ function onCell(x: number, y: number): void {
         const newStar = here.star + 1;
         st.sel = null;
         Audio.sfx('confirm', undefined);
-        UI.toast('★ merge');
+        UI.toast('★ fusión');
         afterBoardChange();
         placeFx(x, y, 'merge', newStar);
         return;
@@ -1220,7 +1220,7 @@ function onCell(x: number, y: number): void {
       placeFx(x, y, 'land');
     } else {
       Audio.sfx('error', undefined);
-      UI.toast("Can't place there");
+      UI.toast('Ahí no se puede colocar');
     }
   } else if (here) {
     st.sel = here;
@@ -1235,7 +1235,7 @@ function onBuy(i: number) {
   const r = Shop.buy(st.shop, i, st.board, st.run.gold);
   if (!r.ok) {
     Audio.sfx('error', undefined);
-    UI.toast('Not enough gold or board full');
+    UI.toast('Oro insuficiente o tablero lleno');
     return r;
   }
   st.run.gold = r.gold;
@@ -1272,7 +1272,7 @@ function onReroll(): void {
   const r = Shop.reroll(st.shop, st.run.gold, st.run.wave, shopRndFor() ?? Math.random, waveBiasDexes());
   if (!r.ok) {
     Audio.sfx('error', undefined);
-    UI.toast('Not enough gold');
+    UI.toast('Oro insuficiente');
     return;
   }
   st.run.gold = r.gold;
@@ -1289,7 +1289,7 @@ function onSell(): void {
   st.run.gold = Shop.sell(st.board, name, st.run.gold);
   st.sel = null;
   Audio.sfx('coin', undefined);
-  UI.toast('Sold');
+  UI.toast('Vendido');
   track('shop_action', { action: 'sell', cost: st.run.gold - g0, star });
   afterBoardChange();
   if (sx != null && sy != null) placeFx(sx, sy, 'sell');
@@ -1303,7 +1303,7 @@ function afterBoardChange(): void {
 function onStart(): void {
   if (st.run.phase !== 'prep') return;
   if (!st.board.units.some((u) => u.x !== null)) {
-    UI.toast('Place units first');
+    UI.toast('Coloca primero a tus Pokémon');
     Audio.sfx('error', undefined);
     return;
   }
@@ -1499,11 +1499,11 @@ function loop(ts: number): void {
           const e = (r as any).lastEcon;
           const bonus = e ? e.wave : Runner.waveBonus(r.wave - 1);
           const total = e ? e.wave + e.interest + e.streak : bonus;
-          UI.toast(`+${total} gold`); // wave already advanced
+          UI.toast(`+${total} oro`); // wave already advanced
           // wave-cleared banner + gold pill pop (Fase J); AU-2: economy breakdown sub
           const sub = e
-            ? `+${total} ☀ = ${e.wave} wave + ${e.interest} int + ${e.streak} streak`
-            : `+${bonus} ☀ gold`;
+            ? `+${total} ☀ = ${e.wave} ola + ${e.interest} int + ${e.streak} racha`
+            : `+${bonus} ☀ oro`;
           banner('clear', `Ola ${r.wave - 1} superada!`, sub);
           Audio.sfx('levelup', undefined);
           const gold = $('ac-gold');

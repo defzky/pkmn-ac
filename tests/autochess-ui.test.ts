@@ -272,7 +272,7 @@ describe('start combat', () => {
   it('empty board → toast "Place units first", stays prep', () => {
     $('#ac-start').click();
     expect(ACUI.run.phase).toBe('prep');
-    expect(vi.mocked(UI.toast)).toHaveBeenCalledWith('Place units first');
+    expect(vi.mocked(UI.toast)).toHaveBeenCalledWith('Coloca primero a tus Pokémon');
   });
   it('with unit → phase combat, spawn queue rolled, Ready disabled label', () => {
     $('.ac-card').click(); // place one
@@ -1022,7 +1022,7 @@ describe('AU-1 round result (auto mode)', () => {
     expect(el.textContent).toContain('¡Ronda perdida!');
     expect(el.classList.contains('leak')).toBe(true);
     const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
-    expect(toasts).not.toMatch(/gold/); // bug: wipe used to show "Wave cleared +N gold"
+    expect(toasts).not.toMatch(/oro/); // bug: wipe used to show "Wave cleared +N gold"
   });
 
   it('wave clear → "cleared!" banner + gold toast (win branch intact)', () => {
@@ -1039,12 +1039,12 @@ describe('AU-1 round result (auto mode)', () => {
     expect((ACUI.run as any).roundResult).toBe('win');
     expect(document.getElementById('ac-banner')!.innerHTML).toMatch(/superada/i);
     const toasts = vi.mocked(UI.toast).mock.calls.map((c) => c[0]).join('|');
-    expect(toasts).toMatch(/gold/);
+    expect(toasts).toMatch(/oro/);
     // AU-2: economy breakdown sub (wave + interest + streak)
     const sub = document.getElementById('ac-banner')!.innerHTML;
-    expect(sub).toContain('wave');
+    expect(sub).toContain('ola');
     expect(sub).toContain('int');
-    expect(sub).toContain('streak');
+    expect(sub).toContain('racha');
   });
 });
 
