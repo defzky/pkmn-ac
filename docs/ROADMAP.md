@@ -89,7 +89,7 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T7 | `b19cfa4` | **bug besar**: papan TD landscape collapse 18×18 — selector `.ac-me-grid` mati sejak lahir (DOM pakai `id`), arow → `stretch`. Tes `tests/layout-css.test.ts` |
 | T7b | `3dc9615` | dock kompak ≤760px landscape (tienda tak terpotong) + Versión About 3.0 |
 | T8 | `dfc8f85` | autochess landscape dual-arena: dock `flex-direction:column` base menang urutan → spesifikasikan; arenas+arow `stretch` (putus lingkaran `fitAutoTiles`); arow `flex:1 1 0` → simetris |
-| T9 | *(lihat `git log`)* | **P26b a11y**: `role`+`aria-label` sel papan (posisi/isi/seleksi), kartu shop, tombol sell/reroll, sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y |
+| T9 | `9e2b707` | **P26b a11y**: `role`+`aria-label` sel papan (posisi/isi/seleksi), kartu shop, tombol sell/reroll, sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y |
 
 Hasil: **371 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
