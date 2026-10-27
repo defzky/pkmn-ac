@@ -10,6 +10,7 @@ const LoginUI = (() => {
   let mode = 'login';
 
   function init() {
+    setMode('login'); // pone autocomplete="current-password" desde el principio
     document.querySelectorAll('#scr-login .tab').forEach((t: any) => {
       t.onclick = () => setMode(t.dataset.tab);
     });

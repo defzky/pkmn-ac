@@ -510,7 +510,9 @@ async function initCloud(): Promise<boolean> {
   fs = firebase.firestore();
   // Algunas redes y antivirus cortan las actualizaciones en directo (amigos,
   // invitaciones): Firebase prueba otra forma de recibirlas si hace falta.
-  try { fs.settings({ experimentalAutoDetectLongPolling: true }); } catch (e) { /* ya estaba */ }
+  // merge:true conserva el host por defecto (sin él, compat avisa en consola
+  // "You are overriding the original host" porque `host` queda undefined).
+  try { fs.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) { /* ya estaba */ }
   rtdb = cfg.databaseURL ? firebase.database() : null;
   // Sólo para pruebas: { ..., emulator: true } usa el emulador local de Firebase.
   if (cfg.emulator) {
