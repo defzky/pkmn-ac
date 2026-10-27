@@ -51,7 +51,10 @@ Growlithe/Pikachu/Exeggcute/Rapidash/Lapras, skill kit reuse), affix 4 → **6**
 **16** (+Overclock/Bulwark/Eagle Eye trade-off), waveMul hp 0.42→**0.48** /
 atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 (observasi terakhir 50/50 & 49/50). GDD common §1/§2a/§5 disinkronkan.
-- Boss mechanic tambahan (per-boss gimmick baru): belum — kandidat lanjutan.
+- Boss mechanic tambahan (per-boss gimmick baru): ✅ selesai (T11,
+  2026-10-28) — Onix Harden (armor +0.3 min 0.9 @50% HP, sekali), Snorlax
+  Block (rest damage ×0.4), Gyarados Rain Dance (roar heal 5% maxHp),
+  Mewtwo Future Sight (disable semua unit 1.5s @40% HP, sekali). GDD TD §2a.
 ### P25b — Tempo wave +15s (✅ 2026-10-25)
 - Permintaan user: tiap wave tempur +±15 detik (prep/beli tetap 25/15/12s).
 - `SPAWN_GAP`: dual 0.4 → **6.3s**, TD 0.4 → **5.1s** (durasi ≈ `(n−1)×gap`);
@@ -92,8 +95,10 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T7b | `3dc9615` | dock kompak ≤760px landscape (tienda tak terpotong) + Versión About 3.0 |
 | T8 | `dfc8f85` | autochess landscape dual-arena: dock `flex-direction:column` base menang urutan → spesifikasikan; arenas+arow `stretch` (putus lingkaran `fitAutoTiles`); arow `flex:1 1 0` → simetris |
 | T9 | `9e2b707` | **P26b a11y**: `role`+`aria-label` sel papan (posisi/isi/seleksi), kartu shop, tombol sell/reroll, sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y |
+| T10 | `1168ef0` | **P26c tutorial**: coach TD 2 langkah (beli → Listo) sekali jalan, flag `ps.tut`, tombol Saltar; GDD TD §6 |
+| T11 | `175cf88` | **P25c boss gimmick**: Onix Harden / Snorlax Block / Gyarados Rain Dance / Mewtwo Future Sight; GDD TD §2a + 4 tes |
 
-Hasil: **371 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
+Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
 portrait. Temuan review lain (belum dikerjakan): tab Accessibility settings
 cuma 1 baris, logo About masih "PokéSurvivor", `synbar` tumpah ~20px di band
