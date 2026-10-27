@@ -6,6 +6,16 @@
  * Cada línea en español y en inglés.
  */
 G.CHANGELOG = [
+  { d: '2026-10-28', title: ['Autochess: jefes con truco y tutorial', 'Autochess: gimmick bosses and a tutorial'], new: [
+    ['Tutorial corto en Autochess (Torre de defensa): una guía de dos pasos te enseña a comprar un Pokémon de la tienda y a empezar la pelea. Se muestra una sola vez y puedes saltarla.',
+     'Short tutorial in Autochess (Tower Defence): a two-step guide shows you how to buy a Pokémon from the shop and start the fight. It only appears once and you can skip it.'],
+    ['Los jefes tienen trucos propios: Onix se endurece a la mitad de vida, Snorlax bloquea y reduce el daño que recibe, Gyarados baila la Danza Lluvia y se cura con su rugido, y Mewtwo usa Visión Future para dejar tus Pokémon quietos un momento.',
+     'Bosses now have their own gimmicks: Onix hardens at half health, Snorlax blocks and takes less damage, Gyarados dances the Rain Dance and heals with its roar, and Mewtwo uses Future Sight to freeze your Pokémon for a moment.'],
+    ['La pestaña Accesibilidad de Ajustes tiene una sección Movimiento: «Menos sacudidas y destellos» y «Números de daño», para quien se sienta mareado con el balanceo o los fogonazos.',
+     'The Accessibility tab in Settings now has a Motion section: “Less shaking and flashing” and “Damage numbers”, for anyone who gets dizzy from screen shake or flashes.'],
+    ['Los botones y casillas del Autochess describen mejor su contenido para lectores de pantalla.',
+     'Autochess buttons and cells now describe their content better for screen readers.']
+  ] },
   { d: '2026-10-18', title: ['Físico y especial, mando, botón Guardar y rankings desde cero', 'Physical and special, controller, Save button and fresh leaderboards'], new: [
     ['Ataques físicos y especiales, como en los juegos: cada Pokémon tiene su Ataque, Ataque Especial, Defensa y Defensa Especial. Los ataques físicos pegan con su Ataque y los especiales con su Ataque Especial: Machamp pega fuerte con Golpe Kárate y flojo con Bola Sombra. Con los de su lado bueno pega lo mismo que antes. Al subir de nivel, cada carta dice si el ataque es físico o especial y cuánto rinde con tu Pokémon, y en la colección se ven todas sus estadísticas.',
      'Physical and special moves, like in the games: every Pokémon has its Attack, Special Attack, Defense and Special Defense. Physical moves use its Attack and special moves its Special Attack: Machamp hits hard with Karate Chop and weakly with Shadow Ball. With moves on its strong side it hits as hard as before. When leveling up, each card says whether the move is physical or special and how well it works with your Pokémon, and the collection shows all its stats.'],
