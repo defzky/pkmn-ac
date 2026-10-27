@@ -100,6 +100,25 @@ castle 🏰 + ring conic-gradient + pill HP; cell hover lift; Round pill pulse.
 * **Animasi & damage formula:** sama common (anim mengikuti move kind, mana
   10/hit, ★3 skill ×2).
 
+### 2a. Boss gimmick (P25c, 2026-10-28)
+
+Tiap boss kini punya **2 gimmick**: stat multiplier + satu kemampuan aktif
+(tetap) + satu kemampuan pasif/trigger baru:
+
+| Wave | Boss | Gimmick lama | Gimmick baru |
+|---|---|---|---|
+| 5 | Onix | stun immune | **Harden**: HP ≤50% → armor +0.3 (sekali) |
+| 10 | Snorlax | rest (berhenti 2s @50%, heal 20%) | **Block**: selama rest, damage diterima ×0.4 |
+| 15 | Gyarados | roar (−30% AD radius 3, cd 10s) | **Rain Dance**: tiap roar heal diri 5% max HP |
+| 20 | Mewtwo | barrier 0.3 + disable tower | **Future Sight**: HP ≤40% → disable SEMUA unit 1.5s (sekali) |
+
+* Counterplay: burst Onix sebelum harden; fokus Snorlax saat rest (damage
+  tetap lewat, hanya 40%); jangan stack unit dekat Gyarados (roar+heal sustain);
+  siapkan unit resist untuk Fase 2 Mewtwo.
+* Implementasi: flag di `MobSpec`/`MobBattle` (`harden`/`hardened`,
+  `raindance`, `future`/`futureUsed`) + rest-damage-reduction di
+  `unitAI.applyDamage`; tes di `tests/autochess-battle.test.ts`.
+
 ---
 
 ## 3. Alur State Permainan

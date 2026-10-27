@@ -603,3 +603,34 @@ describe('AU-4 — buff tile effect (tileAtk +10%)', () => {
     expect((1e9 - m1.hp) / (1e9 - m2.hp)).toBeCloseTo(1.1, 2);
   });
 });
+
+describe('P25c boss gimmick (per-boss)', () => {
+  it('Onix harden: at 50% armor +0.3 min 0.9, fires once', () => {
+    const m: any = mob({ name: 'Onix', harden: true, maxHp: 1000, hp: 499, armor: 0, hardened: false });
+    UnitAI.tick([], [m], 0.1, undefined, Path.laneCells());
+    expect(m.armor).toBeCloseTo(0.3, 5);
+    expect(m.hardened).toBe(true);
+    const a = m.armor;
+    UnitAI.tick([], [m], 0.1, undefined, Path.laneCells());
+    expect(m.armor).toBe(a); // once only
+  });
+  it('Snorlax Block: rest halves incoming damage (×0.4)', () => {
+    const m: any = mob({ name: 'Snorlax', rest: true, maxHp: 1000, hp: 499, restT: 1 });
+    const before = m.hp;
+    UnitAI.applyDamage(m, 100);
+    expect(m.hp).toBeCloseTo(before - 40, 5);
+  });
+  it('Gyarados rain dance: roar heals 5% maxHp per pulse while raining', () => {
+    const m: any = mob({ name: 'Gyarados', raindance: true, roar: true, roarCd: 0, maxHp: 1000, hp: 500 });
+    const before = m.hp;
+    UnitAI.tick([], [m], 0.25, undefined, Path.laneCells());
+    expect(m.hp).toBeCloseTo(before + 50, 5); // 5% × 1000
+  });
+  it('Mewtwo future sight: at 40% disables all units 1.5s, once', () => {
+    const m: any = mob({ name: 'Mewtwo', future: true, maxHp: 1000, hp: 399, futureUsed: false });
+    const u = unitAt(1, 0, 1);
+    UnitAI.tick([u], [m], 0.1, undefined, Path.laneCells());
+    expect(m.futureUsed).toBe(true);
+    expect(u.disabledT).toBeGreaterThanOrEqual(1.4); // disabled
+  });
+});

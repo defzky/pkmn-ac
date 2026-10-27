@@ -27,6 +27,13 @@ export interface MobSpec {
   rest: boolean;       // snorlax
   roar: boolean;       // gyarados
   disable: boolean;    // mewtwo
+  // ---- P25c: boss gimmick baru ----
+  /** onix: HP ≤50% → armor +0.3 sekali */
+  harden?: boolean;
+  /** gyarados rain dance: tiap roar pulse heal diri 5% maxHp */
+  raindance?: boolean;
+  /** mewtwo future sight: HP ≤40% → disable semua unit 1.5s sekali */
+  future?: boolean;
   /** TD lane side (D2b): 0 = left runner lane, 1 = right bulwark lane */
   side?: 0 | 1;
   /** D2d wave affix tag (swarm/fast/armored/elemental) */
@@ -121,13 +128,17 @@ interface BossDef {
   rest?: boolean;
   roar?: boolean;
   disable?: boolean;
+  /** P25c: gimmick baru */
+  harden?: boolean;
+  raindance?: boolean;
+  future?: boolean;
 }
 
 const BOSSES: Record<number, BossDef> = {
-  5:  { dex: 95,  hpMul: 8,  atkMul: 2,   spdMul: 0.5, stunImmune: true },            // Onix
-  10: { dex: 143, hpMul: 10, atkMul: 2,   spdMul: 0.6, rest: true },                  // Snorlax
-  15: { dex: 130, hpMul: 10, atkMul: 2.5, spdMul: 0.7, roar: true },                  // Gyarados
-  20: { dex: 150, hpMul: 12, atkMul: 3,   spdMul: 1.5, barrier: 0.3, disable: true },// Mewtwo
+  5:  { dex: 95,  hpMul: 8,  atkMul: 2,   spdMul: 0.5, stunImmune: true, harden: true },              // Onix + Harden
+  10: { dex: 143, hpMul: 10, atkMul: 2,   spdMul: 0.6, rest: true },                                   // Snorlax rest+Block (unitAI)
+  15: { dex: 130, hpMul: 10, atkMul: 2.5, spdMul: 0.7, roar: true, raindance: true },                  // Gyarados + Rain Dance
+  20: { dex: 150, hpMul: 12, atkMul: 3,   spdMul: 1.5, barrier: 0.3, disable: true, future: true },    // Mewtwo + Future Sight
 };
 
 function dexEntry(dex: number): any {
@@ -226,6 +237,9 @@ export function compose(wave: number, rnd: () => number = Math.random, mode: 'td
         rest: !!bossDef.rest,
         roar: !!bossDef.roar,
         disable: !!bossDef.disable,
+        harden: !!bossDef.harden,
+        raindance: !!bossDef.raindance,
+        future: !!bossDef.future,
         side: 0,
       }, ...escorts], affix, mode),
     };
