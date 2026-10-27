@@ -70,7 +70,9 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
   ✅ selesai (T9, 2026-10-28) — `role`+`aria-label` sel papan (posisi +
   isi + seleksi), kartu shop (`Comprar … — N monedas`), tombol sell/reroll,
   sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y.
-- Tutorial singkat onboarding (belum ada).
+- Tutorial singkat onboarding (belum ada): ✅ selesai (T10, 2026-10-28) —
+  coach TD 2 langkah (beli → Listo) sekali seumur hidup, flag `ps.tut`,
+  tombol Saltar; GDD `game-design-td.md` §6; tes di `autochess-ui.test.ts`.
 
 ## 6. Log sesi review-loop 2026-10-27/28 (5 jam, MCP browser)
 
