@@ -33,4 +33,24 @@ describe('style.css — TD landscape board layout (T7)', () => {
     expect(block, 'landscape .ac-arow rule missing').toBeTruthy();
     expect(block![0]).toContain('align-items: stretch');
   });
+
+  it('compacts the dock on narrow landscape phones so shop cards fit', () => {
+    const block = rules.match(
+      /@media \(orientation: landscape\) and \(max-width: 760px\) \{[\s\S]*?\n\}/,
+    );
+    expect(block, 'narrow-landscape compact dock block missing').toBeTruthy();
+    expect(block![0]).toContain('.ac-card { width: 84px; }');
+    expect(block![0]).toContain('.ac-dock');
+  });
+
+  it('About VERSION tracks package.json major (no stale 1.x banner)', () => {
+    const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as {
+      version: string;
+    };
+    const ui = readFileSync('src/ui/settings-ui.ts', 'utf8');
+    const m = ui.match(/const VERSION = '(\d+)\.(\d+) · (\d{4}-\d{2}-\d{2})'/);
+    expect(m, 'VERSION constant shape changed').toBeTruthy();
+    expect(m![1]).toBe(pkg.version.split('.')[0]);
+    expect(Date.parse(m![3])).not.toBeNaN();
+  });
 });

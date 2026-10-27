@@ -13,7 +13,7 @@ import { Game, Flow } from '../game';
  */
 const $ = (G as any).UI.$;
 const esc = (s: any) => String(s).replace(/[&<>"']/g, c => (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]));
-const VERSION = '1.2 · 2026-10-09';
+const VERSION = '3.0 · 2026-10-27';
 const REPO = 'https://github.com/JPTER78/pokesurvivor';
 let tab: any = 'sound';
 

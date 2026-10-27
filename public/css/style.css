@@ -1097,6 +1097,16 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
   #scr-ac.mode-autochess .ac-timer { width: 72px; flex: 0 0 72px; height: 12px; }
   #scr-ac.mode-autochess .ac-timer span { font-size: 11px; line-height: 1; padding-left: 3px; }
 }
+/* small landscape phones (≤760px, e.g. 667×375 / 640×360): compact dock —
+   the 96px cards + 24px gaps overflowed the viewport right edge by ~6px */
+@media (orientation: landscape) and (max-width: 760px) {
+  #scr-ac.td-land .ac-card,
+  #scr-ac.mode-autochess .ac-card { width: 84px; }
+  #scr-ac.td-land .ac-shoprow,
+  #scr-ac.mode-autochess .ac-shoprow { gap: 8px; }
+  #scr-ac.td-land .ac-dock,
+  #scr-ac.mode-autochess .ac-dock { gap: 14px; padding: 10px 16px; }
+}
 
 /* full-viewport bg canvas sits behind the app shell (moved to #scr-ac in restructure) */
 #scr-ac .ac-bg { z-index: 0; }
