@@ -97,6 +97,7 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T9 | `9e2b707` | **P26b a11y**: `role`+`aria-label` sel papan (posisi/isi/seleksi), kartu shop, tombol sell/reroll, sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y |
 | T10 | `1168ef0` | **P26c tutorial**: coach TD 2 langkah (beli → Listo) sekali jalan, flag `ps.tut`, tombol Saltar; GDD TD §6 |
 | T11 | `175cf88` | **P25c boss gimmick**: Onix Harden / Snorlax Block / Gyarados Rain Dance / Mewtwo Future Sight; GDD TD §2a + 4 tes |
+| T12 | `5f5cbbc` | **P26d**: tab Accessibility lengkap — sección Movimiento (+calm +dmgNumbers, key sama dengan Graphics) + 2 entri dict EN |
 
 Hasil: **379 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
