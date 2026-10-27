@@ -88,7 +88,7 @@ describe('open / render — dual arenas', () => {
     expect($('#ac-reroll')).toBeTruthy();
     expect(($('#ac-reroll').textContent || '')).toContain('1');
     expect($('#ac-start').classList.contains('ac-ready')).toBe(true);
-    expect(($('#ac-start').textContent || '')).toBe('Ready');
+    expect(($('#ac-start').textContent || '')).toBe('Listo');
     expect(document.getElementById('ac-timer-fill')).toBeTruthy();
     expect(document.querySelector('.ac-kbd')!.textContent).toContain('1');
   });
@@ -197,7 +197,7 @@ describe('start combat', () => {
     expect(ACUI.run.phase).toBe('combat');
     expect(ACUI.run.spawnQ.length).toBeGreaterThan(0);
     expect(ACUI.units.length).toBe(1);
-    expect(($('#ac-start').textContent || '')).toBe('Fighting…');
+    expect(($('#ac-start').textContent || '')).toBe('En combate…');
     expect(($('#ac-start') as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -680,7 +680,7 @@ describe('Fase P — HUD polish hooks', () => {
     expect(ready.classList.contains('fighting')).toBe(false);
     ready.click(); // real user path: startCombat → renderHud
     expect(ready.classList.contains('fighting')).toBe(true);
-    expect(ready.textContent).toContain('Fighting');
+    expect(ready.textContent).toContain('En combate');
   });
   it('2-star unit paints gold ★ chip in its board cell', () => {
     ACUI.open('auto');
@@ -864,7 +864,7 @@ describe('D2b — flank highlight + wave preview chips', () => {
     const types = strip!.querySelector('.ac-td-types');
     expect(types).toBeTruthy();
     expect(types!.querySelectorAll('i').length).toBeGreaterThan(0);
-    expect(types!.querySelector('em')!.textContent).toMatch(/kiri|kanan|both/);
+    expect(types!.querySelector('em')!.textContent).toMatch(/izquierda|derecha|ambos/);
   });
 });
 
@@ -1066,13 +1066,13 @@ describe('AU-4 — tile flag, captions, star glow, tile min', () => {
     } finally { ACUI.reset(); }
   });
 
-  it('arena captions (LAWAN/TIMMU) + data-star on cells', () => {
+  it('arena captions (ENEMIGO/EQUIPO) + data-star on cells', () => {
     ACUI.open('auto');
     try {
       ACUI.board.units.push({ dex: 1, star: 2, x: 1, y: 1 });
       ACUI.render();
-      expect(document.querySelector('#ac-arena-foe .ac-caplbl')!.textContent).toBe('LAWAN');
-      expect(document.querySelector('#ac-arena-me .ac-caplbl')!.textContent).toBe('TIMMU');
+      expect(document.querySelector('#ac-arena-foe .ac-caplbl')!.textContent).toBe('ENEMIGO');
+      expect(document.querySelector('#ac-arena-me .ac-caplbl')!.textContent).toBe('EQUIPO');
       const cell = document.querySelector('#ac-me-grid .ac-cell[data-xy="1,1"]')!;
       expect(cell.getAttribute('data-star')).toBe('2');
       expect(document.querySelector('#ac-foe-grid .ac-cell')!.hasAttribute('data-star')).toBe(true);

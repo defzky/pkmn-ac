@@ -84,20 +84,20 @@ function ensureDom(): HTMLElement {
         <span class="ac-heart blue" id="ac-hp">♥ <b>45</b></span>
         <span class="ac-heart red" id="ac-foe-hp">♥ <b>20</b></span>
         <span class="ac-power" id="ac-power">⚔️ 0</span>
-        <button id="ac-pause-btn" class="ac-x" aria-label="Pause">II</button>
-        <button id="ac-close" class="ac-x" aria-label="Exit">✕</button>
+        <button id="ac-pause-btn" class="ac-x" aria-label="Pausa">II</button>
+        <button id="ac-close" class="ac-x" aria-label="Salir de la partida">✕</button>
       </div>
       <div class="ac-arenas" id="ac-arenas">
         <div class="ac-td-wave" id="ac-td-wave"></div>
         <div class="ac-arena foe" id="ac-arena-foe">
-          <span class="ac-caplbl foe">LAWAN</span>
+          <span class="ac-caplbl foe">ENEMIGO</span>
           <div class="ac-foechips" id="ac-foechips"></div>
           <div class="ac-grid" id="ac-foe-grid"></div>
         </div>
         <div class="ac-arow">
           <div class="ac-arena me" id="ac-arena-me">
-            <span class="ac-caplbl me">TIMMU</span>
-            <button id="ac-sell" class="ac-trash" title="Sell selected">🗑</button>
+            <span class="ac-caplbl me">EQUIPO</span>
+            <button id="ac-sell" class="ac-trash" title="Vender la seleccionada">🗑</button>
             <div class="ac-me-hud">
               <span class="ac-cap" id="ac-p-cap"></span>
             </div>
@@ -115,7 +115,7 @@ function ensureDom(): HTMLElement {
         <div class="ac-footer">
           <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>
           <div class="ac-readywrap">
-            <button id="ac-start" class="ac-ready">Ready</button>
+            <button id="ac-start" class="ac-ready">Listo</button>
             <div class="ac-timer"><i id="ac-timer-fill"></i><span>⏳</span></div>
           </div>
         </div>
@@ -278,8 +278,8 @@ function renderHud(): void {
   }
   // Ready button state
   const btn = $('ac-start') as HTMLButtonElement;
-  if (r.phase === 'prep') { btn.textContent = 'Ready'; btn.disabled = false; btn.classList.remove('fighting'); }
-  else if (r.phase === 'combat') { btn.textContent = 'Fighting…'; btn.disabled = true; btn.classList.add('fighting'); }
+  if (r.phase === 'prep') { btn.textContent = 'Listo'; btn.disabled = false; btn.classList.remove('fighting'); }
+  else if (r.phase === 'combat') { btn.textContent = 'En combate…'; btn.disabled = true; btn.classList.add('fighting'); }
   // avatars: first player unit (foe cap dropped — .ac-foehud is hidden in auto, AU-4)
   const fu = st.board.units.find((u) => u.x !== null);
   lastPCap = setCap('ac-p-cap', fu ? evoDex(fu.dex, fu.star) : null, lastPCap);
@@ -599,8 +599,8 @@ function renderStage(): void {
         for (const t of e.types || []) if (!tset.includes(t)) tset.push(t);
       }
       const sides = preview.map((s) => s.side ?? 0);
-      const sideHint = sides.every((s) => s === 0) ? '⬅ kiri'
-        : sides.every((s) => s === 1) ? '⭢ kanan' : '⬌ both';
+      const sideHint = sides.every((s) => s === 0) ? '⬅ izquierda'
+        : sides.every((s) => s === 1) ? '⭢ derecha' : '⬌ ambos';
       waveBox.insertAdjacentHTML('beforeend',
         `<span class="ac-td-types">${tset.map((t) =>
           `<i style="background:${(U.TYPE_COLOR as any)[t] || '#888'}">${esc(t)}</i>`).join('')}` +
