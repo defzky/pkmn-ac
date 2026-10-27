@@ -898,8 +898,10 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
 /* me-hud: bottom-right would clip base-exit mobs (path ends x 2) — bottom-left lane */
 .ac-arenas.td-mode .ac-me-hud { bottom: 8px; top: auto; right: auto; left: 8px; }
 /* TD ring lane: mobs walk OUTSIDE the 3×3 board (branch left/right) — grid keeps
-   side margins so x −1/3 lanes fit; tiles pitch-sized via tdCellHostPos */
-.ac-arenas.td-mode .ac-me-grid { width: 56%; margin: 0 auto; }
+   side margins so x −1/3 lanes fit; tiles pitch-sized via tdCellHostPos.
+   (Portrait ships full-width: the old .ac-me-grid 56% rule never matched — the
+   element is <div class="ac-grid" id="ac-me-grid"> — and removing it keeps the
+   shipped look. Landscape sizing lives in the #ac-me-grid rule below.) */
 .ac-td-lanes { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .ac-td-lane {
   position: absolute; transform: translate(-50%, -50%); border-radius: 6px;
@@ -990,9 +992,11 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     grid-area: arena; min-height: 0; min-width: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
   }
-  /* board + synergy rail side by side, 32px apart, centered as one unit */
+  /* board + synergy rail side by side, 32px apart, centered as one unit.
+     stretch (not center): arena.me needs a definite height so the grid's
+     height:100% resolves; synbar re-centres itself via align-self below. */
   #scr-ac.td-land .ac-arow {
-    display: flex; flex-direction: row; align-items: center; justify-content: center;
+    display: flex; flex-direction: row; align-items: stretch; justify-content: center;
     gap: 32px; flex: 1 1 auto; min-height: 0; width: 100%;
   }
   #scr-ac.td-land .ac-arenas.td-mode .ac-arena.me {
@@ -1001,8 +1005,11 @@ a.btn { text-decoration: none; display: inline-block; color: var(--ink); }
     background: rgba(8, 14, 10, .35); border-color: rgba(90, 120, 70, .55);
     box-shadow: none;
   }
-  /* board square = height-driven (lane pad var from pitch; width capped by col) */
-  #scr-ac.td-land .ac-arenas.td-mode .ac-me-grid {
+  /* board square = height-driven (lane pad var from pitch; width capped by col).
+     ID selector: the element carries class="ac-grid" id="ac-me-grid" — a
+     .ac-me-grid class rule never matches and left the board collapsed to
+     min-content (18×18) in landscape. */
+  #scr-ac.td-land .ac-arenas.td-mode #ac-me-grid {
     width: auto; height: 100%; max-width: 100%; aspect-ratio: 1; margin: 0;
   }
   /* synergy sidebar next to the board — glass panel, stacked chips */
