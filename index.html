@@ -282,7 +282,7 @@
 <section id="scr-settings" class="scr dim hidden">
   <div class="box settings">
     <div class="row between"><h2>Ajustes</h2><button class="btn small ghost" id="set-close">Cerrar</button></div>
-    <div class="tabs" id="set-tabs">
+    <div class="tabs" id="set-tabs" role="tablist" aria-label="Ajustes">
       <button class="gen-tab" data-t="sound">Sonido</button>
       <button class="gen-tab" data-t="gfx">Gráficos</button>
       <button class="gen-tab" data-t="ctl">Controles</button>
@@ -290,7 +290,7 @@
       <button class="gen-tab" data-t="acc">Cuenta</button>
       <button class="gen-tab" data-t="about">Acerca de</button>
     </div>
-    <div id="set-body" class="set-body"></div>
+    <div id="set-body" class="set-body" role="tabpanel"></div>
   </div>
 </section>
 

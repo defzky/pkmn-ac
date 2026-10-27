@@ -75,7 +75,12 @@ function choice(key: any, opts: any) {
 }
 
 function render() {
-  document.querySelectorAll<HTMLElement>('#set-tabs .gen-tab').forEach(b => b.classList.toggle('on', b.dataset.t === tab));
+  document.querySelectorAll<HTMLElement>('#set-tabs .gen-tab').forEach(b => {
+    const sel = b.dataset.t === tab;
+    b.classList.toggle('on', sel);
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', String(sel));
+  });
   const box = $('set-body');
   box.scrollTop = 0;
   if (tab === 'sound') {
