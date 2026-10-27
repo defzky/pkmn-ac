@@ -45,7 +45,7 @@ Jaminan:
 |---|---|---|
 | Keyboard | ✅ desktop | autochess: select/place/hotkey (GDD per-mode); dungeon: keyboard support |
 | Rotate overlay | ⚠️ touch+portrait | `#rotate` menutup layar + auto-pause (`game.ts checkOrientation`) — mobile wajib landscape; desktop portrait diizinkan |
-| Screen reader | ❌ | game canvas-first — DOM HUD sedikit; kandidat backlog (`docs/ROADMAP.md`), bukan target saat ini |
+| Screen reader | ⚠️ dasar | autochess: `role`+`aria-label` sel papan/kartu shop/tombol (P26b 2026-10-28) + terjemah EN via dict; dungeon canvas-first tetap tanpa SR |
 | Kontras teks | ✅ | teks utama di atas panel gelap/blur; jangan turunkan opacity teks HUD |
 | "Números de daño" | ✅ toggle | Ajustes → hide dmg numbers (`Settings.get('dmgNumbers')` di `FX.dmgText`) — partikel tetap |
 | Ukuran font | ✅ rem/px konsisten | minimum ~11px (label kecil shop) |

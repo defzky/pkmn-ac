@@ -67,7 +67,9 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
   (`src/ui/settings-ui.ts` renderAccount L155–174). Cukup dicek ulang, bukan
   pekerjaan baru.
 - Screen-reader labels dasar (NON-FUNCTIONAL §3 — skor aksesibilitas):
-  **belum** — lihat log sesi §6 (T9 kandidat).
+  ✅ selesai (T9, 2026-10-28) — `role`+`aria-label` sel papan (posisi +
+  isi + seleksi), kartu shop (`Comprar … — N monedas`), tombol sell/reroll,
+  sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y.
 - Tutorial singkat onboarding (belum ada).
 
 ## 6. Log sesi review-loop 2026-10-27/28 (5 jam, MCP browser)
@@ -86,13 +88,13 @@ atk 0.16→**0.20**. Sim bands jadi assertion: dual ≥45/50, TD ≥46/50
 | T6 | `8506c44` | `autocomplete="username"` di `#f-user` |
 | T7 | `b19cfa4` | **bug besar**: papan TD landscape collapse 18×18 — selector `.ac-me-grid` mati sejak lahir (DOM pakai `id`), arow → `stretch`. Tes `tests/layout-css.test.ts` |
 | T7b | `3dc9615` | dock kompak ≤760px landscape (tienda tak terpotong) + Versión About 3.0 |
-| T8 | `dfc8f85` | autochess landscape dual-arena: dock `flex-direction:column` base menang ururan → spesifikasikan; arenas+arow `stretch` (putus lingkaran `fitAutoTiles`); arow `flex:1 1 0` → simetris |
+| T8 | `dfc8f85` | autochess landscape dual-arena: dock `flex-direction:column` base menang urutan → spesifikasikan; arenas+arow `stretch` (putus lingkaran `fitAutoTiles`); arow `flex:1 1 0` → simetris |
+| T9 | *(lihat `git log`)* | **P26b a11y**: `role`+`aria-label` sel papan (posisi/isi/seleksi), kartu shop, tombol sell/reroll, sel musuh `role=img`; 7 entri dict EN (pola `{x}`) + 4 tes a11y |
 
-Hasil: **367 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
+Hasil: **371 tes / 21 file hijau**, tsc bersih, konsol browser 0 error 0
 warning, layout diverifikasi di 1440/1200/667/640 landscape + 375×667
-portrait. Temuan review lain (belum dikerjakan): a11y sel papan/kartu shop =
-div polos tanpa role/nama (kandidat P26b), tab Accessibility settings cuma
-1 baris, logo About masih "PokéSurvivor", `synbar` tumpah ~20px di band
+portrait. Temuan review lain (belum dikerjakan): tab Accessibility settings
+cuma 1 baris, logo About masih "PokéSurvivor", `synbar` tumpah ~20px di band
 pendek (tampilan OK, diparkir).
 
 ## 3. Sengaja TIDAK dikerjakan

@@ -97,7 +97,7 @@ function ensureDom(): HTMLElement {
         <div class="ac-arow">
           <div class="ac-arena me" id="ac-arena-me">
             <span class="ac-caplbl me">EQUIPO</span>
-            <button id="ac-sell" class="ac-trash" title="Vender la seleccionada">🗑</button>
+            <button id="ac-sell" class="ac-trash" title="Vender la seleccionada" aria-label="Vender la seleccionada">🗑</button>
             <div class="ac-me-hud">
               <span class="ac-cap" id="ac-p-cap"></span>
             </div>
@@ -113,7 +113,7 @@ function ensureDom(): HTMLElement {
       <div class="ac-dock">
         <div class="ac-goldsun" id="ac-gold">☀️ <b>5</b></div>
         <div class="ac-footer">
-          <button id="ac-reroll" class="ac-reroll" data-sfx="none"><span>↻</span><i>1</i></button>
+          <button id="ac-reroll" class="ac-reroll" data-sfx="none" aria-label="Recargar la tienda"><span>↻</span><i>1</i></button>
           <div class="ac-readywrap">
             <button id="ac-start" class="ac-ready">Listo</button>
             <div class="ac-timer"><i id="ac-timer-fill"></i><span>⏳</span></div>
@@ -560,6 +560,9 @@ function renderStage(): void {
       cell.className = 'ac-cell ghost' + (spec.boss ? ' boss' : '');
       cell.dataset.xy = slot.x + ',' + slot.y;
       cell.dataset.star = String(spec.star); // AU-4 star glow (CSS)
+      const fe = ((G as any).DEX_BY || {})[spec.dex] || {};
+      cell.setAttribute('role', 'img');
+      cell.setAttribute('aria-label', `${fe.name || '?'} ★${spec.star}${spec.boss ? ' jefe' : ''}`);
       cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
       cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
       foeBox.appendChild(cell);
@@ -577,6 +580,9 @@ function renderStage(): void {
           cell.classList.add('ghost');
           if (spec.boss) cell.classList.add('boss');
           cell.dataset.star = String(spec.star);
+          const fe = ((G as any).DEX_BY || {})[spec.dex] || {};
+          cell.setAttribute('role', 'img');
+          cell.setAttribute('aria-label', `${fe.name || '?'} ★${spec.star}${spec.boss ? ' jefe' : ''}`);
           cell.appendChild(UI.spriteCanvas(spec.dex, 96, 96, { scale: 4.4 })); // cell res ×2.4, same fill as 44@2
           cell.insertAdjacentHTML('beforeend', pill(spec.star, spec.atk));
         }
@@ -629,7 +635,11 @@ function renderStage(): void {
       cell.dataset.xy = x + ',' + y;
       if (!td && buffs.has(x + ',' + y)) cell.classList.add('buff');
       const u = unitAt(x, y);
+      cell.setAttribute('role', 'button');
       if (u) {
+        const ue = ((G as any).DEX_BY || {})[u.dex] || {};
+        cell.setAttribute('aria-label',
+          `Casilla ${x + 1},${y + 1}: ${ue.name || '?'} ★${u.star}${st.sel === u ? ' — seleccionada' : ''}`);
         if (st.sel === u) cell.classList.add('sel');
         cell.dataset.star = String(u.star); // AU-4 star glow (CSS)
         const cv = UI.spriteCanvas(evoDex(u.dex, u.star), 96, 96, { scale: 4.4, lively: true }); // cell res ×2
@@ -637,6 +647,8 @@ function renderStage(): void {
         unitCv.set(x + ',' + y, cv);
         const st2 = boardStats(u.dex, u.star);
         cell.insertAdjacentHTML('beforeend', pill(u.star, st2 ? st2.atk : 0) + `<span class="hp"><i style="width:100%"></i></span>`);
+      } else {
+        cell.setAttribute('aria-label', `Casilla ${x + 1},${y + 1}: vacía`);
       }
       cell.onclick = () => onCell(x, y);
       meBox.appendChild(cell);
@@ -954,12 +966,14 @@ function renderShop(): void {
   box.innerHTML = '';
   st.shop.slots.forEach((slot, i) => {
     const card = document.createElement('div');
-    if (!slot) { card.className = 'ac-card empty'; box.appendChild(card); return; }
+    if (!slot) { card.className = 'ac-card empty'; card.setAttribute('aria-hidden', 'true'); box.appendChild(card); return; }
     const cost = Shop.slotCost(slot);
     card.className = 'ac-card' + (st.run.gold < cost ? ' off' : '');
     card.dataset.sfx = 'none'; // buy/error played explicitly in onBuy
     const bs = boardStats(slot.dex, slot.star);
     const e = ((G as any).DEX_BY || {})[slot.dex] || {};
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `Comprar ${e.name || '?'} ★${slot.star} — ${cost} monedas`);
     card.innerHTML =
       `<span class="ac-cost">${cost}</span>` +
       `<span class="ac-cardname">${esc(e.name || '?')}</span>` +

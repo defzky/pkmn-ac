@@ -285,6 +285,9 @@ G.I18n.add({
   // ---------------- autochess (ac-ui) ----------------
   'ENEMIGO': 'OPPONENT', 'EQUIPO': 'TEAM', 'Listo': 'Ready', 'En combate…': 'Fighting…',
   'Vender la seleccionada': 'Sell selected',
+  // a11y (T9): etiquetas ARIA de celdas/tienda — patrón {x} reutiliza la captura traducida
+  'Casilla {x}': 'Cell {x}', 'vacía': 'empty', 'seleccionada': 'selected',
+  'Comprar {x}': 'Buy {x}', 'monedas': 'coins', 'jefe': 'boss', 'Recargar la tienda': 'Reroll the shop',
   '⬅ izquierda': '⬅ left', '⭢ derecha': '⭢ right', '⬌ ambos': '⬌ both',
   '{x} premio por recoger': '{x} reward to claim', '{x} premios por recoger': '{x} rewards to claim', 'premio por recoger': 'reward to claim', 'premios por recoger': 'rewards to claim',
   'Volver a tu sala ({x})': 'Back to your room ({x})', '{x} en línea': '{x} online', 'en línea': 'online',

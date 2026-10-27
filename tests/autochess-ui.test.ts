@@ -129,6 +129,36 @@ describe('buy click', () => {
   });
 });
 
+describe('a11y labels (T9)', () => {
+  it('me cells: role=button + aria-label with position; empty vs occupied', () => {
+    const empty = $('#ac-me-grid [data-xy="1,1"]') as HTMLElement;
+    expect(empty.getAttribute('role')).toBe('button');
+    expect(empty.getAttribute('aria-label')).toBe('Casilla 2,2: vacía');
+    $('.ac-card').click(); // unit → (0,0)
+    const occ = $('#ac-me-grid [data-xy="0,0"]') as HTMLElement;
+    expect(occ.getAttribute('role')).toBe('button');
+    expect(occ.getAttribute('aria-label')).toMatch(/^Casilla 1,1: .+ ★\d/);
+  });
+  it('selected unit appends — seleccionada', () => {
+    $('.ac-card').click();
+    ($('[data-xy="0,0"]') as HTMLElement).click(); // select
+    expect(($('#ac-me-grid [data-xy="0,0"]') as HTMLElement).getAttribute('aria-label')).toContain('— seleccionada');
+  });
+  it('shop cards: role=button + Comprar … — N monedas; empty slots aria-hidden', () => {
+    const card = $('.ac-card') as HTMLElement;
+    expect(card.getAttribute('role')).toBe('button');
+    expect(card.getAttribute('aria-label')).toMatch(/^Comprar .+ ★\d+ — \d+ monedas$/);
+    const emptyCard = document.querySelector('.ac-card.empty') as HTMLElement | null;
+    if (emptyCard) expect(emptyCard.getAttribute('aria-hidden')).toBe('true');
+  });
+  it('buttons have aria-labels: sell, reroll, pause, exit', () => {
+    expect($('#ac-sell').getAttribute('aria-label')).toBe('Vender la seleccionada');
+    expect($('#ac-reroll').getAttribute('aria-label')).toBe('Recargar la tienda');
+    expect($('#ac-pause-btn').getAttribute('aria-label')).toBe('Pausa');
+    expect($('#ac-close').getAttribute('aria-label')).toBe('Salir de la partida');
+  });
+});
+
 describe('placement click', () => {
   function buyFirst() { $('.ac-card').click(); }
   it('tap placed unit → selected; tap empty cell → moves there', () => {
